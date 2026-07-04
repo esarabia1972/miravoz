@@ -1,0 +1,10 @@
+openface-test
+opencv-python
+pygame
+pyttsx3
+numpy
+click
+huggingface_hub
+torch
+torchvision
+timm

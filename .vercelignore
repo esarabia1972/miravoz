@@ -1,0 +1,7 @@
+venv
+weights
+*.py
+*.log
+output.txt
+supabase_schema.sql
+asterics

@@ -1,0 +1,5 @@
+.vercel
+venv/
+weights/
+.DS_Store
+*.log

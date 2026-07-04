@@ -1,0 +1,7 @@
+FPS = 20
+DWELL_MS = 1200
+DWELL_COOLDOWN_MS = 800
+CALIB_SAMPLES_PER_POINT = 5
+SMOOTHING_ALPHA = 0.3      # suavizado exponencial de la mirada
+GRID = (3, 3)
+SCREEN_FULLSCREEN = True
