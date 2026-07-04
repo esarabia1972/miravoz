@@ -294,23 +294,33 @@ if (urlParams.get('benchmark') === '1') {
 
 // --- Loop principal ---
 function appLoop() {
-    ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
-    const now = performance.now();
+    // El try/catch garantiza que una excepción en un frame NUNCA mate el loop:
+    // sin él, un error aborta el requestAnimationFrame y la app queda muerta en silencio.
+    try {
+        ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
+        const now = performance.now();
 
-    if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
-        calibSession.onFrame(tracking.currentFeatures, now);
-        const info = calibSession.renderInfo(now);
-        if (info) drawCalibPoint(info);
-    } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode !== 'CLICKS') {
-        if (S.rawX !== null && S.rawY !== null && !isNaN(S.rawX) && !isNaN(S.rawY)) {
-            S.smoothX = filterX.filter(S.rawX, now);
-            S.smoothY = filterY.filter(S.rawY, now);
+        if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
+            calibSession.onFrame(tracking.currentFeatures, now);
+            // onFrame puede completar la sesión (onCalibrationComplete pone calibSession en null):
+            // re-chequear antes de dibujar el punto.
+            if (calibSession) {
+                const info = calibSession.renderInfo(now);
+                if (info) drawCalibPoint(info);
+            }
+        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode !== 'CLICKS') {
+            if (S.rawX !== null && S.rawY !== null && !isNaN(S.rawX) && !isNaN(S.rawY)) {
+                S.smoothX = filterX.filter(S.rawX, now);
+                S.smoothY = filterY.filter(S.rawY, now);
 
-            if (!isNaN(S.smoothX) && !isNaN(S.smoothY)) {
-                dwell.tick(S.smoothX, S.smoothY, now);
-                drawCursor(S.smoothX, S.smoothY);
+                if (!isNaN(S.smoothX) && !isNaN(S.smoothY)) {
+                    dwell.tick(S.smoothX, S.smoothY, now);
+                    drawCursor(S.smoothX, S.smoothY);
+                }
             }
         }
+    } catch (e) {
+        console.error('Error en appLoop (el loop continúa):', e);
     }
 
     requestAnimationFrame(appLoop);
