@@ -13,6 +13,7 @@ import * as calibration from './calibration.js';
 import { DwellEngine } from './dwell.js';
 import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
+import * as editor from './editor.js';
 
 // --- Storage local ---
 localforage.config({ name: 'Miravoz', storeName: 'boards' });
@@ -303,6 +304,15 @@ document.getElementById('btn-test-board').addEventListener('click', () => {
     boards.openBundle(boards.buildTestBundle());
 });
 
+// --- Editor (Fase 3) ---
+document.getElementById('btn-new-board').addEventListener('click', () => {
+    editor.createNewBundle();
+});
+document.getElementById('btn-edit-board').addEventListener('click', () => {
+    if (editor.isEditMode()) editor.exitEditMode();
+    else editor.enterEditMode();
+});
+
 // --- Buscador ---
 const searchInput = document.getElementById('board-search');
 if (searchInput) {
@@ -371,6 +381,8 @@ function appLoop() {
                 const info = calibSession.renderInfo(now);
                 if (info) drawCalibPoint(info);
             }
+        } else if (editor.isEditMode()) {
+            // En modo edición los motores de acceso quedan en pausa (se edita con mouse/touch)
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {
             scan.tick(now);
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
@@ -431,6 +443,7 @@ function drawCursor(x, y) {
     wireScanSetting('scan-pattern', 'pattern');
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
+    editor.initEditor();
     renderSentence();
 
     initAuth(async () => {

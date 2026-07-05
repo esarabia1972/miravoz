@@ -13,7 +13,10 @@ export const hooks = {
     onBundleOpened: () => {},     // decide calibración/estado tras abrir
     onGridRendered: () => {},     // main pasa los targets al DwellEngine
     onHomeRendered: () => {},     // ídem para las cards del home
-    onCellActivated: () => {}     // notificación de selección (benchmark F1-7)
+    onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
+    cellClickInterceptor: () => false, // editor (F3): true = consumió el click
+    emptyCellClick: () => {},     // editor (F3): click en celda vacía
+    isEditMode: () => false       // editor (F3)
 };
 
 const gridContainer = document.getElementById('grid-container');
@@ -314,6 +317,9 @@ export function openBundle(bundle) {
 let lastCellClickTime = 0;
 
 export function handleCellClick(cellElement, elementData) {
+    // Editor (F3): en modo edición el click abre el editor de celda
+    if (hooks.cellClickInterceptor(cellElement, elementData)) return;
+
     // Debounce de doble click físico
     const now = performance.now();
     if (now - lastCellClickTime < 500) return;
@@ -337,11 +343,20 @@ export function handleCellClick(cellElement, elementData) {
     }
 
     if (!hasNavigation) {
-        const text = elementData.label ? (elementData.label.es || elementData.label.en) : '';
-        if (text) {
-            speak(text);
+        const labelText = elementData.label ? (elementData.label.es || elementData.label.en) : '';
+        // F3-3b: semántica de habla por acciones para bundles editados en MiraVoz;
+        // comportamiento legacy (hablar el label) para bundles importados sin editar.
+        let toSpeak = labelText;
+        if (S.currentBundle && S.currentBundle.speechModel === 'actions') {
+            const custom = (elementData.actions || []).find(a => a.modelName === 'GridActionSpeakCustom');
+            const plain = (elementData.actions || []).find(a => a.modelName === 'GridActionSpeak');
+            if (custom) toSpeak = (custom.speakText && custom.speakText.es) || labelText;
+            else if (!plain) toSpeak = null; // celda silenciosa
+        }
+        if (toSpeak) speak(toSpeak);
+        if (labelText || elementData.image) {
             addToSentence({
-                text,
+                text: labelText,
                 imageUrl: elementData.image ? (elementData.image.data || elementData.image.url) : null,
                 elData: elementData
             });
@@ -381,8 +396,12 @@ export function renderGrid(gridId) {
     const gridLabel = gridData.label ? (gridData.label.es || gridData.label.en || '') : '';
     if (gridLabel) gridContainer.setAttribute('aria-label', gridLabel);
 
+    // F3-6: filtro por nivel de vocabulario activo (fuera del modo edición)
+    const activeLevel = (!hooks.isEditMode() && S.currentBundle.activeLevel) || 0;
+
     const cellsMatrix = Array(rows).fill(null).map(() => Array(cols).fill(null));
     (gridData.gridElements || []).forEach(el => {
+        if (activeLevel && el.vocabularyLevel && el.vocabularyLevel > activeLevel) return;
         if (el.y < rows && el.x < cols) cellsMatrix[el.y][el.x] = el;
     });
 
@@ -409,7 +428,7 @@ export function renderGrid(gridId) {
             cell.style.gridColumn = `${x + 1} / span ${w}`;
             cell.style.gridRow = `${y + 1} / span ${h}`;
 
-            if (elData && !elData.hidden) {
+            if (elData && (!elData.hidden || hooks.isEditMode())) {
                 cell.id = `cell-${x}-${y}`;
 
                 const finalBgColor = getCellColor(elData);
@@ -469,6 +488,11 @@ export function renderGrid(gridId) {
                 activeGridElements.push({ element: cell, data: elData, isAccBtn: false });
             } else {
                 cell.classList.add('empty-cell');
+                if (hooks.isEditMode()) {
+                    cell.classList.add('editable-slot');
+                    const ex = x, ey = y;
+                    cell.onclick = () => hooks.emptyCellClick(ex, ey);
+                }
             }
 
             gridContainer.appendChild(cell);

@@ -774,3 +774,34 @@ body {
     outline-offset: -6px;
     box-shadow: inset 0 0 0 9px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* --- Editor de tableros (Fase 3) --- */
+#editor-toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 8px 15px; background: rgba(255, 221, 0, 0.12);
+    border-bottom: 2px solid #ffdd00;
+}
+body.edit-mode .cell:not(.empty-cell) { cursor: pointer; box-shadow: inset 0 0 0 2px rgba(255,221,0,0.5); }
+.editable-slot {
+    cursor: pointer;
+    border: 2px dashed rgba(255, 221, 0, 0.5) !important;
+    display: flex; align-items: center; justify-content: center;
+}
+.editable-slot::after { content: '+'; color: rgba(255,221,0,0.6); font-size: 2rem; }
+.btn-edit-toggle {
+    background: transparent; border: none; color: var(--text-muted, #aaa);
+    cursor: pointer; padding: 8px; border-radius: 8px;
+}
+.btn-edit-toggle:hover { color: #ffdd00; background: rgba(255,255,255,0.08); }
+body.edit-mode .btn-edit-toggle { color: #ffdd00; }
+.ce-label { display: block; margin: 12px 0 4px; font-size: 0.85rem; color: #ccc; }
+.ce-results {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px;
+    max-height: 180px; overflow-y: auto;
+}
+.ce-results img {
+    width: 100%; aspect-ratio: 1; object-fit: contain; background: white;
+    border-radius: 8px; cursor: pointer; border: 3px solid transparent;
+}
+.ce-results img.selected { border-color: #00ff88; }
+.ce-preview img { height: 60px; background: white; border-radius: 8px; margin-top: 6px; }
