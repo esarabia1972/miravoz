@@ -403,6 +403,7 @@ export function renderGrid(gridId) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
         });
+        cell.addEventListener('dragenter', (e) => e.preventDefault());
         cell.addEventListener('drop', (e) => {
             e.preventDefault();
             try {

@@ -363,5 +363,34 @@ export function initEditor() {
         if (!editMode) return;
         openCellEditor(S.currentGridId, null, x, y);
     };
+    boards.hooks.onCellDropped = async (fromX, fromY, toX, toY) => {
+        if (!editMode) return;
+        const grid = S.currentBundle.boards[S.currentGridId];
+        if (!grid || !grid.gridElements) return;
+        
+        // Backup for undo
+        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
+        
+        const sourceEl = grid.gridElements.find(e => e.x === fromX && e.y === fromY);
+        const targetEl = grid.gridElements.find(e => e.x === toX && e.y === toY);
+        
+        if (sourceEl) {
+            sourceEl.x = toX;
+            sourceEl.y = toY;
+        }
+        if (targetEl) {
+            targetEl.x = fromX;
+            targetEl.y = fromY;
+        }
+        
+        await persistBundle();
+        boards.renderGrid(S.currentGridId);
+        
+        showUndoToast(async () => {
+            Object.assign(S.currentBundle, backupBundle);
+            await persistBundle();
+            boards.renderGrid(S.currentGridId);
+        });
+    };
     boards.hooks.isEditMode = () => editMode;
 }
