@@ -73,13 +73,22 @@ export function initAuth(onReady) {
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             
             if (error) {
-                console.error("Login falló, intentando registro...", error);
-                // Fallback a registro si no existe
-                const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
-                if (signUpError) {
-                    alert("Error: " + signUpError.message);
+                console.error("Login falló:", error);
+                if (error.message.includes('Invalid login credentials')) {
+                    // Puede que no exista, intentamos registro
+                    const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+                    if (signUpError) {
+                        if (signUpError.message.includes('User already registered')) {
+                            alert("Error: Contraseña incorrecta o cuenta sin confirmar.");
+                        } else {
+                            alert("Error: " + signUpError.message);
+                        }
+                    } else {
+                        alert("Cuenta creada. Si activaste confirmación, revisa tu correo. Si no, vuelve a iniciar sesión.");
+                    }
                 } else {
-                    alert("Usuario registrado. Por favor, verifica tu correo (si aplica) o vuelve a iniciar sesión.");
+                    // Otro error (ej. email no confirmado)
+                    alert("Error: " + error.message);
                 }
             }
             
