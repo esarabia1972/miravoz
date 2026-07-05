@@ -34,7 +34,15 @@ export const CONFIG = {
 const SETTINGS_KEY = 'miravoz_settings';
 
 export const settings = {
-    dwellMs: CONFIG.DWELL_MS
+    dwellMs: CONFIG.DWELL_MS,
+    accessMode: 'CLICKS',
+    // F2-5: configuración de barrido por perfil
+    scan: {
+        pattern: 'ROW_COLUMN',   // ROW_COLUMN | LINEAR
+        intervalMs: 1200,        // 500-4000
+        cycles: 3,               // vueltas sin activación antes de pausar
+        audio: 'none'            // none | beep | speak
+    }
 };
 
 // Carga settings desde localforage, migrando la clave vieja de localStorage si existe (F0.1 pendiente)
@@ -50,7 +58,9 @@ export async function initSettings() {
         if (legacy) localStorage.removeItem('miravoz_dwell');
 
         if (stored && typeof stored === 'object') {
+            const scanDefaults = { ...settings.scan };
             Object.assign(settings, stored);
+            settings.scan = { ...scanDefaults, ...(stored.scan || {}) }; // merge profundo de scan
         }
     } catch (e) {
         console.error('Error cargando settings:', e);

@@ -757,3 +757,20 @@ body {
     background: rgba(255,255,255,0.05);
     color: #fff;
 }
+
+/* --- Modo Barrido (SPEC F2-3): resaltado de alto contraste --- */
+/* Doble contorno (blanco + verde) para no depender solo del color (WCAG) */
+.scan-highlight {
+    outline: 6px solid #00ff88 !important;
+    outline-offset: -6px;
+    box-shadow: inset 0 0 0 9px rgba(255, 255, 255, 0.9) !important;
+    transform: scale(1.03);
+    z-index: 5;
+    transition: none !important;
+}
+
+.scan-highlight-group {
+    outline: 6px solid #ffdd00 !important;
+    outline-offset: -6px;
+    box-shadow: inset 0 0 0 9px rgba(0, 0, 0, 0.5) !important;
+}

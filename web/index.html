@@ -9,7 +9,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     
     <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -181,6 +181,7 @@
                     <select id="mode-select" class="glass-select">
                         <option id="opt-ojos" value="OJOS">Modo Iris</option>
                         <option value="CARA">Modo Rostro</option>
+                        <option value="SCAN">Modo Barrido</option>
                         <option value="CLICKS" selected>Modo Manual</option>
                     </select>
                 </div>
@@ -218,10 +219,37 @@
                         <option value="5000">5.0 segundos</option>
                     </select>
                 </div>
+
+                <div class="setting-group" id="setting-scan" style="margin-top: 25px;">
+                    <label>Barrido (Modo Pulsador)</label>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top: 4px; margin-bottom: 8px;">El barrido resalta las opciones una por una; se selecciona con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+
+                    <label for="scan-pattern" style="font-size: 0.85rem; color: #ccc;">Patrón</label>
+                    <select id="scan-pattern" class="glass-select" style="width: 100%; margin-bottom: 10px;">
+                        <option value="ROW_COLUMN" selected>Fila → Elemento</option>
+                        <option value="LINEAR">Elemento por elemento</option>
+                    </select>
+
+                    <label for="scan-interval" style="font-size: 0.85rem; color: #ccc;">Velocidad</label>
+                    <select id="scan-interval" class="glass-select" style="width: 100%; margin-bottom: 10px;">
+                        <option value="600">Rápida (0.6s)</option>
+                        <option value="900">Media-rápida (0.9s)</option>
+                        <option value="1200" selected>Media (1.2s)</option>
+                        <option value="2000">Lenta (2s)</option>
+                        <option value="3000">Muy lenta (3s)</option>
+                    </select>
+
+                    <label for="scan-audio" style="font-size: 0.85rem; color: #ccc;">Sonido al barrer</label>
+                    <select id="scan-audio" class="glass-select" style="width: 100%;">
+                        <option value="none" selected>Silencioso</option>
+                        <option value="beep">Beep</option>
+                        <option value="speak">Decir cada opción</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=3"></script>
+    <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

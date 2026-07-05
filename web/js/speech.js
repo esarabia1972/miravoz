@@ -5,12 +5,13 @@ if (typeof speechSynthesis !== 'undefined') {
     speechSynthesis.onvoiceschanged = () => console.log('Voces TTS listas');
 }
 
-export function speak(text, { cancelPrevious = false } = {}) {
+export function speak(text, { cancelPrevious = false, volume = 1.0 } = {}) {
     if (!text) return;
     if (cancelPrevious) speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-ES';
+    utterance.volume = volume;
 
     const voices = speechSynthesis.getVoices();
     const spanishVoices = voices.filter(v => v.lang.startsWith('es'));

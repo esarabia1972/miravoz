@@ -377,6 +377,9 @@ export function renderGrid(gridId) {
 
     gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    gridContainer.setAttribute('role', 'group');
+    const gridLabel = gridData.label ? (gridData.label.es || gridData.label.en || '') : '';
+    if (gridLabel) gridContainer.setAttribute('aria-label', gridLabel);
 
     const cellsMatrix = Array(rows).fill(null).map(() => Array(cols).fill(null));
     (gridData.gridElements || []).forEach(el => {
@@ -448,6 +451,19 @@ export function renderGrid(gridId) {
                 const progress = document.createElement('div');
                 progress.className = 'progress-bar';
                 cell.appendChild(progress);
+
+                // F2-6: accesibilidad estructural (base para barrido y lectores de pantalla)
+                cell.setAttribute('role', 'button');
+                cell.setAttribute('tabindex', '0');
+                const ariaLabel = elData.label ? (elData.label.es || elData.label.en || '') : '';
+                if (ariaLabel) cell.setAttribute('aria-label', ariaLabel);
+                cell.addEventListener('keydown', (e) => {
+                    // Solo en modo Manual: en Barrido, Espacio/Enter son la activación del switch
+                    if (S.trackingMode === 'CLICKS' && (e.code === 'Enter' || e.code === 'Space')) {
+                        e.preventDefault();
+                        handleCellClick(cell, elData);
+                    }
+                });
 
                 cell.onclick = () => handleCellClick(cell, elData);
                 activeGridElements.push({ element: cell, data: elData, isAccBtn: false });

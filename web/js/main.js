@@ -11,6 +11,7 @@ import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
 import { DwellEngine } from './dwell.js';
+import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 
 // --- Storage local ---
@@ -56,8 +57,8 @@ function resetFilters() {
     S.smoothX = null; S.smoothY = null;
 }
 
-// --- Dwell engine (F0-6, F1-6) ---
-const dwell = new DwellEngine((target) => {
+// --- Selección de un target (compartida por dwell y barrido) ---
+const selectTarget = (target) => {
     if (target.isBoardCard) {
         boards.openBundle(target.data);
     } else if (target.isAccBtn) {
@@ -65,14 +66,49 @@ const dwell = new DwellEngine((target) => {
     } else {
         boards.handleCellClick(target.element, target.data);
     }
+};
+
+// --- Dwell engine (F0-6, F1-6) ---
+const dwell = new DwellEngine(selectTarget);
+
+// --- Motor de barrido (F2) ---
+const scan = new ScanEngine(selectTarget);
+
+// F2-2: entrada de activación unificada — cualquier switch que emule click o tecla.
+let lastSwitchActivation = 0;
+function onSwitchActivate(e) {
+    if (S.trackingMode !== 'SCAN') return;
+    const now = performance.now();
+    if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
+    lastSwitchActivation = now;
+
+    // No interceptar interacciones con modales/settings abiertos
+    const modalOpen = [...document.querySelectorAll('.modal-overlay')].some(m => m.style.display !== 'none');
+    if (modalOpen) return;
+
+    if (scan.activate()) {
+        if (e.cancelable) e.preventDefault();
+    }
+}
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') onSwitchActivate(e);
+});
+window.addEventListener('pointerdown', (e) => {
+    // En modo barrido, tocar CUALQUIER parte de la pantalla es la activación
+    // (excepto la barra inferior de controles, para poder salir del modo)
+    if (S.trackingMode === 'SCAN' && !e.target.closest('#bottom-bar') && !e.target.closest('.modal-overlay')) {
+        onSwitchActivate(e);
+    }
 });
 
 // --- Benchmark (F1-7) ---
 const benchmark = new Benchmark();
 
 // --- Hooks de boards ---
-boards.hooks.onGridRendered = (targets) => dwell.setTargets(targets);
-boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') dwell.setTargets(targets); };
+boards.hooks.onGridRendered = (targets) => { dwell.setTargets(targets); scan.setTargets(targets); };
+boards.hooks.onHomeRendered = (targets) => {
+    if (S.state === 'HOME') { dwell.setTargets(targets); scan.setTargets(targets); }
+};
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
     clearSentence();
@@ -158,7 +194,7 @@ modeSelect.addEventListener('change', (e) => {
 function applyMode(mode) {
     S.trackingMode = mode;
 
-    if (S.trackingMode === 'CLICKS') {
+    if (S.trackingMode === 'CLICKS' || S.trackingMode === 'SCAN') {
         S.isCalibrated = false;
         tracking.stopMediaPipe();
         resetFilters();
@@ -172,7 +208,16 @@ function applyMode(mode) {
         } else {
             goHome();
         }
+
+        if (S.trackingMode === 'SCAN') {
+            const targets = (S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements;
+            scan.setTargets(targets);
+            scan.start();
+        } else {
+            scan.stop();
+        }
     } else {
+        scan.stop();
         tracking.startMediaPipe();
         const profile = calibration.profiles[S.trackingMode];
         if (profile && profile.weightsX) {
@@ -201,6 +246,7 @@ function goHome() {
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
     dwell.setTargets(boards.activeHomeElements);
+    if (S.trackingMode === 'SCAN') scan.setTargets(boards.activeHomeElements);
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', goHome);
@@ -287,6 +333,17 @@ if (dwellSelect) {
     });
 }
 
+// F2-5: settings de barrido
+function wireScanSetting(id, key, isNumber = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = String(settings.scan[key]);
+    el.addEventListener('change', (e) => {
+        const value = isNumber ? parseInt(e.target.value, 10) : e.target.value;
+        saveSettings({ scan: { ...settings.scan, [key]: value } });
+    });
+}
+
 // --- Benchmark (F1-7): botón visible con ?benchmark=1 ---
 if (urlParams.get('benchmark') === '1') {
     const btn = document.createElement('button');
@@ -313,7 +370,9 @@ function appLoop() {
                 const info = calibSession.renderInfo(now);
                 if (info) drawCalibPoint(info);
             }
-        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode !== 'CLICKS') {
+        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {
+            scan.tick(now);
+        } else if ((S.state === 'BOARD' || S.state === 'HOME') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
             if (S.rawX !== null && S.rawY !== null && !isNaN(S.rawX) && !isNaN(S.rawY)) {
                 S.smoothX = filterX.filter(S.rawX, now);
                 S.smoothY = filterY.filter(S.rawY, now);
@@ -368,6 +427,9 @@ function drawCursor(x, y) {
 (async function init() {
     await initSettings();
     if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
+    wireScanSetting('scan-pattern', 'pattern');
+    wireScanSetting('scan-interval', 'intervalMs', true);
+    wireScanSetting('scan-audio', 'audio');
     renderSentence();
 
     initAuth(async () => {
