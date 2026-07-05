@@ -8,6 +8,12 @@
 - **Fase 1** (motor Rostro): refactor a 14 módulos ES en `web/js/`, 1 Euro Filter, calibración polinómica con score de calidad y reintento del peor punto, benchmark `?benchmark=1`. Validada en uso real.
 - **Fase 2** (Barrido): `scanning.js`, patrones fila→elemento y lineal, activación Espacio/Enter/click/tap, audio opcional, settings en ⚙.
 - **Fase 3 v1** (Editor): `editor.js` — nuevo tablero, modo edición (lápiz junto al tacho), editor de celda (habla label/custom/silencio vía acciones GRD, color Fitzgerald, nivel de vocabulario, navegación con creación al vuelo), búsqueda ARASAAC con atribución y cache offline del pictograma, export `.grd`. Round-trip export/import verificado dentro de MiraVoz.
+- **Fase 3.1** (Pulido del Editor) — COMPLETADO por Antigravity.
+  - Implementado Drag & Drop para mover celdas fluidamente.
+  - Agregado Duplicate board en el Home.
+  - Implementado sistema de "Deshacer" (Toast UI) para acciones destructivas (borrar tablero, borrar/editar celda, mover celda, dimensionar filas/columnas).
+  - Estilizada barra de herramientas de edición y diseño de tarjetas del Home mejorado (más altas, botonera vertical).
+  - Arreglado problema del acumulador para respetar `speakCustom`.
 
 ## Reglas de trabajo (NO romper)
 
@@ -19,16 +25,10 @@
 6. **Verificación mínima antes de push:** `node --input-type=module --check < web/js/<archivo>.js` para cada JS tocado. Probar contra `asterics/nuclear.grd` (tiene de todo: 39 tableros, spans, colorCategory, speakCustom, radios con Base64).
 7. **Nunca commitear** `web/.vercel/` (tiene un token) ni tocar `.git/config`.
 
-## Trabajo pendiente inmediato: F3.1 (pulido del editor)
+## Trabajo pendiente técnico (Postergado de la Fase 3)
 
-Por prioridad:
-
-1. **Round-trip con AsTeRICS Grid real** (criterio de cierre de Fase 3): exportar un tablero editado → importarlo en grid.asterics.eu → verificar colores, navegación, celda silenciosa, speakCustom, pictogramas. Esteban ya verificó el round-trip MiraVoz→MiraVoz. Si AsTeRICS rechaza algo, comparar el JSON exportado contra un export nativo de AsTeRICS y ajustar `exportGrd()` en `editor.js`.
-2. **Mover celdas** en modo edición (drag & drop, o más simple y accesible: click en celda → botón "Mover" → click en destino vacío; actualiza `x`/`y`).
-3. **Export `.obz`** (transformación inversa del import de `boards.js`: manifest.json + un .obf por grid + imágenes; ver SPEC F3-5).
-4. **Duplicar tablero** (card del home) y **undo** de la última operación destructiva.
-5. **Estética de la toolbar de edición**: Esteban la sigue viendo desprolija. Los estilos están al final de `style.css` en bloques comentados "Editor F3.x" — consolidarlos en un solo bloque limpio (hay overrides acumulados de la iteración). Criterio: labels amarillos legibles, un solo idioma visual con el resto de la app.
-6. Los pictogramas del acumulador deberían mostrar también los editados con speakCustom correctamente (verificar).
+1. **Round-trip con AsTeRICS Grid real:** exportar un tablero editado → importarlo en grid.asterics.eu → verificar colores, navegación, celda silenciosa, speakCustom, pictogramas. Ajustar `exportGrd()` si hace falta.
+2. **Export `.obz`** (transformación inversa del import de `boards.js`: manifest.json + un .obf por grid + imágenes; ver SPEC F3-5).
 
 ## Después: Fase 4 (usuarios y asignación)
 
