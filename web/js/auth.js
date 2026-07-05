@@ -13,70 +13,140 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 let readyFired = false;
 
 export function initAuth(onReady) {
-    const handleSession = (sessionData) => {
-        S.currentUser = sessionData;
+    const handleSession = (session) => {
+        S.currentUser = session?.user || null;
 
-        document.getElementById('auth-view').style.display = 'none';
-        document.getElementById('home-view').style.display = 'block';
-        document.getElementById('top-bar').style.display = 'flex';
-        document.getElementById('bottom-bar').style.display = 'flex';
+        if (S.currentUser) {
+            document.getElementById('auth-view').style.display = 'none';
+            document.getElementById('home-view').style.display = 'block';
+            document.getElementById('top-bar').style.display = 'flex';
+            document.getElementById('bottom-bar').style.display = 'flex';
 
-        const nameEl = document.querySelector('.user-name');
-        const avatarEl = document.querySelector('.user-avatar');
-        if (nameEl) nameEl.innerText = sessionData.email;
-        if (avatarEl) {
-            avatarEl.style.display = 'flex';
-            avatarEl.textContent = sessionData.email.substring(0, 2).toUpperCase();
-        }
+            const nameEl = document.querySelector('.user-name');
+            const avatarEl = document.querySelector('.user-avatar');
+            if (nameEl) nameEl.innerText = S.currentUser.email;
+            if (avatarEl) {
+                avatarEl.style.display = 'flex';
+                avatarEl.textContent = S.currentUser.email.substring(0, 2).toUpperCase();
+            }
 
-        if (!readyFired) {
-            readyFired = true;
-            onReady();
+            if (!readyFired) {
+                readyFired = true;
+                // Al entrar por primera vez con sesión válida, descargamos los tableros
+                downloadBoardsFromSupabase().then(() => {
+                    onReady();
+                });
+            }
+        } else {
+            // Mostrar login
+            document.getElementById('auth-view').style.display = 'flex';
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('top-bar').style.display = 'none';
+            document.getElementById('bottom-bar').style.display = 'none';
         }
     };
 
-    window.localforage.getItem('miravoz_mock_session').then((mockSession) => {
-        if (mockSession) {
-            handleSession(mockSession);
-        } else {
-            const btnSendOtp = document.getElementById('btn-send-otp');
-            const emailInput = document.getElementById('auth-email-input');
-            if (btnSendOtp && emailInput) {
-                btnSendOtp.onclick = async () => {
-                    const email = emailInput.value.trim();
-                    if (!email) return;
-                    const sessionData = { id: email, email: email };
-                    await window.localforage.setItem('miravoz_mock_session', sessionData);
-                    handleSession(sessionData);
-                };
-            }
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            handleSession(session);
         }
     });
+    
+    supabaseClient.auth.getSession().then(({ data }) => {
+        handleSession(data.session);
+    });
 
-    // Logout: borra la sesión simulada
+    const btnLogin = document.getElementById('btn-login');
+    const emailInput = document.getElementById('auth-email-input');
+    const passInput = document.getElementById('auth-password-input');
+    if (btnLogin && emailInput && passInput) {
+        btnLogin.onclick = async () => {
+            const email = emailInput.value.trim();
+            const password = passInput.value.trim();
+            if (!email || !password) {
+                alert("Completa ambos campos");
+                return;
+            }
+            btnLogin.disabled = true;
+            btnLogin.innerText = 'Cargando...';
+            
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            
+            if (error) {
+                console.error("Login falló, intentando registro...", error);
+                // Fallback a registro si no existe
+                const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+                if (signUpError) {
+                    alert("Error: " + signUpError.message);
+                } else {
+                    alert("Usuario registrado. Por favor, verifica tu correo (si aplica) o vuelve a iniciar sesión.");
+                }
+            }
+            
+            btnLogin.disabled = false;
+            btnLogin.innerText = 'Iniciar Sesión';
+        };
+    }
+
     const btnLogout = document.querySelector('.btn-logout');
     if (btnLogout) {
         btnLogout.addEventListener('click', async (e) => {
             e.preventDefault();
-            await window.localforage.removeItem('miravoz_mock_session');
+            await supabaseClient.auth.signOut();
             window.location.reload();
         });
     }
 }
 
 async function getUser() {
-    return S.currentUser || null;
+    const { data } = await supabaseClient.auth.getSession();
+    return data?.session?.user || null;
+}
+
+export async function downloadBoardsFromSupabase() {
+    const user = await getUser();
+    if (!user) return;
+    try {
+        showSyncToast('Descargando tableros...');
+        const { data, error } = await supabaseClient
+            .from('boards')
+            .select('id, bundle')
+            .eq('owner_professional_id', user.id);
+            
+        if (error) throw error;
+        
+        // Limpiamos los tableros locales (que no sean settings) para reflejar la nube real
+        const keys = await window.localforage.keys();
+        for (const k of keys) {
+            if (!k.startsWith('miravoz_')) {
+                await window.localforage.removeItem(k);
+            }
+        }
+        
+        // Guardamos localmente lo descargado
+        for (const row of data) {
+            await window.localforage.setItem(row.id, row.bundle);
+        }
+        hideSyncToast();
+    } catch(e) {
+        console.error('Error downloadBoardsFromSupabase:', e);
+        hideSyncToast();
+    }
 }
 
 export async function uploadBoardToSupabase(bundle) {
     const user = await getUser();
-    if (!user) return; // sin sesión real (bypass): no-op
+    if (!user) return;
     try {
         showSyncToast('Guardando en la nube...');
-        const filePath = `${user.id}/${bundle.id}.json`;
-        const { error } = await supabaseClient.storage.from('boards')
-            .upload(filePath, JSON.stringify(bundle), { contentType: 'application/json', upsert: true });
-        if (error) console.error('Error subiendo tablero:', error);
+        const { error } = await supabaseClient.from('boards').upsert({
+            id: bundle.id,
+            owner_professional_id: user.id,
+            name: bundle.name || 'Sin Título',
+            bundle: bundle,
+            updated_at: new Date().toISOString()
+        });
+        if (error) throw error;
         hideSyncToast();
     } catch (e) {
         console.error('Error uploadBoardToSupabase:', e);
@@ -89,8 +159,8 @@ export async function deleteBoardFromSupabase(bundleId) {
     if (!user) return;
     try {
         showSyncToast('Borrando de la nube...');
-        const { error } = await supabaseClient.storage.from('boards').remove([`${user.id}/${bundleId}.json`]);
-        if (error) console.error('Error borrando tablero:', error);
+        const { error } = await supabaseClient.from('boards').delete().eq('id', bundleId).eq('owner_professional_id', user.id);
+        if (error) throw error;
         hideSyncToast();
     } catch (e) {
         console.error('Error deleteBoardFromSupabase:', e);

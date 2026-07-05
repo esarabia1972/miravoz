@@ -79,12 +79,15 @@
             </div>
             
             <div id="auth-step-email">
-                <h2>Bienvenido</h2>
-                <p class="auth-desc">Ingresa tu correo registrado para recibir un código de acceso seguro.</p>
+                <h2>Ingreso Profesionales</h2>
+                <p class="auth-desc">Inicia sesión con tu cuenta de Supabase.</p>
                 <div class="input-group">
-                    <input type="email" id="auth-email-input" placeholder="ejemplo@correo.com" class="glass-input auth-input" />
+                    <input type="email" id="auth-email-input" placeholder="Correo electrónico" class="glass-input auth-input" />
                 </div>
-                <button id="btn-send-otp" class="btn auth-btn">Continuar</button>
+                <div class="input-group" style="margin-top: 10px;">
+                    <input type="password" id="auth-password-input" placeholder="Contraseña" class="glass-input auth-input" />
+                </div>
+                <button id="btn-login" class="btn auth-btn" style="margin-top: 15px;">Iniciar Sesión</button>
             </div>
 
             <div id="auth-step-otp" style="display: none;">
@@ -320,6 +323,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=14"></script>
+    <script type="module" src="js/main.js?v=15"></script>
 </body>
 </html>
