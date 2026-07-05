@@ -881,3 +881,8 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
     padding: 10px 22px; cursor: pointer;
 }
 .btn-danger:hover { background: #e6394b !important; }
+
+/* --- Editor F3.6: labels de toolbar más presentes, aire entre grupos --- */
+.et-label { font-size: 0.95rem; margin-left: 14px; }
+#editor-toolbar { gap: 12px; padding: 12px 20px; }
+#editor-toolbar .btn { font-size: 0.9rem; }
