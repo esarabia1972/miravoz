@@ -6,7 +6,7 @@ import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
 import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence } from './ui.js';
-import { initAuth, logout } from './auth.js';
+import { initAuth } from './auth.js';
 import { fetchUsers, setProfessionalId } from './users.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
