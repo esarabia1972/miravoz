@@ -223,7 +223,7 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
     overflow-y: auto;
-    padding-right: 10px;
+    padding: 5px 10px 5px 5px;
 }
 
 .board-list {
