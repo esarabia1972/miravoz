@@ -139,19 +139,26 @@ function buildToolbar() {
         const cols = Math.max(1, (g.minColumnCount || 4) + dc);
         const outOfRange = (g.gridElements || []).some(el => el.y >= rows || el.x >= cols);
         if (outOfRange && !(await customConfirm('Hay celdas fuera del nuevo tamaño: quedarán ocultas. ¿Continuar?'))) return;
+        
+        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
         g.rowCount = rows;
         g.minColumnCount = cols;
         await persistBundle();
         boards.renderGrid(S.currentGridId);
+
+        showUndoToast(async () => {
+            Object.assign(S.currentBundle, backupBundle);
+            await persistBundle();
+            boards.renderGrid(S.currentGridId);
+        });
     };
     
     // Grupo Filas
     const divRows = document.createElement('div');
     divRows.style.cssText = 'display:flex; align-items:center; gap:4px;';
-    divRows.appendChild(mkLabel('Filas'));
     const btnRowMinus = mkBtn('−', dims(-1, 0)); btnRowMinus.style.padding = '4px 8px';
     const btnRowPlus = mkBtn('+', dims(1, 0)); btnRowPlus.style.padding = '4px 8px';
-    divRows.append(btnRowMinus, btnRowPlus);
+    divRows.append(btnRowMinus, mkLabel('Filas'), btnRowPlus);
     tb.appendChild(divRows);
 
     // Aire pequeño
@@ -162,10 +169,9 @@ function buildToolbar() {
     // Grupo Columnas
     const divCols = document.createElement('div');
     divCols.style.cssText = 'display:flex; align-items:center; gap:4px;';
-    divCols.appendChild(mkLabel('Columnas'));
     const btnColMinus = mkBtn('−', dims(0, -1)); btnColMinus.style.padding = '4px 8px';
     const btnColPlus = mkBtn('+', dims(0, 1)); btnColPlus.style.padding = '4px 8px';
-    divCols.append(btnColMinus, btnColPlus);
+    divCols.append(btnColMinus, mkLabel('Columnas'), btnColPlus);
     tb.appendChild(divCols);
 
 
