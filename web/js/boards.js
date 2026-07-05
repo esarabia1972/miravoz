@@ -620,6 +620,7 @@ export function buildTestBundle() {
 }
 // --- Lógica de Asignación (Fase 4.2) ---
 import { users } from './users.js';
+import { supabaseClient } from './auth.js';
 
 let bundleToAssign = null;
 let selectedUserId = null;

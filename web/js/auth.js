@@ -6,7 +6,7 @@ import { showSyncToast, hideSyncToast } from './ui.js';
 const SUPABASE_URL = 'https://bpcedvpcwwwgnfinqztq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_dqFw8-mzNW88E5aRgG7WMw_byIf-pT1';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // initAuth(onReady): onReady se llama UNA sola vez cuando hay "sesión" (bypass local).
 // Evita el triple render de tableros del código anterior (FIXES F0.1-4).

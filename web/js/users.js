@@ -1,4 +1,4 @@
-import { supabaseClient } from './supabase.js';
+import { supabaseClient } from './auth.js';
 
 export let users = [];
 let currentProfessionalId = null;
