@@ -63,6 +63,42 @@ export function showInfoToast(message, ms = 4000) {
     }
 }
 
+// --- Undo Toast (F3) ---
+let undoTimeout = null;
+export function showUndoToast(onUndoCallback) {
+    let toast = document.getElementById('undo-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'undo-toast';
+        toast.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 24px; border-radius:24px; display:flex; align-items:center; gap:16px; z-index:15000; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-family:sans-serif; font-size:14px;';
+        
+        const msg = document.createElement('span');
+        msg.id = 'undo-msg';
+        
+        const btn = document.createElement('button');
+        btn.textContent = 'Deshacer';
+        btn.style.cssText = 'background:none; border:none; color:#00ff88; font-weight:bold; cursor:pointer; font-size:14px; padding:0; text-transform:uppercase;';
+        btn.id = 'undo-btn';
+        
+        toast.append(msg, btn);
+        document.body.appendChild(toast);
+    }
+    
+    document.getElementById('undo-msg').textContent = 'Acción realizada';
+    const btn = document.getElementById('undo-btn');
+    btn.onclick = () => {
+        if (undoTimeout) clearTimeout(undoTimeout);
+        toast.style.display = 'none';
+        if (onUndoCallback) onUndoCallback();
+    };
+    
+    toast.style.display = 'flex';
+    if (undoTimeout) clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+        toast.style.display = 'none';
+    }, 5000);
+}
+
 // --- Acumulador de frases ---
 let sentenceAccumulator = [];
 const sentenceContainer = document.getElementById('sentence-container');
@@ -88,8 +124,11 @@ export function addToSentence(item) {
 
 export function playSentence() {
     if (sentenceAccumulator.length === 0) return;
-    const fullText = sentenceAccumulator.map(i => i.text).join(', ');
-    speak(fullText);
+    const fullText = sentenceAccumulator
+        .map(i => i.speakText !== undefined ? i.speakText : i.text)
+        .filter(Boolean)
+        .join(', ');
+    if (fullText) speak(fullText);
 }
 
 export function renderSentence() {

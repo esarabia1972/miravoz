@@ -4,7 +4,7 @@
 
 import { S } from './state.js';
 import * as boards from './boards.js';
-import { customAlert, customConfirm } from './ui.js';
+import { customAlert, customConfirm, showUndoToast } from './ui.js';
 
 let editMode = false;
 let editingCell = null; // { gridId, elData | null, x, y }
@@ -247,6 +247,10 @@ async function toDataUrl(url) {
 async function saveCell() {
     const { gridId, x, y } = editingCell;
     let { elData } = editingCell;
+    
+    // Backup for undo
+    const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
+
     const grid = S.currentBundle.boards[gridId];
     const get = id => document.getElementById(id);
 
@@ -307,17 +311,32 @@ async function saveCell() {
     await persistBundle();
     modal().style.display = 'none';
     boards.renderGrid(gridId);
+    
+    showUndoToast(async () => {
+        Object.assign(S.currentBundle, backupBundle);
+        await persistBundle();
+        boards.renderGrid(gridId);
+    });
 }
 
 async function deleteCell() {
     const { gridId, elData } = editingCell;
     if (!elData) return;
-    if (!(await customConfirm('¿Eliminar esta celda?'))) return;
+    
+    // Backup for undo
+    const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
+    
     const grid = S.currentBundle.boards[gridId];
     grid.gridElements = grid.gridElements.filter(e => e !== elData);
     await persistBundle();
     modal().style.display = 'none';
     boards.renderGrid(gridId);
+    
+    showUndoToast(async () => {
+        Object.assign(S.currentBundle, backupBundle);
+        await persistBundle();
+        boards.renderGrid(gridId);
+    });
 }
 
 // --- Wiring del modal (una vez) ---

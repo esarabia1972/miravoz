@@ -773,59 +773,7 @@ body {
     outline: 6px solid #ffdd00 !important;
     outline-offset: -6px;
     box-shadow: inset 0 0 0 9px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* --- Editor de tableros (Fase 3) --- */
-#editor-toolbar {
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    padding: 8px 15px; background: rgba(255, 221, 0, 0.12);
-    border-bottom: 2px solid #ffdd00;
-}
-body.edit-mode .cell:not(.empty-cell) { cursor: pointer; box-shadow: inset 0 0 0 2px rgba(255,221,0,0.5); }
-.editable-slot {
-    cursor: pointer;
-    border: 2px dashed rgba(255, 221, 0, 0.5) !important;
-    display: flex; align-items: center; justify-content: center;
-}
-.editable-slot::after { content: '+'; color: rgba(255,221,0,0.6); font-size: 2rem; }
-.btn-edit-toggle {
-    background: transparent; border: none; color: var(--text-muted, #aaa);
-    cursor: pointer; padding: 8px; border-radius: 8px;
-}
-.btn-edit-toggle:hover { color: #ffdd00; background: rgba(255,255,255,0.08); }
-body.edit-mode .btn-edit-toggle { color: #ffdd00; }
-.ce-label { display: block; margin: 12px 0 4px; font-size: 0.85rem; color: #ccc; }
-.ce-results {
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px;
-    max-height: 180px; overflow-y: auto;
-}
-.ce-results img {
-    width: 100%; aspect-ratio: 1; object-fit: contain; background: white;
-    border-radius: 8px; cursor: pointer; border: 3px solid transparent;
-}
-.ce-results img.selected { border-color: #00ff88; }
-.ce-preview img { height: 60px; background: white; border-radius: 8px; margin-top: 6px; }
-
-/* --- Editor F3.1: toolbar y modal pulidos (feedback Esteban) --- */
-#editor-toolbar {
-    position: sticky; top: 0; width: 100%; box-sizing: border-box;
-    background: #14141f !important; z-index: 100;
-    border-bottom: 2px solid #ffdd00; padding: 10px 20px;
-}
-.et-label { color: #ffdd00; font-size: 0.8rem; font-weight: 600; margin-left: 6px; cursor: default; }
-#editor-toolbar .et-dark, .ce-dark {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: #fff !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-}
-#editor-toolbar .et-dark option, .ce-dark option { background: #14141f; color: #fff; }
-.ce-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-@media (max-width: 700px) { .ce-columns { grid-template-columns: 1fr; } }
-.ce-hint { font-size: 0.72rem; color: #888; margin: 4px 0 0 0; }
-.ce-help { cursor: help; color: #ffdd00; }
-#cell-editor-modal .ce-results { max-height: 300px; }
-
-/* --- Editor F3.2: toolbar en flujo (empuja el contenido, no lo pisa) --- */
+}/* --- Editor F3: Toolbar y Modal Consolidados --- */
 #editor-toolbar {
     position: static !important;
     flex: 0 0 auto;
@@ -841,27 +789,20 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
     font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 600;
     border-radius: 8px; padding: 8px 12px;
 }
-#editor-toolbar .btn { white-space: nowrap; flex: 0 0 auto; }
-#editor-toolbar select.et-dark { flex: 0 0 auto; }
-.et-label { white-space: nowrap; }
-
-/* --- Editor F3.3: tipografía legible en el modal de celda --- */
-#cell-editor-modal .ce-dark {
-    font-family: 'Inter', sans-serif !important;
-    font-size: 1rem !important;
-    padding: 10px 12px !important;
-    border-radius: 8px;
+#editor-toolbar .btn, #editor-toolbar select.et-dark {
+    flex: 0 0 auto; white-space: nowrap;
 }
-#cell-editor-modal .ce-label { font-size: 0.95rem; color: #ddd; font-weight: 600; margin-top: 16px; }
-#cell-editor-modal .ce-hint { font-size: 0.8rem; }
-#cell-editor-modal .btn { font-size: 1rem; padding: 10px 22px; }
+.et-label {
+    color: #ffdd00; font-size: 0.8rem; font-weight: 600; margin-left: 6px; cursor: default;
+    white-space: nowrap;
+}
+#editor-toolbar .et-dark, .ce-dark {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+#editor-toolbar .et-dark option, .ce-dark option { background: #14141f; color: #fff; }
 
-/* --- Editor F3.4: la toolbar no se recorta arriba --- */
-/* view-container centra verticalmente; con la toolbar el contenido supera el alto
-   y el centrado recorta el tope. En board-view alineamos arriba siempre. */
-#board-view { justify-content: flex-start !important; }
-
-/* --- Editor F3.5: tipografía unificada en selects (Safari los renderiza nativo) --- */
 #editor-toolbar select.et-dark, #cell-editor-modal select.ce-dark {
     -webkit-appearance: none; appearance: none;
     font-family: 'Inter', sans-serif !important;
@@ -873,6 +814,47 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 }
 #cell-editor-modal select.ce-dark { font-size: 1rem !important; }
 
+body.edit-mode .cell:not(.empty-cell) { cursor: pointer; box-shadow: inset 0 0 0 2px rgba(255,221,0,0.5); }
+.editable-slot {
+    cursor: pointer;
+    border: 2px dashed rgba(255, 221, 0, 0.5) !important;
+    display: flex; align-items: center; justify-content: center;
+}
+.editable-slot::after { content: '+'; color: rgba(255,221,0,0.6); font-size: 2rem; }
+.btn-edit-toggle {
+    background: transparent; border: none; color: var(--text-muted, #aaa);
+    cursor: pointer; padding: 8px; border-radius: 8px;
+}
+.btn-edit-toggle:hover { color: #ffdd00; background: rgba(255,255,255,0.08); }
+body.edit-mode .btn-edit-toggle { color: #ffdd00; }
+
+.ce-label { display: block; margin: 16px 0 4px; font-size: 0.95rem; color: #ddd; font-weight: 600; }
+.ce-hint { font-size: 0.8rem; color: #888; margin: 4px 0 0 0; }
+.ce-help { cursor: help; color: #ffdd00; }
+.ce-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 700px) { .ce-columns { grid-template-columns: 1fr; } }
+#cell-editor-modal .ce-dark {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 1rem !important;
+    padding: 10px 12px !important;
+    border-radius: 8px;
+}
+#cell-editor-modal .btn { font-size: 1rem; padding: 10px 22px; }
+
+.ce-results {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px;
+    max-height: 300px; overflow-y: auto;
+}
+.ce-results img {
+    width: 100%; aspect-ratio: 1; object-fit: contain; background: white;
+    border-radius: 8px; cursor: pointer; border: 3px solid transparent;
+}
+.ce-results img.selected { border-color: #00ff88; }
+.ce-preview img { height: 60px; background: white; border-radius: 8px; margin-top: 6px; }
+
+/* En board-view alineamos arriba siempre (Toolbar flujo) */
+#board-view { justify-content: flex-start !important; }
+
 /* Botón Eliminar: mismo peso visual que Guardar, en rojo */
 .btn-danger {
     background: #ff5566 !important; color: #fff !important;
@@ -880,9 +862,4 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1rem;
     padding: 10px 22px; cursor: pointer;
 }
-.btn-danger:hover { background: #e6394b !important; }
-
-/* --- Editor F3.6: labels de toolbar más presentes, aire entre grupos --- */
-.et-label { font-size: 0.95rem; margin-left: 14px; }
-#editor-toolbar { gap: 12px; padding: 12px 20px; }
-#editor-toolbar .btn { font-size: 0.9rem; }
+.btn-danger:hover { background: #ff3344 !important; transform: translateY(-2px); }

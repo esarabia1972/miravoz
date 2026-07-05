@@ -1,7 +1,7 @@
 // boards.js — Import GRD/OBZ, gestión de bundles, render de tableros (SPEC F1-1)
 
 import { S } from './state.js';
-import { customAlert, customConfirm, addToSentence } from './ui.js';
+import { customAlert, customConfirm, addToSentence, showUndoToast } from './ui.js';
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 import { uploadBoardToSupabase, deleteBoardFromSupabase } from './auth.js';
@@ -13,10 +13,11 @@ export const hooks = {
     onBundleOpened: () => {},     // decide calibración/estado tras abrir
     onGridRendered: () => {},     // main pasa los targets al DwellEngine
     onHomeRendered: () => {},     // ídem para las cards del home
-    onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
     cellClickInterceptor: () => false, // editor (F3): true = consumió el click
     emptyCellClick: () => {},     // editor (F3): click en celda vacía
-    isEditMode: () => false       // editor (F3)
+    isEditMode: () => false,      // editor (F3)
+    onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
+    onCellDropped: () => {}       // editor (F3)
 };
 
 const gridContainer = document.getElementById('grid-container');
@@ -253,25 +254,48 @@ export async function loadSavedBoards() {
             pPrev.textContent = previewText;
             infoDiv.append(h3, pType, pPrev);
 
+            const actionsDiv = document.createElement('div');
+            actionsDiv.style.cssText = 'position:absolute; top:10px; right:10px; display:flex; gap:8px;';
+
+            const duplicateBtn = document.createElement('button');
+            duplicateBtn.className = 'btn-secondary';
+            duplicateBtn.style.cssText = 'padding: 4px; display:flex; align-items:center; justify-content:center; border-radius:4px;';
+            duplicateBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            duplicateBtn.title = 'Duplicar tablero';
+            duplicateBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const clone = JSON.parse(JSON.stringify(bundle));
+                clone.id = 'bundle_' + Date.now();
+                clone.name = clone.name + ' (copia)';
+                await localforage.setItem(clone.id, clone);
+                uploadBoardToSupabase(clone);
+                loadSavedBoards();
+            };
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-delete-card';
-            deleteBtn.style.alignSelf = 'flex-end';
-            deleteBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+            deleteBtn.style.cssText = 'padding: 4px; display:flex; align-items:center; justify-content:center; border-radius:4px;';
+            deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+            deleteBtn.title = 'Eliminar tablero';
             deleteBtn.onclick = async (e) => {
                 e.stopPropagation();
-                const confirmed = await customConfirm(`¿Estás seguro de que quieres eliminar el tablero "${bundle.name}"?`);
-                if (confirmed) {
-                    await localforage.removeItem(key);
-                    deleteBoardFromSupabase(key);
+                await localforage.removeItem(key);
+                deleteBoardFromSupabase(key);
+                loadSavedBoards();
+                showUndoToast(async () => {
+                    await localforage.setItem(key, bundle);
+                    uploadBoardToSupabase(bundle);
                     loadSavedBoards();
-                }
+                });
             };
+            
+            actionsDiv.append(duplicateBtn, deleteBtn);
 
             const progress = document.createElement('div');
             progress.className = 'progress-bar';
             progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
 
-            card.append(infoDiv, deleteBtn, progress);
+            card.append(infoDiv, actionsDiv, progress);
             card.onclick = () => openBundle(bundle);
             fragment.appendChild(card);
 
@@ -357,6 +381,7 @@ export function handleCellClick(cellElement, elementData) {
         if (labelText || elementData.image) {
             addToSentence({
                 text: labelText,
+                speakText: toSpeak,
                 imageUrl: elementData.image ? (elementData.image.data || elementData.image.url) : null,
                 elData: elementData
             });
@@ -370,6 +395,24 @@ export function renderGrid(gridId) {
         console.error('No se encontró el grid:', gridId);
         return;
     }
+
+    // Drag and drop helper
+    const handleDragDrop = (cell, targetX, targetY) => {
+        if (!hooks.isEditMode()) return;
+        cell.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        cell.addEventListener('drop', (e) => {
+            e.preventDefault();
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (data.gridId === gridId && hooks.onCellDropped) {
+                    hooks.onCellDropped(data.x, data.y, targetX, targetY);
+                }
+            } catch (err) {}
+        });
+    };
 
     S.currentGridId = gridId;
     const gridData = S.currentBundle.boards[gridId];
@@ -486,12 +529,22 @@ export function renderGrid(gridId) {
 
                 cell.onclick = () => handleCellClick(cell, elData);
                 activeGridElements.push({ element: cell, data: elData, isAccBtn: false });
+                
+                if (hooks.isEditMode()) {
+                    cell.draggable = true;
+                    cell.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', JSON.stringify({ x: elData.x, y: elData.y, gridId }));
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    handleDragDrop(cell, elData.x, elData.y);
+                }
             } else {
                 cell.classList.add('empty-cell');
                 if (hooks.isEditMode()) {
                     cell.classList.add('editable-slot');
                     const ex = x, ey = y;
                     cell.onclick = () => hooks.emptyCellClick(ex, ey);
+                    handleDragDrop(cell, ex, ey);
                 }
             }
 
