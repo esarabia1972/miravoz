@@ -23,7 +23,7 @@
     <canvas id="ui-layer"></canvas>
 
     <!-- Top Bar -->
-    <div class="top-bar" id="top-bar" style="justify-content: space-between;">
+    <div class="top-bar" id="top-bar" style="display: none; justify-content: space-between;">
         <div class="logo-area">
             <img src="logo.png" onerror="this.src='logo.png';" alt="Miravoz" />
         </div>
@@ -37,7 +37,7 @@
     </div>
 
     <!-- Vista de Inicio (Galería) -->
-    <div id="home-view" class="view-container active">
+    <div id="home-view" class="view-container" style="display: none;">
         <div class="gallery-container" style="padding-top: 20px;">
             <div id="board-list" class="board-grid">
                 <!-- Cards de tableros guardados se generan en JS -->
@@ -72,7 +72,7 @@
     </div>
 
     <!-- Vista de Autenticación (Login / OTP) -->
-    <div id="auth-view" class="view-container" style="display: none; justify-content: center; align-items: center;">
+    <div id="auth-view" class="view-container active" style="display: flex; justify-content: center; align-items: center;">
         <div class="auth-box glass-box">
             <div class="auth-logo">
                 <img src="logo.png" onerror="this.src='logo.png';" alt="Miravoz" />
@@ -148,8 +148,8 @@
         </div>
     </div>
 
-    <!-- Barra Inferior (Global Controls) -->
-    <div class="bottom-bar" id="bottom-bar">
+    <!-- Bottom Bar (Acciones Globales) -->
+    <div class="bottom-bar" id="bottom-bar" style="display: none;">
         <div class="bottom-group group-left">
             <div class="user-profile-bottom" style="display: flex; align-items: center; gap: 10px;">
                 <div class="user-avatar" style="display: none;"></div>
@@ -320,6 +320,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=13"></script>
+    <script type="module" src="js/main.js?v=14"></script>
 </body>
 </html>

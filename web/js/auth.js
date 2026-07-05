@@ -13,9 +13,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 let readyFired = false;
 
 export function initAuth(onReady) {
-    const handleSession = () => {
-        // --- BYPASS LOGIN (MVP LOCAL MODE, ver SPEC F4-1) ---
-        S.currentUser = { id: 'local-user', email: 'invitado@miravoz.local' };
+    const handleSession = (sessionData) => {
+        S.currentUser = sessionData;
 
         document.getElementById('auth-view').style.display = 'none';
         document.getElementById('home-view').style.display = 'block';
@@ -24,8 +23,11 @@ export function initAuth(onReady) {
 
         const nameEl = document.querySelector('.user-name');
         const avatarEl = document.querySelector('.user-avatar');
-        if (nameEl) nameEl.innerText = 'Usuario Local';
-        if (avatarEl) avatarEl.textContent = 'IN';
+        if (nameEl) nameEl.innerText = sessionData.email;
+        if (avatarEl) {
+            avatarEl.style.display = 'flex';
+            avatarEl.textContent = sessionData.email.substring(0, 2).toUpperCase();
+        }
 
         if (!readyFired) {
             readyFired = true;
@@ -33,23 +35,37 @@ export function initAuth(onReady) {
         }
     };
 
-    supabaseClient.auth.onAuthStateChange(() => handleSession());
-    handleSession();
+    window.localforage.getItem('miravoz_mock_session').then((mockSession) => {
+        if (mockSession) {
+            handleSession(mockSession);
+        } else {
+            const btnSendOtp = document.getElementById('btn-send-otp');
+            const emailInput = document.getElementById('auth-email-input');
+            if (btnSendOtp && emailInput) {
+                btnSendOtp.onclick = async () => {
+                    const email = emailInput.value.trim();
+                    if (!email) return;
+                    const sessionData = { id: email, email: email };
+                    await window.localforage.setItem('miravoz_mock_session', sessionData);
+                    handleSession(sessionData);
+                };
+            }
+        }
+    });
 
-    // Logout: NO borra datos locales (F0-4)
+    // Logout: borra la sesión simulada
     const btnLogout = document.querySelector('.btn-logout');
     if (btnLogout) {
         btnLogout.addEventListener('click', async (e) => {
             e.preventDefault();
-            await supabaseClient.auth.signOut();
+            await window.localforage.removeItem('miravoz_mock_session');
             window.location.reload();
         });
     }
 }
 
 async function getUser() {
-    const { data } = await supabaseClient.auth.getSession();
-    return data?.session?.user || null;
+    return S.currentUser || null;
 }
 
 export async function uploadBoardToSupabase(bundle) {
