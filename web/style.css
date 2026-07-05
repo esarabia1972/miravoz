@@ -824,3 +824,23 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 .ce-hint { font-size: 0.72rem; color: #888; margin: 4px 0 0 0; }
 .ce-help { cursor: help; color: #ffdd00; }
 #cell-editor-modal .ce-results { max-height: 300px; }
+
+/* --- Editor F3.2: toolbar en flujo (empuja el contenido, no lo pisa) --- */
+#editor-toolbar {
+    position: static !important;
+    flex: 0 0 auto;
+    display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;
+    width: 100%; box-sizing: border-box;
+    margin: 0 0 12px 0; padding: 10px 16px;
+    background: linear-gradient(rgba(255, 221, 0, 0.10), rgba(255, 221, 0, 0.06)), #191922 !important;
+    border: 1px solid rgba(255, 221, 0, 0.35);
+    border-radius: 12px;
+}
+#editor-toolbar input.et-dark {
+    flex: 1 1 auto; min-width: 120px;
+    font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 600;
+    border-radius: 8px; padding: 8px 12px;
+}
+#editor-toolbar .btn { white-space: nowrap; flex: 0 0 auto; }
+#editor-toolbar select.et-dark { flex: 0 0 auto; }
+.et-label { white-space: nowrap; }
