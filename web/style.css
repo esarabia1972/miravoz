@@ -844,3 +844,14 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 #editor-toolbar .btn { white-space: nowrap; flex: 0 0 auto; }
 #editor-toolbar select.et-dark { flex: 0 0 auto; }
 .et-label { white-space: nowrap; }
+
+/* --- Editor F3.3: tipografía legible en el modal de celda --- */
+#cell-editor-modal .ce-dark {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 1rem !important;
+    padding: 10px 12px !important;
+    border-radius: 8px;
+}
+#cell-editor-modal .ce-label { font-size: 0.95rem; color: #ddd; font-weight: 600; margin-top: 16px; }
+#cell-editor-modal .ce-hint { font-size: 0.8rem; }
+#cell-editor-modal .btn { font-size: 1rem; padding: 10px 22px; }
