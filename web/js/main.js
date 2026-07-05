@@ -6,7 +6,8 @@ import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
 import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence } from './ui.js';
-import { initAuth } from './auth.js';
+import { initAuth, logout } from './auth.js';
+import { fetchUsers, setProfessionalId } from './users.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
@@ -14,6 +15,34 @@ import { DwellEngine } from './dwell.js';
 import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
+
+let appState = {
+    view: 'auth', // auth, home, editor, users
+};
+
+function switchView(view) {
+    appState.view = view;
+    document.getElementById('auth-view').style.display = 'none';
+    document.getElementById('home-view').style.display = 'none';
+    document.getElementById('editor-view').style.display = 'none';
+    document.getElementById('users-view').style.display = 'none';
+    
+    if (view === 'auth') {
+        document.getElementById('auth-view').style.display = 'flex';
+        document.getElementById('top-bar').style.display = 'none';
+    } else if (view === 'home') {
+        document.getElementById('home-view').style.display = 'block';
+        document.getElementById('top-bar').style.display = 'flex';
+        document.getElementById('top-search-container').style.display = 'flex';
+    } else if (view === 'users') {
+        document.getElementById('users-view').style.display = 'block';
+        document.getElementById('top-bar').style.display = 'flex';
+        document.getElementById('top-search-container').style.display = 'none'; // No search in users view
+    } else if (view === 'editor') {
+        document.getElementById('editor-view').style.display = 'flex';
+        document.getElementById('top-bar').style.display = 'none';
+    }
+}
 
 // --- Storage local ---
 localforage.config({ name: 'Miravoz', storeName: 'boards' });
@@ -29,6 +58,9 @@ const instructionBox = document.getElementById('instruction-box');
 const modeSelect = document.getElementById('mode-select');
 const dwellSelect = document.getElementById('dwell-select');
 const btnRecalibrar = document.getElementById('btn-recalibrar');
+
+document.getElementById('btn-nav-users')?.addEventListener('click', () => switchView('users'));
+document.getElementById('btn-nav-home')?.addEventListener('click', () => switchView('home'));
 const btnIniciarCalibracion = document.getElementById('btn-iniciar-calibracion');
 const fileImport = document.getElementById('file-import');
 const importModal = document.getElementById('import-modal');
@@ -449,6 +481,14 @@ function drawCursor(x, y) {
     renderSentence();
 
     initAuth(async () => {
+        if (S.currentUser) {
+            setProfessionalId(S.currentUser.id);
+            fetchUsers();
+            switchView('home');
+        } else {
+            switchView('auth');
+        }
+        
         await calibration.loadProfiles();
         await boards.loadSavedBoards();
 

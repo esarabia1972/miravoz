@@ -257,6 +257,16 @@ export async function loadSavedBoards() {
             const actionsDiv = document.createElement('div');
             actionsDiv.style.cssText = 'position:absolute; top:12px; right:12px; display:flex; flex-direction:column; gap:8px;';
 
+            const assignBtn = document.createElement('button');
+            assignBtn.className = 'btn-secondary';
+            assignBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+            assignBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
+            assignBtn.title = 'Asignar a paciente';
+            assignBtn.onclick = (e) => {
+                e.stopPropagation();
+                openAssignModal(bundle);
+            };
+
             const exportBtn = document.createElement('button');
             exportBtn.className = 'btn-secondary';
             exportBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
@@ -306,7 +316,7 @@ export async function loadSavedBoards() {
                 });
             };
             
-            actionsDiv.append(exportBtn, duplicateBtn, deleteBtn);
+            actionsDiv.append(assignBtn, exportBtn, duplicateBtn, deleteBtn);
 
             const progress = document.createElement('div');
             progress.className = 'progress-bar';
@@ -607,4 +617,81 @@ export function buildTestBundle() {
             main: { id: 'main', rowCount: 3, minColumnCount: 3, gridElements: testElements }
         }
     };
+}
+// --- Lógica de Asignación (Fase 4.2) ---
+import { users } from './users.js';
+
+let bundleToAssign = null;
+let selectedUserId = null;
+
+const assignModal = document.getElementById('assign-modal');
+const assignUsersList = document.getElementById('assign-users-list');
+const btnCancelAssign = document.getElementById('btn-cancel-assign');
+const btnConfirmAssign = document.getElementById('btn-confirm-assign');
+const btnCloseAssign = document.getElementById('btn-close-assign');
+
+function openAssignModal(bundle) {
+    bundleToAssign = bundle;
+    selectedUserId = null;
+    btnConfirmAssign.disabled = true;
+    btnConfirmAssign.innerText = 'Asignar Copia';
+    
+    assignUsersList.innerHTML = '';
+    
+    if (users.length === 0) {
+        assignUsersList.innerHTML = '<p style="color:var(--text-muted);">No tienes usuarios registrados. Ve a "Mis Usuarios" para crear uno.</p>';
+    } else {
+        users.forEach(user => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.05); border-radius:5px; cursor:pointer;';
+            label.innerHTML = `
+                <input type="radio" name="assign-user" value="${user.id}">
+                <span>${user.display_name}</span>
+            `;
+            label.querySelector('input').addEventListener('change', (e) => {
+                selectedUserId = e.target.value;
+                btnConfirmAssign.disabled = false;
+            });
+            assignUsersList.appendChild(label);
+        });
+    }
+    
+    assignModal.style.display = 'flex';
+}
+
+function closeAssignModal() {
+    assignModal.style.display = 'none';
+    bundleToAssign = null;
+    selectedUserId = null;
+}
+
+if (btnCancelAssign) btnCancelAssign.addEventListener('click', closeAssignModal);
+if (btnCloseAssign) btnCloseAssign.addEventListener('click', closeAssignModal);
+
+if (btnConfirmAssign) {
+    btnConfirmAssign.addEventListener('click', async () => {
+        if (!bundleToAssign || !selectedUserId) return;
+        
+        btnConfirmAssign.disabled = true;
+        btnConfirmAssign.innerText = 'Asignando...';
+        
+        const clone = JSON.parse(JSON.stringify(bundleToAssign));
+        
+        const { error } = await supabaseClient
+            .from('assignments')
+            .insert([{
+                board_id: bundleToAssign.id,
+                aac_user_id: selectedUserId,
+                copy_bundle: clone,
+                permission: 'editable'
+            }]);
+            
+        if (error) {
+            console.error("Error asignando tablero:", error);
+            alert("Error al asignar tablero: " + error.message);
+        } else {
+            alert("Tablero asignado correctamente a " + users.find(u => u.id === selectedUserId).display_name);
+            closeAssignModal();
+        }
+    });
 }
