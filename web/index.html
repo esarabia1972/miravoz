@@ -9,7 +9,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=16">
+    <link rel="stylesheet" href="style.css?v=17">
     
     <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -58,7 +58,7 @@
     </div>
 
     <!-- Custom Dialog Modal (Reemplaza alert/confirm) -->
-    <div id="custom-dialog" class="modal-overlay" style="display: none; z-index: 20000;">
+    <div id="custom-dialog" class="modal-overlay" style="display: none; z-index: 30000;">
         <div class="modal-content glass-box" style="max-width: 400px; text-align: center;">
             <div class="modal-header" style="justify-content: center;">
                 <h3 id="dialog-title">Aviso</h3>
@@ -252,7 +252,7 @@
             </div>
 
             <div style="display:flex; gap:10px; justify-content:space-between; margin-top:15px;">
-                <button id="ce-delete" class="btn btn-secondary" style="color:#f88;">🗑 Eliminar</button>
+                <button id="ce-delete" class="btn btn-danger">Eliminar</button>
                 <div style="display:flex; gap:10px;">
                     <button id="ce-cancel" class="btn btn-secondary">Cancelar</button>
                     <button id="ce-save" class="btn btn-primary">Guardar</button>

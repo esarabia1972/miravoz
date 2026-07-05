@@ -860,3 +860,24 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 /* view-container centra verticalmente; con la toolbar el contenido supera el alto
    y el centrado recorta el tope. En board-view alineamos arriba siempre. */
 #board-view { justify-content: flex-start !important; }
+
+/* --- Editor F3.5: tipografía unificada en selects (Safari los renderiza nativo) --- */
+#editor-toolbar select.et-dark, #cell-editor-modal select.ce-dark {
+    -webkit-appearance: none; appearance: none;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.95rem !important;
+    padding: 9px 32px 9px 12px !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+#cell-editor-modal select.ce-dark { font-size: 1rem !important; }
+
+/* Botón Eliminar: mismo peso visual que Guardar, en rojo */
+.btn-danger {
+    background: #ff5566 !important; color: #fff !important;
+    border: none; border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1rem;
+    padding: 10px 22px; cursor: pointer;
+}
+.btn-danger:hover { background: #e6394b !important; }
