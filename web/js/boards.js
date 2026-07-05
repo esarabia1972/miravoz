@@ -255,11 +255,28 @@ export async function loadSavedBoards() {
             infoDiv.append(h3, pType, pPrev);
 
             const actionsDiv = document.createElement('div');
-            actionsDiv.style.cssText = 'position:absolute; top:10px; right:10px; display:flex; gap:8px;';
+            actionsDiv.style.cssText = 'position:absolute; top:12px; right:12px; display:flex; gap:8px;';
+
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'btn-secondary';
+            exportBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+            exportBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+            exportBtn.title = 'Exportar .grd';
+            exportBtn.onclick = (e) => {
+                e.stopPropagation();
+                const payload = { grids: Object.values(bundle.boards) };
+                const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${bundle.name}.grd`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            };
+
 
             const duplicateBtn = document.createElement('button');
             duplicateBtn.className = 'btn-secondary';
-            duplicateBtn.style.cssText = 'padding: 4px; display:flex; align-items:center; justify-content:center; border-radius:4px;';
+            duplicateBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
             duplicateBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
             duplicateBtn.title = 'Duplicar tablero';
             duplicateBtn.onclick = async (e) => {
@@ -274,7 +291,7 @@ export async function loadSavedBoards() {
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-delete-card';
-            deleteBtn.style.cssText = 'padding: 4px; display:flex; align-items:center; justify-content:center; border-radius:4px;';
+            deleteBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px; margin-left:8px;';
             deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
             deleteBtn.title = 'Eliminar tablero';
             deleteBtn.onclick = async (e) => {
@@ -289,7 +306,7 @@ export async function loadSavedBoards() {
                 });
             };
             
-            actionsDiv.append(duplicateBtn, deleteBtn);
+            actionsDiv.append(exportBtn, duplicateBtn, deleteBtn);
 
             const progress = document.createElement('div');
             progress.className = 'progress-bar';

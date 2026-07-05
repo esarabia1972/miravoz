@@ -136,22 +136,11 @@ function buildToolbar() {
     };
     tb.appendChild(lvl);
 
-    // Export .grd (F3-5)
-    tb.appendChild(mkBtn('Exportar .grd', () => exportGrd(b)));
+
 
     document.getElementById('board-view').prepend(tb);
 }
 
-// --- Export .grd (F3-5): serialización directa del formato nativo ---
-export function exportGrd(bundle) {
-    const payload = { grids: Object.values(bundle.boards) };
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${bundle.name}.grd`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
 
 // --- Editor de celda (F3-3) ---
 const modal = () => document.getElementById('cell-editor-modal');
