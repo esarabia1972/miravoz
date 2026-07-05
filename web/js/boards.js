@@ -299,7 +299,9 @@ export function openBundle(bundle) {
         document.getElementById('home-view').style.display = 'none';
         document.getElementById('top-bar').style.display = 'none';
         document.getElementById('bottom-bar').style.display = 'none';
-        document.getElementById('board-view').style.display = 'flex';
+        const boardView = document.getElementById('board-view');
+        boardView.style.display = 'flex';
+        boardView.style.opacity = '1'; // startCalibration puede haberla dejado en 0
 
         renderGrid(bundle.mainBoard);
         hooks.onBundleOpened();

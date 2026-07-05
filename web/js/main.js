@@ -151,7 +151,12 @@ btnRecalibrar.addEventListener('click', async () => {
 
 // --- Cambio de modo ---
 modeSelect.addEventListener('change', (e) => {
-    S.trackingMode = e.target.value;
+    applyMode(e.target.value);
+    saveSettings({ accessMode: e.target.value }); // persistir entre sesiones
+});
+
+function applyMode(mode) {
+    S.trackingMode = mode;
 
     if (S.trackingMode === 'CLICKS') {
         S.isCalibrated = false;
@@ -183,7 +188,7 @@ modeSelect.addEventListener('change', (e) => {
             startCalibration();
         }
     }
-});
+}
 
 // --- Navegación Home/Board ---
 function goHome() {
@@ -368,6 +373,14 @@ function drawCursor(x, y) {
     initAuth(async () => {
         await calibration.loadProfiles();
         await boards.loadSavedBoards();
+
+        // Restaurar el modo de acceso de la sesión anterior (con perfiles ya cargados)
+        let savedMode = settings.accessMode;
+        if (savedMode === 'OJOS' && !document.getElementById('opt-ojos')) savedMode = 'CLICKS';
+        if (savedMode && savedMode !== 'CLICKS' && savedMode !== S.trackingMode) {
+            modeSelect.value = savedMode;
+            applyMode(savedMode);
+        }
     });
 
     requestAnimationFrame(appLoop);
