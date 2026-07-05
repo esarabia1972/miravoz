@@ -855,3 +855,8 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 #cell-editor-modal .ce-label { font-size: 0.95rem; color: #ddd; font-weight: 600; margin-top: 16px; }
 #cell-editor-modal .ce-hint { font-size: 0.8rem; }
 #cell-editor-modal .btn { font-size: 1rem; padding: 10px 22px; }
+
+/* --- Editor F3.4: la toolbar no se recorta arriba --- */
+/* view-container centra verticalmente; con la toolbar el contenido supera el alto
+   y el centrado recorta el tope. En board-view alineamos arriba siempre. */
+#board-view { justify-content: flex-start !important; }
