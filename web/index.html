@@ -28,12 +28,20 @@
             <img src="logo.png" onerror="this.src='logo.png';" alt="Miravoz" />
         </div>
         
-        <div class="search-container" id="top-search-container" style="flex: 1; max-width: 400px; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-            <div style="position: relative; width: 100%;">
+        <div class="top-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
+            <div id="top-search-container" style="position: relative; width: 300px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="board-search" placeholder="Buscar tablero por nombre..." class="glass-input" style="width: 100%; border-radius: 20px; padding-left: 38px; box-sizing: border-box;" />
             </div>
-            <button id="btn-nav-users" class="btn" style="white-space: nowrap;">Mis Usuarios</button>
+            <div class="mode-selector">
+                <select id="mode-select" class="glass-select">
+                    <option id="opt-ojos" value="OJOS">Modo Iris</option>
+                    <option value="CARA">Modo Rostro</option>
+                    <option value="SCAN">Modo Barrido</option>
+                    <option value="CLICKS" selected>Modo Manual</option>
+                </select>
+            </div>
+            <button id="btn-recalibrar" class="btn btn-secondary">Recalibrar</button>
         </div>
     </div>
 
@@ -225,18 +233,11 @@
             
             <div class="divider"></div>
             
-            <!-- Grupo de Modos / Calibración -->
             <div class="control-group">
-                <div class="mode-selector">
-                    <select id="mode-select" class="glass-select">
-                        <option id="opt-ojos" value="OJOS">Modo Iris</option>
-                        <option value="CARA">Modo Rostro</option>
-                        <option value="SCAN">Modo Barrido</option>
-                        <option value="CLICKS" selected>Modo Manual</option>
-                    </select>
-                </div>
-
-                <button id="btn-recalibrar" class="btn btn-secondary">Recalibrar</button>
+                <button id="btn-nav-users" class="btn btn-secondary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Mis Usuarios
+                </button>
             </div>
         </div>
     </div>

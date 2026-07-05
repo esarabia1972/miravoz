@@ -24,23 +24,27 @@ function switchView(view) {
     appState.view = view;
     document.getElementById('auth-view').style.display = 'none';
     document.getElementById('home-view').style.display = 'none';
-    document.getElementById('editor-view').style.display = 'none';
+    document.getElementById('board-view').style.display = 'none';
     document.getElementById('users-view').style.display = 'none';
     
     if (view === 'auth') {
         document.getElementById('auth-view').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'none';
+        document.getElementById('bottom-bar').style.display = 'none';
     } else if (view === 'home') {
-        document.getElementById('home-view').style.display = 'block';
+        document.getElementById('home-view').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'flex';
+        document.getElementById('bottom-bar').style.display = 'flex';
         document.getElementById('top-search-container').style.display = 'flex';
     } else if (view === 'users') {
-        document.getElementById('users-view').style.display = 'block';
+        document.getElementById('users-view').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'flex';
+        document.getElementById('bottom-bar').style.display = 'flex';
         document.getElementById('top-search-container').style.display = 'none'; // No search in users view
-    } else if (view === 'editor') {
-        document.getElementById('editor-view').style.display = 'flex';
+    } else if (view === 'board') {
+        document.getElementById('board-view').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'none';
+        document.getElementById('bottom-bar').style.display = 'none';
     }
 }
 
