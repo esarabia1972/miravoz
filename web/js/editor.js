@@ -108,20 +108,11 @@ function buildToolbar() {
         await persistBundle();
     };
     tb.appendChild(nameInput);
-
-    // Dimensiones
-    const dims = (dr, dc) => async () => {
-        const g = grid();
-        const rows = Math.max(1, (g.rowCount || 3) + dr);
-        const cols = Math.max(1, (g.minColumnCount || 4) + dc);
-        const outOfRange = (g.gridElements || []).some(el => el.y >= rows || el.x >= cols);
-        if (outOfRange && !(await customConfirm('Hay celdas fuera del nuevo tamaño: quedarán ocultas. ¿Continuar?'))) return;
-        g.rowCount = rows;
-        g.minColumnCount = cols;
-        await persistBundle();
-        boards.renderGrid(S.currentGridId);
-    };
-    tb.append(mkBtn('+Fila', dims(1, 0)), mkBtn('−Fila', dims(-1, 0)), mkBtn('+Col', dims(0, 1)), mkBtn('−Col', dims(0, -1)));
+    
+    // Aire
+    const spacer1 = document.createElement('div');
+    spacer1.style.width = '24px';
+    tb.appendChild(spacer1);
 
     // Nivel de vocabulario activo (F3-6)
     tb.appendChild(mkLabel('Dificultad', 'Filtra qué celdas ve el usuario según su nivel: cada celda tiene un "nivel de vocabulario" en su editor. "Todas" muestra el tablero completo; "Nivel 1" solo lo esencial. Sirve para usar el MISMO tablero con usuarios de distinta capacidad sin duplicarlo.'));
@@ -135,6 +126,47 @@ function buildToolbar() {
         boards.renderGrid(S.currentGridId);
     };
     tb.appendChild(lvl);
+
+    // Aire
+    const spacer2 = document.createElement('div');
+    spacer2.style.width = '24px';
+    tb.appendChild(spacer2);
+
+    // Dimensiones
+    const dims = (dr, dc) => async () => {
+        const g = grid();
+        const rows = Math.max(1, (g.rowCount || 3) + dr);
+        const cols = Math.max(1, (g.minColumnCount || 4) + dc);
+        const outOfRange = (g.gridElements || []).some(el => el.y >= rows || el.x >= cols);
+        if (outOfRange && !(await customConfirm('Hay celdas fuera del nuevo tamaño: quedarán ocultas. ¿Continuar?'))) return;
+        g.rowCount = rows;
+        g.minColumnCount = cols;
+        await persistBundle();
+        boards.renderGrid(S.currentGridId);
+    };
+    
+    // Grupo Filas
+    const divRows = document.createElement('div');
+    divRows.style.cssText = 'display:flex; align-items:center; gap:4px;';
+    divRows.appendChild(mkLabel('Filas'));
+    const btnRowMinus = mkBtn('−', dims(-1, 0)); btnRowMinus.style.padding = '4px 8px';
+    const btnRowPlus = mkBtn('+', dims(1, 0)); btnRowPlus.style.padding = '4px 8px';
+    divRows.append(btnRowMinus, btnRowPlus);
+    tb.appendChild(divRows);
+
+    // Aire pequeño
+    const spacer3 = document.createElement('div');
+    spacer3.style.width = '12px';
+    tb.appendChild(spacer3);
+
+    // Grupo Columnas
+    const divCols = document.createElement('div');
+    divCols.style.cssText = 'display:flex; align-items:center; gap:4px;';
+    divCols.appendChild(mkLabel('Columnas'));
+    const btnColMinus = mkBtn('−', dims(0, -1)); btnColMinus.style.padding = '4px 8px';
+    const btnColPlus = mkBtn('+', dims(0, 1)); btnColPlus.style.padding = '4px 8px';
+    divCols.append(btnColMinus, btnColPlus);
+    tb.appendChild(divCols);
 
 
 

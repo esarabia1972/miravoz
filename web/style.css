@@ -242,7 +242,7 @@ body {
     justify-content: center;
     align-items: flex-start;
     position: relative;
-    min-height: 130px;
+    min-height: 160px;
 }
 @media (min-width: 1400px) {
     .board-grid { grid-template-columns: repeat(4, 1fr); }
