@@ -822,11 +822,17 @@ body.edit-mode .cell:not(.empty-cell) { cursor: pointer; box-shadow: inset 0 0 0
 }
 .editable-slot::after { content: '+'; color: rgba(255,221,0,0.6); font-size: 2rem; }
 .btn-edit-toggle {
-    background: transparent; border: none; color: var(--text-muted, #aaa);
+    background: transparent; color: #ffdd00;
+    border: 1px solid rgba(255, 221, 0, 0.4);
     cursor: pointer; padding: 8px; border-radius: 8px;
+    transition: all 0.2s ease;
 }
-.btn-edit-toggle:hover { color: #ffdd00; background: rgba(255,255,255,0.08); }
-body.edit-mode .btn-edit-toggle { color: #ffdd00; }
+.btn-edit-toggle:hover { color: #ffdd00; background: rgba(255, 221, 0, 0.1); border-color: #ffdd00; }
+body.edit-mode .btn-edit-toggle { 
+    color: #cca400; /* Darker yellow */
+    border-color: #cca400; 
+    background: rgba(204, 164, 0, 0.15); 
+}
 
 .ce-label { display: block; margin: 16px 0 4px; font-size: 0.95rem; color: #ddd; font-weight: 600; }
 .ce-hint { font-size: 0.8rem; color: #888; margin: 4px 0 0 0; }

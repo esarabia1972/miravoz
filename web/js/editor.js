@@ -139,7 +139,6 @@ function buildToolbar() {
     // Export .grd (F3-5)
     tb.appendChild(mkBtn('Exportar .grd', () => exportGrd(b)));
 
-    tb.appendChild(mkBtn('✓ Terminar edición', exitEditMode));
     document.getElementById('board-view').prepend(tb);
 }
 
