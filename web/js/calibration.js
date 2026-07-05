@@ -66,6 +66,7 @@ export class CalibrationSession {
         this.currentIdx = null;
         this.phase = 'IDLE'; // IDLE | COUNTDOWN | SAMPLING | DONE
         this.phaseStart = 0;
+        this.emptyPointStreak = 0; // abort de seguridad: puntos seguidos sin muestras
     }
 
     begin(now) {
@@ -101,8 +102,18 @@ export class CalibrationSession {
                 const p = this.pointSamples[this.currentIdx];
                 p.samples = trimOutliers(p.samples, CONFIG.SAMPLE_OUTLIER_SIGMA);
                 if (p.samples.length < CONFIG.MIN_SAMPLES_PER_POINT) {
-                    // Muestras insuficientes (sin rostro / mucho ruido): repetir el punto
+                    // Muestras insuficientes (sin rostro / mucho ruido): repetir el punto,
+                    // pero NUNCA en loop infinito — 3 intentos vacíos seguidos abortan.
+                    this.emptyPointStreak++;
+                    if (this.emptyPointStreak >= 3) {
+                        console.error('Calibración abortada: la cámara no entrega rostro/features.');
+                        this.phase = 'DONE';
+                        this.onComplete(null);
+                        return;
+                    }
                     this.queue.unshift(this.currentIdx);
+                } else {
+                    this.emptyPointStreak = 0;
                 }
                 this._nextPoint(now);
             }

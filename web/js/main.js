@@ -112,7 +112,8 @@ boards.hooks.onHomeRendered = (targets) => {
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
     clearSentence();
-    if (S.trackingMode !== 'CLICKS' && !S.isCalibrated) {
+    // Solo los modos de puntero (Rostro/Iris) requieren calibración; Barrido y Manual no.
+    if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
         startCalibration();
     } else {
         S.state = 'BOARD';
@@ -123,7 +124,7 @@ boards.hooks.onBundleOpened = () => {
 let calibSession = null;
 
 function startCalibration() {
-    if (S.trackingMode === 'CLICKS') return;
+    if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
 
     calibration.updateCalibPoints();
     calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete);
@@ -181,7 +182,7 @@ btnRecalibrar.addEventListener('click', async () => {
         S.isCalibrated = false;
         startCalibration();
     } else {
-        customAlert('La calibración no es necesaria en el Modo Manual (Clicks).');
+        customAlert('La calibración solo aplica a los modos con cámara (Rostro/Iris). El Modo Barrido y el Manual no la necesitan.');
     }
 });
 
