@@ -9,7 +9,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="style.css?v=13">
     
     <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -197,52 +197,59 @@
 
     <!-- Editor de Celda (Fase 3) -->
     <div id="cell-editor-modal" class="modal-overlay" style="display: none; z-index: 21000;">
-        <div class="modal-content glass-box" style="max-width: 520px; max-height: 90vh; overflow-y: auto; text-align: left;">
+        <div class="modal-content glass-box" style="max-width: 860px; width: 92vw; max-height: 90vh; overflow-y: auto; text-align: left;">
             <div class="modal-header"><h3>Editar celda</h3></div>
 
-            <label class="ce-label">Texto</label>
-            <input type="text" id="ce-label" class="glass-input" style="width:100%;" placeholder="Ej: QUIERO" />
+            <div class="ce-columns">
+                <div class="ce-col">
+                    <label class="ce-label">Texto</label>
+                    <input type="text" id="ce-label" class="glass-input ce-dark" style="width:100%;" placeholder="Ej: QUIERO" />
 
-            <label class="ce-label">Al seleccionarla…</label>
-            <select id="ce-speak-mode" class="glass-select" style="width:100%;">
-                <option value="label">Dice el texto</option>
-                <option value="custom">Dice otro texto…</option>
-                <option value="silent">No dice nada (silenciosa)</option>
-            </select>
-            <input type="text" id="ce-speak-text" class="glass-input" style="width:100%; display:none; margin-top:6px;" placeholder="Texto a decir" />
+                    <label class="ce-label">Al seleccionarla…</label>
+                    <select id="ce-speak-mode" class="glass-select ce-dark" style="width:100%;">
+                        <option value="label">Dice el texto</option>
+                        <option value="custom">Dice otro texto…</option>
+                        <option value="silent">No dice nada (silenciosa)</option>
+                    </select>
+                    <input type="text" id="ce-speak-text" class="glass-input ce-dark" style="width:100%; display:none; margin-top:6px;" placeholder="Texto a decir" />
 
-            <label class="ce-label">Color (categoría)</label>
-            <select id="ce-color" class="glass-select" style="width:100%;">
-                <option value="">Sin color</option>
-                <option value="CC_PRONOUN_PERSON_NAME">Amarillo — personas/pronombres</option>
-                <option value="CC_VERB">Verde — verbos</option>
-                <option value="CC_DESCRIPTOR">Azul — descriptores</option>
-                <option value="CC_NOUN">Naranja — sustantivos</option>
-                <option value="CC_IMPORTANT">Rojo — importante</option>
-                <option value="CC_SOCIAL_EXPRESSIONS">Rosa — expresiones sociales</option>
-                <option value="CC_PLACE">Violeta — lugares</option>
-                <option value="CC_OTHERS">Gris — otros</option>
-            </select>
+                    <label class="ce-label">Color (categoría)</label>
+                    <select id="ce-color" class="glass-select ce-dark" style="width:100%;">
+                        <option value="">Sin color</option>
+                        <option value="CC_PRONOUN_PERSON_NAME">Amarillo — personas/pronombres</option>
+                        <option value="CC_VERB">Verde — verbos</option>
+                        <option value="CC_DESCRIPTOR">Azul — descriptores</option>
+                        <option value="CC_NOUN">Naranja — sustantivos</option>
+                        <option value="CC_IMPORTANT">Rojo — importante</option>
+                        <option value="CC_SOCIAL_EXPRESSIONS">Rosa — expresiones sociales</option>
+                        <option value="CC_PLACE">Violeta — lugares</option>
+                        <option value="CC_OTHERS">Gris — otros</option>
+                    </select>
 
-            <label class="ce-label">Nivel de vocabulario</label>
-            <select id="ce-level" class="glass-select" style="width:100%;">
-                <option value="0">Siempre visible</option>
-                <option value="1">Nivel 1 (esencial)</option>
-                <option value="2">Nivel 2</option>
-                <option value="3">Nivel 3</option>
-            </select>
+                    <label class="ce-label">Nivel de vocabulario <span class="ce-help" title="Permite tener versiones simplificadas del mismo tablero: en uso, solo se muestran las celdas del nivel elegido en la barra de edición. Nivel 1 = lo esencial.">ⓘ</span></label>
+                    <select id="ce-level" class="glass-select ce-dark" style="width:100%;">
+                        <option value="0">Siempre visible</option>
+                        <option value="1">Nivel 1 (esencial)</option>
+                        <option value="2">Nivel 2</option>
+                        <option value="3">Nivel 3</option>
+                    </select>
 
-            <label class="ce-label">Navegar a otro tablero</label>
-            <select id="ce-nav" class="glass-select" style="width:100%;"></select>
+                    <label class="ce-label">Navegar a otro tablero</label>
+                    <select id="ce-nav" class="glass-select ce-dark" style="width:100%;"></select>
+                    <p class="ce-hint">Acá aparecen los demás tableros de este archivo. Si todavía no hay otros, usá "➕ Crear tablero nuevo…".</p>
+                </div>
 
-            <label class="ce-label">Pictograma (ARASAAC)</label>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="ce-arasaac-q" class="glass-input" style="flex:1;" placeholder="Buscar pictograma…" />
-                <button id="ce-arasaac-go" class="btn btn-secondary">Buscar</button>
+                <div class="ce-col">
+                    <label class="ce-label">Pictograma (ARASAAC)</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="ce-arasaac-q" class="glass-input ce-dark" style="flex:1;" placeholder="Buscar pictograma…" />
+                        <button id="ce-arasaac-go" class="btn btn-secondary">Buscar</button>
+                    </div>
+                    <div id="ce-img-preview" class="ce-preview"></div>
+                    <div id="ce-arasaac-results" class="ce-results"></div>
+                    <p style="font-size:0.7rem; color:#888;">Pictogramas: Sergio Palao / ARASAAC (CC BY-NC-SA), Gobierno de Aragón.</p>
+                </div>
             </div>
-            <div id="ce-img-preview" class="ce-preview"></div>
-            <div id="ce-arasaac-results" class="ce-results"></div>
-            <p style="font-size:0.7rem; color:#888;">Pictogramas: Sergio Palao / ARASAAC (CC BY-NC-SA), Gobierno de Aragón.</p>
 
             <div style="display:flex; gap:10px; justify-content:space-between; margin-top:15px;">
                 <button id="ce-delete" class="btn btn-secondary" style="color:#f88;">🗑 Eliminar</button>
@@ -313,6 +320,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=6"></script>
+    <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>

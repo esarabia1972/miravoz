@@ -87,10 +87,19 @@ function buildToolbar() {
         return btn;
     };
 
+    const mkLabel = (text, title = '') => {
+        const l = document.createElement('span');
+        l.className = 'et-label';
+        l.textContent = text;
+        if (title) { l.title = title; l.textContent += ' ⓘ'; }
+        return l;
+    };
+
     // Nombre del tablero (rename, F3-1)
+    tb.appendChild(mkLabel('Nombre'));
     const nameInput = document.createElement('input');
-    nameInput.className = 'glass-input';
-    nameInput.style.width = '180px';
+    nameInput.className = 'glass-input et-dark';
+    nameInput.style.width = '160px';
     nameInput.value = b.name;
     nameInput.onchange = async () => {
         b.name = nameInput.value.trim() || b.name;
@@ -115,9 +124,10 @@ function buildToolbar() {
     tb.append(mkBtn('+Fila', dims(1, 0)), mkBtn('−Fila', dims(-1, 0)), mkBtn('+Col', dims(0, 1)), mkBtn('−Col', dims(0, -1)));
 
     // Nivel de vocabulario activo (F3-6)
+    tb.appendChild(mkLabel('Dificultad', 'Filtra qué celdas ve el usuario según su nivel: cada celda tiene un "nivel de vocabulario" en su editor. "Todas" muestra el tablero completo; "Nivel 1" solo lo esencial. Sirve para usar el MISMO tablero con usuarios de distinta capacidad sin duplicarlo.'));
     const lvl = document.createElement('select');
-    lvl.className = 'glass-select';
-    lvl.innerHTML = '<option value="0">Nivel: todos</option><option value="1">Nivel 1 (esencial)</option><option value="2">Nivel 2</option><option value="3">Nivel 3</option>';
+    lvl.className = 'glass-select et-dark';
+    lvl.innerHTML = '<option value="0">Todas las celdas</option><option value="1">Solo nivel 1 (esencial)</option><option value="2">Hasta nivel 2</option><option value="3">Hasta nivel 3</option>';
     lvl.value = String(b.activeLevel || 0);
     lvl.onchange = async () => {
         b.activeLevel = parseInt(lvl.value, 10) || 0;

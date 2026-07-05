@@ -805,3 +805,22 @@ body.edit-mode .btn-edit-toggle { color: #ffdd00; }
 }
 .ce-results img.selected { border-color: #00ff88; }
 .ce-preview img { height: 60px; background: white; border-radius: 8px; margin-top: 6px; }
+
+/* --- Editor F3.1: toolbar y modal pulidos (feedback Esteban) --- */
+#editor-toolbar {
+    position: sticky; top: 0; width: 100%; box-sizing: border-box;
+    background: #14141f !important; z-index: 100;
+    border-bottom: 2px solid #ffdd00; padding: 10px 20px;
+}
+.et-label { color: #ffdd00; font-size: 0.8rem; font-weight: 600; margin-left: 6px; cursor: default; }
+#editor-toolbar .et-dark, .ce-dark {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+#editor-toolbar .et-dark option, .ce-dark option { background: #14141f; color: #fff; }
+.ce-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 700px) { .ce-columns { grid-template-columns: 1fr; } }
+.ce-hint { font-size: 0.72rem; color: #888; margin: 4px 0 0 0; }
+.ce-help { cursor: help; color: #ffdd00; }
+#cell-editor-modal .ce-results { max-height: 300px; }

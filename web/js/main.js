@@ -239,8 +239,10 @@ function applyMode(mode) {
 
 // --- Navegación Home/Board ---
 function goHome() {
+    if (editor.isEditMode()) editor.exitEditMode();
     S.state = 'HOME';
     S.currentBundle = null;
+    boards.loadSavedBoards(); // refresca las cards (nombres/contadores editados)
     boardView.style.display = 'none';
     homeView.style.display = 'flex';
     topBar.style.display = 'flex';
