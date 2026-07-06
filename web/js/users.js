@@ -118,8 +118,7 @@ export function renderUsersList() {
     });
 }
 
-// Event Listeners for UI
-document.addEventListener('DOMContentLoaded', () => {
+export function initUsers() {
     const btnCreate = document.getElementById('btn-create-user');
     const inputName = document.getElementById('new-user-name');
     
@@ -138,4 +137,4 @@ document.addEventListener('DOMContentLoaded', () => {
             btnCreate.innerText = 'Crear Usuario';
         });
     }
-});
+}

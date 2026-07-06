@@ -55,18 +55,18 @@
     </div>
     
     <!-- Vista de Mis Usuarios (Fase 4.2) -->
-    <div id="users-view" class="view-container" style="display: none;">
-        <div class="gallery-container" style="padding-top: 20px; max-width: 800px; margin: 0 auto; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Mis Usuarios (Pacientes)</h2>
-                <button id="btn-nav-home" class="btn auth-btn-secondary">Volver a Tableros</button>
+    <div id="users-view" class="modal-overlay" style="display: none; z-index: 10000;">
+        <div class="modal-content glass-box" style="width: 75%; max-width: 900px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>Gestión de Usuarios</h2>
+                <button id="btn-close-users" class="btn-close-modal">&times;</button>
             </div>
             
             <div class="glass-box" style="padding: 20px; margin-bottom: 20px;">
                 <h3>Crear Nuevo Usuario</h3>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="text" id="new-user-name" class="glass-input" placeholder="Nombre (ej. Mateo)" style="flex: 1;" />
-                    <button id="btn-create-user" class="btn">Crear Usuario</button>
+                    <button id="btn-create-user" class="btn btn-primary">Crear Usuario</button>
                 </div>
             </div>
 

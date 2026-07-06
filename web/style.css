@@ -98,19 +98,26 @@ body {
     border-color: rgba(255,255,255,0.2);
 }
 
-#mode-select {
-    padding: 10px 15px;
-    border-radius: 8px;
-    background: var(--cell-bg);
+.glass-select, .glass-input {
+    background: var(--glass-bg);
     border: 1px solid var(--cell-border);
-    color: white;
+    color: var(--text-main);
     font-size: 16px;
     font-family: 'Inter', sans-serif;
     outline: none;
-    cursor: pointer;
+    border-radius: 12px;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    height: 44px; /* Matches buttons */
 }
 
-#mode-select option {
+.glass-select:focus, .glass-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+.glass-select option {
     background: var(--bg-color);
 }
 

@@ -7,7 +7,7 @@ import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
 import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence } from './ui.js';
 import { initAuth } from './auth.js';
-import { fetchUsers, setProfessionalId } from './users.js';
+import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
@@ -25,7 +25,6 @@ function switchView(view) {
     document.getElementById('auth-view').style.display = 'none';
     document.getElementById('home-view').style.display = 'none';
     document.getElementById('board-view').style.display = 'none';
-    document.getElementById('users-view').style.display = 'none';
     
     if (view === 'auth') {
         document.getElementById('auth-view').style.display = 'flex';
@@ -36,11 +35,6 @@ function switchView(view) {
         document.getElementById('top-bar').style.display = 'flex';
         document.getElementById('bottom-bar').style.display = 'flex';
         document.getElementById('top-search-container').style.display = 'flex';
-    } else if (view === 'users') {
-        document.getElementById('users-view').style.display = 'flex';
-        document.getElementById('top-bar').style.display = 'flex';
-        document.getElementById('bottom-bar').style.display = 'flex';
-        document.getElementById('top-search-container').style.display = 'none'; // No search in users view
     } else if (view === 'board') {
         document.getElementById('board-view').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'none';
@@ -63,8 +57,12 @@ const modeSelect = document.getElementById('mode-select');
 const dwellSelect = document.getElementById('dwell-select');
 const btnRecalibrar = document.getElementById('btn-recalibrar');
 
-document.getElementById('btn-nav-users')?.addEventListener('click', () => switchView('users'));
-document.getElementById('btn-nav-home')?.addEventListener('click', () => switchView('home'));
+    document.getElementById('btn-nav-users')?.addEventListener('click', () => {
+        document.getElementById('users-view').style.display = 'flex';
+    });
+    document.getElementById('btn-close-users')?.addEventListener('click', () => {
+        document.getElementById('users-view').style.display = 'none';
+    });
 const btnIniciarCalibracion = document.getElementById('btn-iniciar-calibracion');
 const fileImport = document.getElementById('file-import');
 const importModal = document.getElementById('import-modal');
@@ -482,6 +480,7 @@ function drawCursor(x, y) {
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
     editor.initEditor();
+    initUsers();
     renderSentence();
 
     initAuth(async () => {
