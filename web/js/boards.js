@@ -631,20 +631,43 @@ const btnCancelAssign = document.getElementById('btn-cancel-assign');
 const btnConfirmAssign = document.getElementById('btn-confirm-assign');
 const btnCloseAssign = document.getElementById('btn-close-assign');
 
-function openAssignModal(bundle) {
+async function openAssignModal(bundle) {
     bundleToAssign = bundle;
     selectedUserId = null;
     btnConfirmAssign.disabled = true;
     btnConfirmAssign.innerText = 'Asignar Copia';
     
-    assignUsersList.innerHTML = '';
+    assignUsersList.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="border-width:2px; width:20px; height:20px; border-top-color:#00ff88; margin:0 auto;"></div></div>';
+    assignModal.style.display = 'flex';
     
     if (users.length === 0) {
         assignUsersList.innerHTML = '<p style="color:var(--text-muted);">No tienes usuarios registrados. Ve a "Mis Usuarios" para crear uno.</p>';
-    } else {
-        users.forEach(user => {
-            const label = document.createElement('label');
-            label.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.05); border-radius:5px; cursor:pointer;';
+        return;
+    }
+
+    // Fetch existing assignments for this board
+    const { data: assignments, error } = await supabaseClient
+        .from('assignments')
+        .select('aac_user_id')
+        .eq('board_id', bundle.id);
+
+    const assignedUserIds = new Set((assignments || []).map(a => a.aac_user_id));
+
+    assignUsersList.innerHTML = '';
+
+    users.forEach(user => {
+        const isAssigned = assignedUserIds.has(user.id);
+        const label = document.createElement('label');
+        label.style.cssText = `display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.05); border-radius:5px; cursor:${isAssigned ? 'default' : 'pointer'}; opacity: ${isAssigned ? '0.6' : '1'};`;
+        
+        if (isAssigned) {
+            label.innerHTML = `
+                <div style="width:16px; height:16px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <span>${user.display_name} <span style="font-size:0.8em; color:var(--primary); margin-left:5px;">(Asignado)</span></span>
+            `;
+        } else {
             label.innerHTML = `
                 <input type="radio" name="assign-user" value="${user.id}">
                 <span>${user.display_name}</span>
@@ -653,11 +676,9 @@ function openAssignModal(bundle) {
                 selectedUserId = e.target.value;
                 btnConfirmAssign.disabled = false;
             });
-            assignUsersList.appendChild(label);
-        });
-    }
-    
-    assignModal.style.display = 'flex';
+        }
+        assignUsersList.appendChild(label);
+    });
 }
 
 function closeAssignModal() {
@@ -689,9 +710,9 @@ if (btnConfirmAssign) {
             
         if (error) {
             console.error("Error asignando tablero:", error);
-            alert("Error al asignar tablero: " + error.message);
+            customAlert("Error al asignar tablero: " + error.message);
         } else {
-            alert("Tablero asignado correctamente a " + users.find(u => u.id === selectedUserId).display_name);
+            customAlert("Tablero asignado correctamente a " + users.find(u => u.id === selectedUserId).display_name);
             closeAssignModal();
         }
     });

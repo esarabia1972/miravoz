@@ -1,7 +1,7 @@
 // auth.js — Supabase: autenticación (bypasseada, ver SPEC F4) y storage de tableros
 
 import { S } from './state.js';
-import { showSyncToast, hideSyncToast } from './ui.js';
+import { showSyncToast, hideSyncToast, customAlert } from './ui.js';
 
 const SUPABASE_URL = 'https://bpcedvpcwwwgnfinqztq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_dqFw8-mzNW88E5aRgG7WMw_byIf-pT1';
@@ -64,7 +64,7 @@ export function initAuth(onReady) {
             const email = emailInput.value.trim();
             const password = passInput.value.trim();
             if (!email || !password) {
-                alert("Completa ambos campos");
+                customAlert("Completa ambos campos");
                 return;
             }
             btnLogin.disabled = true;
@@ -79,16 +79,16 @@ export function initAuth(onReady) {
                     const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
                     if (signUpError) {
                         if (signUpError.message.includes('User already registered')) {
-                            alert("Error: Contraseña incorrecta o cuenta sin confirmar.");
+                            customAlert("Error: Contraseña incorrecta o cuenta sin confirmar.");
                         } else {
-                            alert("Error: " + signUpError.message);
+                            customAlert("Error: " + signUpError.message);
                         }
                     } else {
-                        alert("Cuenta creada. Si activaste confirmación, revisa tu correo. Si no, vuelve a iniciar sesión.");
+                        customAlert("Cuenta creada. Si activaste confirmación, revisa tu correo. Si no, vuelve a iniciar sesión.");
                     }
                 } else {
                     // Otro error (ej. email no confirmado)
-                    alert("Error: " + error.message);
+                    customAlert("Error: " + error.message);
                 }
             }
             
