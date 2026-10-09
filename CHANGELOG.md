@@ -39,3 +39,54 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Added (F3-5)**: Export **.grd** (serialización directa del formato nativo — round-trip con AsTeRICS Grid). Export .obz pendiente (F3.1).
 - **Added (F3-6)**: **Niveles de vocabulario** sobre el campo nativo `vocabularyLevel`: selector de nivel activo por tablero; en uso (no en edición) solo se muestran las celdas del nivel. Interopera con AsTeRICS al exportar.
 - **Decisión (F3-7)**: el editor se implementó en vanilla JS (módulo `editor.js`), consistente con la arquitectura sin build step. Pendientes para F3.1: drag & drop para mover celdas, re-layout compacto por nivel, export .obz, duplicar tablero, undo.
+
+### Fase 4 (parcial): F4.1 y F4.2, por Antigravity (05/07 a 09/10/2026)
+- **Added (F4-1)**: Login de profesionales con email y contraseña de Supabase. La tabla `boards` pasa a Postgres (JSONB).
+- **Added (F4-2/F4-3)**: Gestión de usuarios (`aac_users`) con código de acceso (`access_codes`) y asignación de un tablero a un usuario como copia (`assignments.copy_bundle`).
+
+### Fase 4: fix de pérdida de datos y modo sin cuenta (09/10/2026, equipo coordinado por Claude)
+- **Fixed (bloqueante)**: se perdían datos.
+  - Al arrancar con sesión, `downloadBoardsFromSupabase` borraba todos los tableros locales.
+  - El editor nunca subía cambios: los tableros nuevos y las ediciones desaparecían al recargar.
+  - Ahora todo guardado pasa por `sync.saveBundle()` y todo borrado por `sync.removeBundle()` (nuevo módulo `sync.js`).
+- **Added (F4-5)**: Sincronización local↔nube con fusión (`sync-plan.js`, lógica pura testeada).
+  - Last-write-wins por tablero. `syncedAt` funciona como token de versión, así un reloj desfasado entre tablets no esconde cambios.
+  - En un conflicto, la versión que pierde queda en `miravoz_conflict_backup_<id>` (se guardan las últimas 3) y se avisa con un toast.
+  - Los borrados pendientes (tombstones por cuenta) se recuperan si otro dispositivo editó el tablero después.
+  - Se reintenta al volver la conexión y al volver a la app.
+  - Concurrencia optimista al subir (`update … where updated_at = leído` / `insert`). Las subidas del mismo tablero se serializan.
+  - Si la nube vuelve vacía teniendo tableros ya sincronizados, no se borra nada local.
+- **Fixed (invariante F4)**: la app vuelve a funcionar 100% sin cuenta.
+  - El login es opcional: "Ingresar (profesionales)" en la barra inferior, con "Crear cuenta" separado de "Ingresar".
+  - Muestra los tableros locales antes de esperar a la red o a la sesión.
+  - Funciona aunque no cargue el CDN de Supabase.
+  - El logout usa `scope: 'local'`, así también funciona sin red.
+- **Changed (privacidad)**: un tablero local "de nadie" no se sube a la nube sin que la persona lo acepte.
+  - Al iniciar sesión se pregunta una vez; si se rechaza, se recuerda.
+  - Asignar un tablero así también pide confirmación.
+  - Los tableros de una cuenta solo se ven con esa cuenta.
+  - El tablero de prueba nunca se sincroniza.
+- **Security**:
+  - XSS por `display_name` corregido en la lista de usuarios y en el modal de asignar.
+  - `access_codes` filtrados por los usuarios propios.
+  - Códigos generados con CSPRNG.
+  - Si la nube falla por un error del servidor (RLS, tipos), se avisa una vez en lugar de quedar pendiente en silencio.
+- **Fixed (UX/CAA)**:
+  - Con el login abierto, el barrido y el dwell quedan en pausa (antes, tipear la contraseña con Espacio o Enter activaba tarjetas ocultas).
+  - Los diálogos se encolan para que dos confirmaciones simultáneas no se cuelguen.
+  - Si el tablero abierto cambia desde otro dispositivo, se recarga y se invalida el "deshacer" pendiente.
+  - Acciones de las tarjetas con `aria-label` y 44px. El botón de cuenta pasa a `<button>`.
+  - Labels y `autocomplete` en el login; Enter envía el formulario. Foco visible.
+  - "Paciente" reemplazado por "usuario"; textos en voseo.
+  - `users.js` se cargaba dos veces: corregido.
+- **Added**:
+  - `EQUIPO.md`: roles del equipo y reglas.
+  - `tools/test-sync.mjs` (29 tests) y `tools/test-boot.mjs`: arranque real en jsdom, 7 escenarios, 44 chequeos.
+  - `supabase/`: auditoría de solo lectura del esquema real y requisitos de RLS.
+- **Pendiente F4**:
+  - Canje del código y la "casita" del chico (F4-4).
+  - Asignación múltiple con permisos, republicar y editar copias (F4-3).
+  - Settings por perfil (F4-6).
+  - Versionar el esquema y RLS reales (`supabase/01_schema_f4.sql`).
+  - Códigos de 8 caracteres con vencimiento corto.
+
