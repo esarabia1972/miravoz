@@ -67,16 +67,20 @@ export async function createUser(displayName) {
     const formattedCode = `${rawCode.substring(0,3)}-${rawCode.substring(3)}`;
 
     // 3. Insert code
+    const expiresAt = new Date();
+    expiresAt.setFullYear(expiresAt.getFullYear() + 10);
+    
     const { error: codeError } = await supabaseClient
         .from('access_codes')
         .insert([{
             code: formattedCode,
-            aac_user_id: newUser.id
+            aac_user_id: newUser.id,
+            expires_at: expiresAt.toISOString()
         }]);
 
     if (codeError) {
         console.error('Error creating access code:', codeError);
-        customAlert('Usuario creado, pero hubo un error generando el código.');
+        customAlert('Usuario creado, pero hubo un error generando el código: ' + (codeError.message || JSON.stringify(codeError)));
     }
 
     // Refresh list
