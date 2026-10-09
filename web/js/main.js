@@ -5,9 +5,10 @@ import { CONFIG, settings, initSettings, saveSettings } from './config.js';
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
-import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence } from './ui.js';
-import { initAuth } from './auth.js';
+import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
+import { initAuth, signOut } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
+import { syncAll } from './sync.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
@@ -16,31 +17,49 @@ import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 
-let appState = {
-    view: 'auth', // auth, home, editor, users
-};
-
-function switchView(view) {
-    appState.view = view;
-    document.getElementById('auth-view').style.display = 'none';
-    document.getElementById('home-view').style.display = 'none';
-    document.getElementById('board-view').style.display = 'none';
-    
-    if (view === 'auth') {
-        document.getElementById('auth-view').style.display = 'flex';
-        document.getElementById('top-bar').style.display = 'none';
-        document.getElementById('bottom-bar').style.display = 'none';
-    } else if (view === 'home') {
-        document.getElementById('home-view').style.display = 'flex';
-        document.getElementById('top-bar').style.display = 'flex';
-        document.getElementById('bottom-bar').style.display = 'flex';
-        document.getElementById('top-search-container').style.display = 'flex';
-    } else if (view === 'board') {
-        document.getElementById('board-view').style.display = 'flex';
-        document.getElementById('top-bar').style.display = 'none';
-        document.getElementById('bottom-bar').style.display = 'none';
-    }
+// --- Cuenta (F4): opcional. Sin sesión la app funciona 100% local. ---
+function showAuthView(show) {
+    // Con el login abierto, barrido y dwell quedan en pausa (appLoop solo corre en HOME/BOARD)
+    if (show) S.state = 'AUTH';
+    else if (S.state === 'AUTH') S.state = 'HOME';
+    if (show) document.getElementById('auth-email-input')?.focus();
+    document.getElementById('auth-view').style.display = show ? 'flex' : 'none';
+    document.getElementById('home-view').style.display = show ? 'none' : 'flex';
+    document.getElementById('top-bar').style.display = show ? 'none' : 'flex';
+    document.getElementById('bottom-bar').style.display = show ? 'none' : 'flex';
 }
+
+function updateAccountUI() {
+    const user = S.currentUser;
+    const nameEl = document.querySelector('.user-name');
+    const avatarEl = document.querySelector('.user-avatar');
+    const accountBtn = document.getElementById('btn-account');
+    const usersBtn = document.getElementById('btn-nav-users');
+    if (nameEl) nameEl.textContent = user ? user.email : 'Sin cuenta (solo este dispositivo)';
+    if (avatarEl) {
+        avatarEl.style.display = user ? 'flex' : 'none';
+        avatarEl.textContent = user ? user.email.substring(0, 2).toUpperCase() : '';
+    }
+    if (accountBtn) accountBtn.textContent = user ? 'Cerrar sesión' : 'Ingresar (profesionales)';
+    if (usersBtn) usersBtn.style.display = user ? '' : 'none';
+}
+
+async function onProfessionalSession(user) {
+    setProfessionalId(user.id);
+    fetchUsers();
+    await syncAll();
+}
+
+document.getElementById('btn-account')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (S.currentUser) {
+        await signOut();
+        window.location.reload(); // estado limpio; los tableros locales NO se borran (F0-4)
+    } else {
+        showAuthView(true);
+    }
+});
+document.getElementById('btn-auth-back')?.addEventListener('click', () => showAuthView(false));
 
 // --- Storage local ---
 localforage.config({ name: 'Miravoz', storeName: 'boards' });
@@ -113,6 +132,8 @@ const scan = new ScanEngine(selectTarget);
 let lastSwitchActivation = 0;
 function onSwitchActivate(e) {
     if (S.trackingMode !== 'SCAN') return;
+    if (S.state !== 'HOME' && S.state !== 'BOARD') return; // p. ej. con el login abierto
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view')) return;
     const now = performance.now();
     if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
     lastSwitchActivation = now;
@@ -472,6 +493,32 @@ function drawCursor(x, y) {
     ctxUI.stroke();
 }
 
+// --- La sync cambió tableros en disco: refrescar lo que se esté viendo ---
+window.addEventListener('miravoz:bundles-changed', async (e) => {
+    const { ids = [], removed = [] } = e.detail || {};
+    const open = S.currentBundle;
+    if (open && removed.includes(open.id)) {
+        goHome();
+        showInfoToast(`"${open.name}" se borró desde otro dispositivo (quedó un respaldo).`, 7000);
+        return;
+    }
+    if (open && ids.includes(open.id)) {
+        // Un "deshacer" pendiente aplicaría una foto vieja sobre la versión nueva: se invalida.
+        cancelUndo();
+        const cellModal = document.getElementById('cell-editor-modal');
+        if (cellModal) cellModal.style.display = 'none';
+        const fresh = await localforage.getItem(open.id);
+        if (fresh) {
+            S.currentBundle = fresh;
+            const gridId = fresh.boards && fresh.boards[S.currentGridId] ? S.currentGridId : fresh.mainBoard;
+            S.currentGridId = gridId;
+            if (editor.isEditMode()) editor.enterEditMode(); // reconstruye toolbar con el bundle nuevo
+            else boards.renderGrid(gridId);
+        }
+    }
+    if (S.state === 'HOME') boards.loadSavedBoards();
+});
+
 // --- Arranque ---
 (async function init() {
     await initSettings();
@@ -483,17 +530,36 @@ function drawCursor(x, y) {
     initUsers();
     renderSentence();
 
-    initAuth(async () => {
-        if (S.currentUser) {
-            setProfessionalId(S.currentUser.id);
-            fetchUsers();
-            switchView('home');
-        } else {
-            switchView('auth');
+    // Mostrar lo local de inmediato: la app nunca espera a la red ni a la sesión
+    showAuthView(false);
+    updateAccountUI();
+    boards.loadSavedBoards();
+
+    initAuth({
+        onReady: async (user) => {
+            showAuthView(false);
+            updateAccountUI();
+            await calibration.loadProfiles();
+            await boards.loadSavedBoards();      // primero lo local: la app es usable ya
+            restoreAccessMode();
+            if (user) {
+                await onProfessionalSession(user);
+                if (S.state === 'HOME') await boards.loadSavedBoards();
+            }
+        },
+        onSignedIn: async (user) => {
+            showAuthView(false);
+            updateAccountUI();
+            await onProfessionalSession(user);
+            if (S.state === 'HOME') await boards.loadSavedBoards();
+        },
+        onSignedOut: () => {
+            updateAccountUI();
+            if (S.state === 'HOME') boards.loadSavedBoards();
         }
-        
-        await calibration.loadProfiles();
-        await boards.loadSavedBoards();
+    });
+
+    function restoreAccessMode() {
 
         // Restaurar el modo de acceso de la sesión anterior (con perfiles ya cargados)
         let savedMode = settings.accessMode;
@@ -502,7 +568,7 @@ function drawCursor(x, y) {
             modeSelect.value = savedMode;
             applyMode(savedMode);
         }
-    });
+    }
 
     requestAnimationFrame(appLoop);
 })();

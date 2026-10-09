@@ -4,7 +4,7 @@ import { S } from './state.js';
 import { customAlert, customConfirm, addToSentence, showUndoToast } from './ui.js';
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
-import { uploadBoardToSupabase, deleteBoardFromSupabase } from './auth.js';
+import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
 
 export const IMPORTER_VERSION = 1;
 
@@ -195,16 +195,17 @@ export async function importFile(file) {
     else if (ext === 'obz') bundle = await importObz(file);
     else throw new Error('Formato no soportado: ' + ext);
 
-    await localforage.setItem(bundle.id, bundle);
-    uploadBoardToSupabase(bundle); // background, no-op sin sesión real
+    await saveBundle(bundle, { isNew: true }); // local + nube (si hay sesión, nace en la cuenta)
     return bundle;
 }
 
 // --- Home: listado de tableros guardados ---
 let isRenderingBoards = false;
+let rerenderRequested = false;
 
 export async function loadSavedBoards() {
-    if (isRenderingBoards) return;
+    // Si ya se está renderizando, no descartar el pedido: re-renderizar al terminar
+    if (isRenderingBoards) { rerenderRequested = true; return; }
     isRenderingBoards = true;
     try {
         const keys = await localforage.keys();
@@ -218,6 +219,8 @@ export async function loadSavedBoards() {
 
             const bundle = await localforage.getItem(key);
             if (!bundle || !bundle.name) continue;
+            // F4: tableros de una cuenta solo se ven con esa cuenta; los locales sin dueño, siempre
+            if (!isVisibleTo(bundle, S.currentUser?.id)) continue;
 
             boardCount++;
             const card = document.createElement('div');
@@ -259,9 +262,11 @@ export async function loadSavedBoards() {
 
             const assignBtn = document.createElement('button');
             assignBtn.className = 'btn-icon';
-            assignBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+            assignBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
             assignBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
-            assignBtn.title = 'Asignar a paciente';
+            assignBtn.title = 'Asignar a un usuario';
+            assignBtn.setAttribute('aria-label', assignBtn.title);
+            if (!S.currentUser) assignBtn.style.display = 'none'; // asignar requiere cuenta
             assignBtn.onclick = (e) => {
                 e.stopPropagation();
                 openAssignModal(bundle);
@@ -269,9 +274,10 @@ export async function loadSavedBoards() {
 
             const exportBtn = document.createElement('button');
             exportBtn.className = 'btn-icon';
-            exportBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+            exportBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
             exportBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
             exportBtn.title = 'Exportar .grd';
+            exportBtn.setAttribute('aria-label', exportBtn.title);
             exportBtn.onclick = (e) => {
                 e.stopPropagation();
                 const payload = { grids: Object.values(bundle.boards) };
@@ -286,32 +292,32 @@ export async function loadSavedBoards() {
 
             const duplicateBtn = document.createElement('button');
             duplicateBtn.className = 'btn-icon';
-            duplicateBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+            duplicateBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
             duplicateBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
             duplicateBtn.title = 'Duplicar tablero';
+            duplicateBtn.setAttribute('aria-label', duplicateBtn.title);
             duplicateBtn.onclick = async (e) => {
                 e.stopPropagation();
                 const clone = JSON.parse(JSON.stringify(bundle));
-                clone.id = 'bundle_' + Date.now();
+                clone.id = 'bundle_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
                 clone.name = clone.name + ' (copia)';
-                await localforage.setItem(clone.id, clone);
-                uploadBoardToSupabase(clone);
+                delete clone.ownerId; delete clone.syncedAt; // es un tablero nuevo
+                await saveBundle(clone, { isNew: true });
                 loadSavedBoards();
             };
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-icon';
-            deleteBtn.style.cssText = 'padding: 6px; display:flex; align-items:center; justify-content:center; border-radius:6px; color: #ff4444;';
+            deleteBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; color: #ff4444;';
             deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
             deleteBtn.title = 'Eliminar tablero';
+            deleteBtn.setAttribute('aria-label', deleteBtn.title);
             deleteBtn.onclick = async (e) => {
                 e.stopPropagation();
-                await localforage.removeItem(key);
-                deleteBoardFromSupabase(key);
+                await removeBundle(bundle);
                 loadSavedBoards();
                 showUndoToast(async () => {
-                    await localforage.setItem(key, bundle);
-                    uploadBoardToSupabase(bundle);
+                    await saveBundle(bundle); // también cancela el borrado pendiente en la nube
                     loadSavedBoards();
                 });
             };
@@ -330,13 +336,14 @@ export async function loadSavedBoards() {
         }
 
         if (boardCount === 0) {
-            boardList.innerHTML = '<p style="color: #aaa;">No hay tableros guardados. Importa uno para comenzar.</p>';
+            boardList.innerHTML = '<p style="color: #aaa;">Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.</p>';
         } else {
             boardList.appendChild(fragment);
         }
         hooks.onHomeRendered(activeHomeElements);
     } finally {
         isRenderingBoards = false;
+        if (rerenderRequested) { rerenderRequested = false; loadSavedBoards(); }
     }
 }
 
@@ -641,7 +648,7 @@ async function openAssignModal(bundle) {
     assignModal.style.display = 'flex';
     
     if (users.length === 0) {
-        assignUsersList.innerHTML = '<p style="color:var(--text-muted);">No tienes usuarios registrados. Ve a "Mis Usuarios" para crear uno.</p>';
+        assignUsersList.innerHTML = '<p style="color:var(--text-muted);">Todavía no tenés usuarios. Creálos en "Mis usuarios".</p>';
         return;
     }
 
@@ -660,19 +667,26 @@ async function openAssignModal(bundle) {
         const label = document.createElement('label');
         label.style.cssText = `display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.05); border-radius:5px; cursor:${isAssigned ? 'default' : 'pointer'}; opacity: ${isAssigned ? '0.6' : '1'};`;
         
+        // display_name lo escribe el profesional: siempre como texto (nunca innerHTML)
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = user.display_name;
         if (isAssigned) {
             label.innerHTML = `
-                <div style="width:16px; height:16px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center;">
+                <div style="width:16px; height:16px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </div>
-                <span>${user.display_name} <span style="font-size:0.8em; color:var(--primary); margin-left:5px;">(Asignado)</span></span>
-            `;
+                </div>`;
+            const tag = document.createElement('span');
+            tag.style.cssText = 'font-size:0.8em; color:var(--accent); margin-left:5px;';
+            tag.textContent = '(Asignado)';
+            nameSpan.appendChild(tag);
+            label.appendChild(nameSpan);
         } else {
-            label.innerHTML = `
-                <input type="radio" name="assign-user" value="${user.id}">
-                <span>${user.display_name}</span>
-            `;
-            label.querySelector('input').addEventListener('change', (e) => {
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'assign-user';
+            radio.value = user.id;
+            label.append(radio, nameSpan);
+            radio.addEventListener('change', (e) => {
                 selectedUserId = e.target.value;
                 btnConfirmAssign.disabled = false;
             });
@@ -697,7 +711,22 @@ if (btnConfirmAssign) {
         btnConfirmAssign.disabled = true;
         btnConfirmAssign.innerText = 'Asignando...';
         
+        // La asignación referencia el tablero en la nube (FK board_id): asegurar que esté subido.
+        // Si es un tablero local "de nadie", pedir permiso para guardarlo en la cuenta.
+        const adopt = !bundleToAssign.ownerId;
+        if (adopt && !(await customConfirm('Para asignarlo, este tablero se va a guardar en tu cuenta (después se ve solo cuando ingresás). ¿Seguir?'))) {
+            btnConfirmAssign.disabled = false;
+            btnConfirmAssign.innerText = 'Asignar Copia';
+            return;
+        }
+        if (!(await pushBundle(bundleToAssign, { adopt }))) {
+            customAlert('No se pudo subir el tablero a la nube. Revisá la conexión e intentá de nuevo.');
+            btnConfirmAssign.disabled = false;
+            btnConfirmAssign.innerText = 'Asignar Copia';
+            return;
+        }
         const clone = JSON.parse(JSON.stringify(bundleToAssign));
+        delete clone.ownerId; delete clone.syncedAt; // la copia es del usuario, no del tablero original
         
         const { error } = await supabaseClient
             .from('assignments')
@@ -710,7 +739,7 @@ if (btnConfirmAssign) {
             
         if (error) {
             console.error("Error asignando tablero:", error);
-            customAlert("Error al asignar tablero: " + error.message);
+            customAlert("No se pudo asignar el tablero. Revisá la conexión e intentá de nuevo.");
         } else {
             customAlert("Tablero asignado correctamente a " + users.find(u => u.id === selectedUserId).display_name);
             closeAssignModal();

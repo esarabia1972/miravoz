@@ -24,9 +24,10 @@ export async function fetchUsers() {
     }
 
     // Fetch access codes (only for the current professional's users)
-    const { data: codesData, error: codesError } = await supabaseClient
-        .from('access_codes')
-        .select('*');
+    const ids = usersData.map(u => u.id);
+    const { data: codesData, error: codesError } = ids.length
+        ? await supabaseClient.from('access_codes').select('code, aac_user_id').in('aac_user_id', ids)
+        : { data: [], error: null };
 
     if (codesError) {
         console.error('Error fetching access codes:', codesError);
@@ -63,7 +64,7 @@ export async function createUser(displayName) {
     }
 
     // 2. Generate 6-digit access code (format: XXX-XXX)
-    const rawCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const rawCode = (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)).toString(); // CSPRNG
     const formattedCode = `${rawCode.substring(0,3)}-${rawCode.substring(3)}`;
 
     // 3. Insert code
@@ -113,7 +114,7 @@ export function renderUsersList() {
     listEl.innerHTML = '';
     
     if (users.length === 0) {
-        listEl.innerHTML = '<p style="color: var(--text-muted);">No tienes pacientes registrados todavía.</p>';
+        listEl.innerHTML = '<p style="color: var(--text-muted);">Todavía no tenés usuarios. Creá el primero arriba.</p>';
         return;
     }
 
@@ -126,7 +127,9 @@ export function renderUsersList() {
         div.style.alignItems = 'center';
         
         const nameDiv = document.createElement('div');
-        nameDiv.innerHTML = `<strong>${user.display_name}</strong>`;
+        const strong = document.createElement('strong');
+        strong.textContent = user.display_name; // nunca innerHTML con datos del usuario (XSS)
+        nameDiv.appendChild(strong);
         
         const codeDiv = document.createElement('div');
         codeDiv.style.display = 'flex';

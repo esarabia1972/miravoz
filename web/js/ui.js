@@ -4,7 +4,19 @@ import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 
 // --- Modales ---
-export function customAlert(message) {
+// Hay un solo #custom-dialog: los diálogos se encolan para que dos pedidos simultáneos
+// (p. ej. la sync preguntando mientras el editor confirma) nunca dejen una promesa colgada.
+let dialogChain = Promise.resolve();
+function queued(fn) {
+    const p = dialogChain.then(fn);
+    dialogChain = p.catch(() => {});
+    return p;
+}
+
+export function customAlert(message) { return queued(() => showAlert(message)); }
+export function customConfirm(message) { return queued(() => showConfirm(message)); }
+
+function showAlert(message) {
     const dialog = document.getElementById('custom-dialog');
     const msg = document.getElementById('dialog-message');
     const btnCancel = document.getElementById('btn-dialog-cancel');
@@ -19,7 +31,7 @@ export function customAlert(message) {
     });
 }
 
-export function customConfirm(message) {
+function showConfirm(message) {
     const dialog = document.getElementById('custom-dialog');
     const msg = document.getElementById('dialog-message');
     const btnCancel = document.getElementById('btn-dialog-cancel');
@@ -65,6 +77,14 @@ export function showInfoToast(message, ms = 4000) {
 
 // --- Undo Toast (F3) ---
 let undoTimeout = null;
+/** Invalida un "deshacer" pendiente (p. ej. si el tablero se actualizó desde otro dispositivo). */
+export function cancelUndo() {
+    if (undoTimeout) clearTimeout(undoTimeout);
+    const toast = document.getElementById('undo-toast');
+    if (toast) toast.style.display = 'none';
+    const btn = document.getElementById('undo-btn');
+    if (btn) btn.onclick = null;
+}
 export function showUndoToast(onUndoCallback) {
     let toast = document.getElementById('undo-toast');
     if (!toast) {

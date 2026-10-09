@@ -5,6 +5,7 @@
 import { S } from './state.js';
 import * as boards from './boards.js';
 import { customAlert, customConfirm, showUndoToast } from './ui.js';
+import { saveBundle } from './sync.js';
 
 let editMode = false;
 let editingCell = null; // { gridId, elData | null, x, y }
@@ -19,7 +20,7 @@ async function persistBundle() {
     b.speechModel = 'actions'; // F3-3b: los tableros editados usan semántica de acciones
     const grid = b.boards[S.currentGridId];
     if (grid) grid.lastUpdateTime = Date.now();
-    await localforage.setItem(b.id, b);
+    await saveBundle(b); // local + nube (antes solo local: se perdía al recargar con sesión)
 }
 
 // --- Crear tablero nuevo (F3-1) ---
@@ -47,7 +48,7 @@ export async function createNewBundle() {
         mainBoard: grid.id,
         boards: { [grid.id]: grid }
     };
-    await localforage.setItem(bundle.id, bundle);
+    await saveBundle(bundle, { isNew: true });
     boards.openBundle(bundle);
     enterEditMode();
 }
