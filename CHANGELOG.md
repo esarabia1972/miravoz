@@ -239,4 +239,9 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - botón de orden con menú: última modificación, fecha de creación, alfabético y "Agrupar por etiqueta" (secciones por etiqueta más "Sin etiqueta"). La elección se recuerda.
 - Las tarjetas muestran abajo el tiempo relativo ("hace 3 días") y las etiquetas como labels discretos con ícono.
 - La tablet conserva la lupa para buscar entre sus tableros.
+- **Ajustes (10/10/2026)**:
+  - Se quitó el título "Tableros".
+  - Las pestañas muestran contadores ("Todos (8)", "Principal (1)") y "Usuario" queda a la derecha de todo.
+  - Las tarjetas quedaban cortadas abajo: las filas de la grilla se achicaban a la altura mínima por `overflow:hidden`. Ahora la grilla usa `grid-auto-rows: max-content` y la tarjeta no achica sus partes.
+  - La tablet tiene las mismas opciones (etiquetas con contadores, buscador, orden y agrupar), sin usuarios ni acciones. Hay un único render, `renderHome(bundles, {readOnly})`.
 

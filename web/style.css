@@ -1281,6 +1281,23 @@ body.test-board #btn-edit-board { display: none !important; }
     .home-search-field { max-width: 60vw; }
 }
 
-/* Tablet: del toolbar del home solo queda la lupa (sin etiquetas, usuario ni orden) */
-.device-mode #home-filters { display: flex !important; justify-content: flex-end; }
-.device-mode #tag-filter-chips, .device-mode #user-filter-wrap, .device-mode .home-sort { display: none !important; }
+/* Tablet: misma barra del home (pestañas, lupa, orden y agrupar); solo se oculta el selector de usuario */
+.device-mode #user-filter-wrap { display: none !important; }
+
+/* Home sin título (10/10/2026): la barra queda arriba; "Usuario:" va a la derecha de todo */
+#home-view .home-toolbar { margin-top: 0; }
+.home-tools .user-filter { margin-right: 0; margin-left: 6px; }
+.home-tab { display: inline-flex; align-items: center; }
+.home-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-tab-count { flex: 0 0 auto; white-space: pre; color: var(--text-muted); font-weight: 500; }
+.home-tab[aria-pressed="true"] .home-tab-count { color: inherit; }
+
+/* Tarjetas cortadas abajo (10/10/2026): #board-list tiene alto fijo (flex + min-height:0 + scroll) y las filas
+   implícitas eran `auto`. Como .board-card tiene overflow:hidden, su mínimo automático es 0 y el algoritmo de la
+   grilla, sin espacio libre, dejaba cada fila en su min-height (160px), recortando acciones y pie.
+   Las filas toman el alto del contenido completo (todas las de una fila igual: align stretch) y el
+   contenido de la tarjeta no se encoge. */
+.board-grid, .home-group-grid { grid-auto-rows: max-content; }
+.board-card { justify-content: flex-start; }
+.board-card > * { flex-shrink: 0; }
+.board-card .board-card-info { flex: 1 0 auto; } /* acciones y pie quedan alineados abajo en toda la fila */

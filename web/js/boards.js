@@ -242,7 +242,8 @@ export function matchesHomeFilters(bundle, { tags = [], userBoardIds = null, que
 
 // Estado de filtros y asignaciones del home
 const homeFilters = { tags: new Set(), userId: '', query: '' }; // tags y query en minúsculas
-let homeBundles = [];           // un bundle por tablero visible para esta cuenta
+let homeBundles = [];           // un bundle por tablero visible (profesional) o una copia por tablero (tablet)
+let homeReadOnly = false;       // tablet vinculada: sin acciones, sin usuarios ni badges
 let homeCards = [];             // [{ card, bundle, entry }] (agrupando, un tablero puede tener varias tarjetas)
 let assignCountByBoard = new Map();
 let boardsByUser = new Map();   // aac_user_id -> Set(board_id)
@@ -412,10 +413,11 @@ export function buildBoardThumb(bundle) {
     return box;
 }
 
-function buildBoardCard(bundle) {
+function buildBoardCard(bundle, { readOnly = false } = {}) {
     const card = document.createElement('div');
-    card.className = 'board-card glass-box';
-    card.setAttribute('data-name', bundle.name.toLowerCase());
+    card.className = readOnly ? 'board-card glass-box device-card' : 'board-card glass-box';
+    const displayName = String(bundle.name || 'Tablero');
+    card.setAttribute('data-name', displayName.toLowerCase());
     card.dataset.boardId = bundle.id;
 
     let previewText = 'Sin opciones';
@@ -435,7 +437,7 @@ function buildBoardCard(bundle) {
     infoDiv.className = 'board-card-info';
     const h3 = document.createElement('h3');
     h3.className = 'board-card-title';
-    h3.textContent = bundle.name;
+    h3.textContent = displayName;
     // Vista previa: miniatura del tablero principal armada en el momento con los datos locales
     // (no se guarda en la base). Si no hay celdas, se muestra el texto de siempre.
     const thumb = buildBoardThumb(bundle);
@@ -444,6 +446,44 @@ function buildBoardCard(bundle) {
     pMeta.textContent = optionsCount ? `${optionsCount} celdas` : previewText;
     infoDiv.append(h3, ...(thumb ? [thumb] : []), pMeta);
 
+    // Tablet (solo lectura): sin acciones ni badge; la tarjeta entera abre la copia
+    const actions = readOnly ? null : buildCardActions(bundle);
+
+    const progress = document.createElement('div');
+    progress.className = 'progress-bar';
+    progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
+
+    // Pie (como en "Projects"): última modificación a la izquierda y etiquetas a la derecha
+    const footer = document.createElement('div');
+    footer.className = 'board-card-footer';
+    const time = document.createElement('span');
+    time.className = 'board-card-time';
+    const modified = bundleModifiedTime(bundle);
+    time.textContent = formatRelativeTime(modified);
+    if (modified) time.title = 'Última modificación: ' + new Date(modified).toLocaleString('es');
+    const tagsDiv = document.createElement('div');
+    tagsDiv.className = 'board-card-tags';
+    tagsDiv.setAttribute('role', 'group');
+    renderCardTags(tagsDiv, bundle);
+    footer.append(time, tagsDiv);
+    footer.hidden = !time.textContent && tagsDiv.hidden;
+
+    card.append(infoDiv, ...(actions ? [actions.actionsDiv] : []), footer, progress);
+    card.onclick = () => openBundle(bundle);
+    if (readOnly) {
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBundle(bundle); }
+        };
+    }
+
+    const entry = { element: card, data: bundle, isBoardCard: true };
+    return { card, bundle, entry, assignBtn: actions?.assignBtn || null, badge: actions?.badge || null };
+}
+
+/** Fila de acciones de la tarjeta de la profesional: asignar, etiquetas, exportar, duplicar y eliminar. */
+function buildCardActions(bundle) {
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'board-card-actions';
 
@@ -493,31 +533,7 @@ function buildBoardCard(bundle) {
     deleteBtn.classList.add('card-action-danger');
 
     actionsDiv.append(assignWrap, tagsBtn, exportBtn, duplicateBtn, deleteBtn);
-
-    const progress = document.createElement('div');
-    progress.className = 'progress-bar';
-    progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
-
-    // Pie (como en "Projects"): última modificación a la izquierda y etiquetas a la derecha
-    const footer = document.createElement('div');
-    footer.className = 'board-card-footer';
-    const time = document.createElement('span');
-    time.className = 'board-card-time';
-    const modified = bundleModifiedTime(bundle);
-    time.textContent = formatRelativeTime(modified);
-    if (modified) time.title = 'Última modificación: ' + new Date(modified).toLocaleString('es');
-    const tagsDiv = document.createElement('div');
-    tagsDiv.className = 'board-card-tags';
-    tagsDiv.setAttribute('role', 'group');
-    renderCardTags(tagsDiv, bundle);
-    footer.append(time, tagsDiv);
-    footer.hidden = !time.textContent && tagsDiv.hidden;
-
-    card.append(infoDiv, actionsDiv, footer, progress);
-    card.onclick = () => openBundle(bundle);
-
-    const entry = { element: card, data: bundle, isBoardCard: true };
-    return { card, bundle, entry, assignBtn, badge };
+    return { actionsDiv, assignBtn, badge };
 }
 
 export async function loadSavedBoards() {
@@ -539,15 +555,31 @@ export async function loadSavedBoards() {
             if (!isVisibleTo(bundle, S.currentUser?.id)) continue;
             bundles.push(bundle);
         }
-        homeBundles = bundles;
-        renderHomeCards();
-        renderHomeFilterBar();
-        applyHomeFilters(); // también avisa a main (hooks.onHomeRendered) con las tarjetas visibles
-        refreshAssignments(); // en segundo plano: badges y filtro por usuario
+        renderHome(bundles);
     } finally {
         isRenderingBoards = false;
         if (rerenderRequested) { rerenderRequested = false; loadSavedBoards(); }
     }
+}
+
+/**
+ * Home estilo "Projects" para una lista de bundles: pestañas de etiquetas con contadores, lupa, orden y
+ * agrupación. La profesional lo usa con sus tableros; la tablet vinculada con sus copias y readOnly
+ * (sin selector de usuario, sin badges y sin acciones: tocar la tarjeta abre la copia).
+ */
+export function renderHome(bundles, { readOnly = false } = {}) {
+    homeBundles = Array.isArray(bundles) ? bundles : [];
+    homeReadOnly = !!readOnly;
+    if (homeReadOnly) {
+        // La tablet no ve usuarios ni asignaciones (y descarta respuestas en vuelo)
+        assignmentsRequest++;
+        assignCountByBoard = new Map(); boardsByUser = new Map(); filterUsers = [];
+        homeFilters.userId = '';
+    }
+    renderHomeCards();
+    renderHomeFilterBar();
+    applyHomeFilters(); // también avisa a main (hooks.onHomeRendered) con las tarjetas visibles
+    if (!homeReadOnly) refreshAssignments(); // en segundo plano: badges y filtro por usuario
 }
 
 /** Arma las tarjetas según el orden y la agrupación elegidos (sin releer el disco). */
@@ -559,15 +591,17 @@ function renderHomeCards() {
 
     if (homeBundles.length === 0) {
         const p = document.createElement('p');
-        p.className = 'home-empty';
-        p.textContent = 'Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.';
+        p.className = homeReadOnly ? 'home-empty device-empty' : 'home-empty';
+        p.textContent = homeReadOnly
+            ? 'Todavía no hay tableros en esta tablet. La profesional tiene que asignarle uno a este usuario.'
+            : 'Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.';
         boardList.appendChild(p);
         return;
     }
     const sorted = sortBundles(homeBundles, homeView.sort);
     const fragment = document.createDocumentFragment();
     const addCard = (parent, bundle) => {
-        const item = buildBoardCard(bundle);
+        const item = buildBoardCard(bundle, { readOnly: homeReadOnly });
         homeCards.push(item);
         parent.appendChild(item.card);
     };
@@ -628,7 +662,7 @@ export async function refreshAssignments() {
             console.error('Error leyendo asignaciones del home:', err);
         }
     }
-    if (req !== assignmentsRequest) return; // llegó una respuesta más nueva
+    if (req !== assignmentsRequest || homeReadOnly) return; // llegó una respuesta más nueva / es la tablet
     assignCountByBoard = counts;
     boardsByUser = byUser;
     filterUsers = people
@@ -642,6 +676,7 @@ export async function refreshAssignments() {
 
 function updateAssignBadges() {
     homeCards.forEach(({ bundle, assignBtn, badge }) => {
+        if (!assignBtn || !badge) return; // tarjeta de solo lectura (tablet)
         const n = assignCountByBoard.get(bundle.id) || 0;
         badge.hidden = n === 0;
         badge.textContent = n > 99 ? '99+' : String(n);
@@ -670,11 +705,18 @@ function tagsInUse(bundles) {
     return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag, 'es', { sensitivity: 'base' }));
 }
 
-function makeFilterTab(text, pressed, onClick) {
+/** Pestaña "Nombre (N)": el nombre se recorta con "…" si es largo; el contador siempre se ve. */
+function makeFilterTab(text, count, pressed, onClick) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'home-tab';
-    btn.textContent = text;
+    const name = document.createElement('span');
+    name.className = 'home-tab-name';
+    name.textContent = text; // etiqueta escrita por la profesional: textContent
+    const num = document.createElement('span');
+    num.className = 'home-tab-count';
+    num.textContent = ` (${count})`;
+    btn.append(name, num);
     btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     btn.onclick = onClick;
     return btn;
@@ -688,16 +730,19 @@ function renderHomeFilterBar() {
     [...homeFilters.tags].forEach(k => { if (!used.some(u => u.key === k)) homeFilters.tags.delete(k); });
 
     tagFilterChips.replaceChildren();
-    if (used.length) {
-        const all = makeFilterTab('Todos', homeFilters.tags.size === 0, () => {
+    // Contadores = cantidad de tableros (no cambian con la búsqueda ni el filtro por usuario).
+    // "Todos (N)" se ve siempre que haya tableros: reemplaza al título "Tableros".
+    if (homeBundles.length) {
+        const total = homeBundles.length;
+        const all = makeFilterTab('Todos', total, homeFilters.tags.size === 0, () => {
             homeFilters.tags.clear();
             renderHomeFilterBar(); applyHomeFilters();
             tagFilterChips.querySelector('.home-tab')?.focus();
         });
-        all.setAttribute('aria-label', 'Todos los tableros');
+        all.setAttribute('aria-label', `Todos los tableros, ${total}`);
         tagFilterChips.appendChild(all);
         used.forEach(({ tag, key, count }) => {
-            const tab = makeFilterTab(tag, homeFilters.tags.has(key), () => {
+            const tab = makeFilterTab(tag, count, homeFilters.tags.has(key), () => {
                 if (homeFilters.tags.has(key)) homeFilters.tags.delete(key); else homeFilters.tags.add(key);
                 renderHomeFilterBar(); applyHomeFilters();
                 [...tagFilterChips.querySelectorAll('.home-tab')].find(c => c.dataset.key === key)?.focus();
@@ -709,13 +754,13 @@ function renderHomeFilterBar() {
             tagFilterChips.appendChild(tab);
         });
     }
-    tagFilterChips.hidden = used.length === 0;
+    tagFilterChips.hidden = homeBundles.length === 0;
     renderUserFilter();
 }
 
 function renderUserFilter() {
     if (!userFilterSelect || !userFilterWrap) return;
-    const show = !!S.currentUser && filterUsers.length > 0 && homeCards.length > 0;
+    const show = !homeReadOnly && !!S.currentUser && filterUsers.length > 0 && homeCards.length > 0;
     userFilterWrap.hidden = !show;
     if (show) {
         const all = document.createElement('option');

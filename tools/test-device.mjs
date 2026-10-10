@@ -286,6 +286,10 @@ if (caseArg === 'arranque-sin-casita') {
     const cards = [...document.querySelectorAll('#board-list .device-card')];
     check('lista con 2 .device-card', cards.length === 2, `cards=${cards.length}`);
     check('títulos de las cards', cards.map(c => c.querySelector('h3').textContent).join(',') === 'Casita,Comida', cards.map(c => c.textContent).join(','));
+    // Home compartido en solo lectura (10/10/2026): pestañas con contador y orden, sin acciones ni usuarios
+    check('cards sin fila de acciones ni badge', !document.querySelector('#board-list .board-card-actions, #board-list .card-badge'), 'hay acciones');
+    check('barra visible con "Todos (2)"', !$('home-filters').hidden && $('tag-filter-chips').querySelector('.home-tab')?.textContent === 'Todos (2)', $('tag-filter-chips').textContent);
+    check('selector de usuario oculto', $('user-filter-wrap').hidden, 'visible');
     // Vista de inicio del adulto (10/10/2026): como la de profesionales, con el nombre del usuario abajo
     check('nombre del usuario en la barra inferior', document.querySelector('.user-name')?.textContent === 'Mateo', document.querySelector('.user-name')?.textContent);
     check('body.device-mode con barras visibles (modo, recalibrar, configuración)', document.body.classList.contains('device-mode') && visible($('bottom-bar')) && visible($('top-bar')), `${document.body.className} bottom=${$('bottom-bar').style.display}`);

@@ -30,7 +30,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=37">
+    <link rel="stylesheet" href="style.css?v=38">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -66,15 +66,10 @@
     <!-- Vista de Inicio (Galería) -->
     <div id="home-view" class="view-container" style="display: none;">
         <div class="gallery-container home-projects" style="padding-top: 20px;">
-            <h1 class="home-title">Tableros</h1>
-            <!-- Barra del home (estilo "Projects"): pestañas de etiquetas a la izquierda; usuario, buscador y orden a la derecha -->
+            <!-- Barra del home (estilo "Projects"): pestañas de etiquetas con contadores a la izquierda; buscador, orden y usuario a la derecha -->
             <div id="home-filters" class="home-filters home-toolbar" hidden>
                 <div id="tag-filter-chips" class="home-tabs" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
                 <div class="home-tools">
-                    <label id="user-filter-wrap" class="user-filter" for="user-filter" hidden>
-                        <span>Usuario:</span>
-                        <select id="user-filter" class="glass-select"><option value="">Todos</option></select>
-                    </label>
                     <div class="home-search">
                         <button type="button" id="btn-home-search" class="home-tool-btn" aria-label="Buscar tablero" title="Buscar tablero" aria-expanded="false" aria-controls="home-search-field">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -97,6 +92,10 @@
                             <button type="button" role="menuitemcheckbox" tabindex="-1" data-group="tag" aria-checked="false"><span class="home-menu-label">Agrupar por etiqueta</span><span class="home-menu-check" aria-hidden="true">✓</span></button>
                         </div>
                     </div>
+                    <label id="user-filter-wrap" class="user-filter" for="user-filter" hidden>
+                        <span>Usuario:</span>
+                        <select id="user-filter" class="glass-select"><option value="">Todos</option></select>
+                    </label>
                 </div>
             </div>
             <p id="home-filter-empty" class="home-filter-empty" role="status" hidden>Ningún tablero coincide con los filtros.</p>
@@ -479,6 +478,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=44"></script>
+    <script type="module" src="js/main.js?v=45"></script>
 </body>
 </html>

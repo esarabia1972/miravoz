@@ -774,53 +774,11 @@ async function openDeviceHome({ casita = false } = {}) {
     topBar.style.display = 'flex';
     bottomBar.style.display = 'flex';
     updateDeviceAccountUI();
-    const list = document.getElementById('board-list');
-    list.innerHTML = '';
-
-    const copies = await deviceMod.listCopies();
-    const targets = [];
-    if (!copies.length) {
-        const p = document.createElement('p');
-        p.className = 'device-empty';
-        p.textContent = 'Todavía no hay tableros en esta tablet. La profesional tiene que asignarle uno a este usuario.';
-        list.appendChild(p);
-    }
-    for (const copy of copies) {
-        const card = document.createElement('div');
-        card.className = 'board-card glass-box device-card';
-        card.setAttribute('data-name', (copy.name || '').toLowerCase()); // para el buscador
-        card.setAttribute('role', 'button');
-        card.setAttribute('tabindex', '0');
-        const h3 = document.createElement('h3');
-        h3.textContent = copy.name || 'Tablero';
-        const thumb = boards.buildBoardThumb(copy); // misma miniatura que en la web
-        const progress = document.createElement('div');
-        progress.className = 'progress-bar';
-        progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
-        card.append(h3, ...(thumb ? [thumb] : []), progress);
-        card.onclick = () => boards.openBundle(copy);
-        card.onkeydown = (e) => { if (e.key === 'Enter') boards.openBundle(copy); };
-        list.appendChild(card);
-        targets.push({ element: card, data: copy, isBoardCard: true });
-    }
-    deviceTargets = targets;
-    filterDeviceCards();
+    // Mismo home que la profesional (pestañas de etiquetas, lupa, orden y agrupación) en solo lectura:
+    // sin usuarios, badges ni acciones. Tocar una tarjeta abre la copia; los targets de dwell/barrido
+    // llegan por boards.hooks.onHomeRendered con las tarjetas visibles.
+    boards.renderHome(await deviceMod.listCopies(), { readOnly: true });
 }
-
-// Buscador en la tablet: usa la misma lupa del home y filtra las tarjetas de sus tableros
-let deviceTargets = [];
-function filterDeviceCards() {
-    const q = (document.getElementById('board-search')?.value || '').trim().toLowerCase();
-    const vis = [];
-    for (const t of deviceTargets) {
-        const ok = !q || (t.element.getAttribute('data-name') || '').includes(q);
-        t.element.classList.toggle('is-filtered-out', !ok);
-        if (ok) vis.push(t);
-    }
-    if (S.state === 'HOME') { dwell.setTargets(vis); scan.setTargets(vis); }
-}
-document.getElementById('board-search')?.addEventListener('input', () => { if (deviceMod.isDeviceMode()) filterDeviceCards(); });
-document.getElementById('btn-home-search-close')?.addEventListener('click', () => { if (deviceMod.isDeviceMode()) setTimeout(filterDeviceCards, 0); });
 
 function updateDeviceAccountUI() {
     const name = deviceMod.device?.displayName || '';
