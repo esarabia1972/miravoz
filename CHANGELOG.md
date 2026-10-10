@@ -231,3 +231,12 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Con varias tarjetas y miniaturas, el home empujaba la barra inferior fuera de la pantalla. Ahora las tarjetas scrollean dentro del home.
   - La tablet también muestra la miniatura de cada tablero.
 
+### Home estilo "Projects" de Claude (10/10/2026, pedido de Esteban)
+- **Changed**: el home tiene título "Tableros" y una barra con:
+  - pestañas de etiquetas,
+  - selector de usuario,
+  - lupa que se expande en un buscador (antes estaba en la barra superior),
+  - botón de orden con menú: última modificación, fecha de creación, alfabético y "Agrupar por etiqueta" (secciones por etiqueta más "Sin etiqueta"). La elección se recuerda.
+- Las tarjetas muestran abajo el tiempo relativo ("hace 3 días") y las etiquetas como labels discretos con ícono.
+- La tablet conserva la lupa para buscar entre sus tableros.
+

@@ -1198,7 +1198,7 @@ body.test-board #btn-edit-board { display: none !important; }
 .settings-help { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 4px; }
 .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .settings-grid > div { display: flex; flex-direction: column; gap: 6px; }
-.device-mode #home-filters { display: none !important; }
+
 
 /* Miniatura del tablero en la tarjeta (se arma en el momento, no se guarda) */
 .board-thumb { display: grid; gap: 2px; width: 100%; height: 120px; margin: 8px 0 4px; padding: 4px; border-radius: 10px; background: var(--cell-bg); border: 1px solid var(--cell-border); overflow: hidden; pointer-events: none; }
@@ -1220,3 +1220,67 @@ body.test-board #btn-edit-board { display: none !important; }
 .device-card { flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 8px; padding: 18px; }
 .device-card h3 { text-align: left; font-size: 1.4rem; }
 .device-card .board-thumb { height: 150px; }
+
+/* Home estilo "Projects" (10/10/2026): título, pestañas de etiquetas, lupa, menú de orden y pie de tarjeta */
+:root { --home-tab-active: rgba(255, 255, 255, 0.12); --home-menu-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }
+:root[data-theme="light"] { --home-tab-active: rgba(15, 23, 42, 0.08); --home-menu-shadow: 0 12px 32px rgba(15, 23, 42, 0.16); }
+
+#home-view .home-title { margin: 0 5px 18px; font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-main); }
+.home-toolbar { flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 10px 18px 5px; }
+.home-tabs { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.home-tabs[hidden] { display: none !important; }
+.home-tab { min-height: 44px; padding: 8px 16px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); font: 500 0.95rem 'Inter', sans-serif; cursor: pointer; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-tab:hover { color: var(--text-main); background: var(--cell-hover); }
+.home-tab[aria-pressed="true"] { background: var(--home-tab-active); color: var(--text-main); font-weight: 600; }
+.home-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: 0 0 auto; }
+.home-tools .user-filter { margin-right: 6px; }
+.home-tool-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.home-tool-btn:hover, .home-tool-btn[aria-expanded="true"] { background: var(--cell-hover); color: var(--text-main); }
+.home-tool-btn[hidden], .home-search-field[hidden], .home-sort-menu[hidden], .home-group[hidden], .board-card-footer[hidden] { display: none !important; }
+
+/* Buscador inline */
+.home-search { display: flex; align-items: center; }
+.home-search-field { display: flex; align-items: center; gap: 6px; width: 260px; max-width: 40vw; min-height: 44px; padding: 0 2px 0 12px; border-radius: 999px; border: 1px solid var(--field-border); background: var(--field-bg); color: var(--text-muted); box-sizing: border-box; }
+.home-search-field:focus-within { border-color: var(--accent-text); box-shadow: 0 0 0 3px var(--accent-glow); }
+.home-search-field svg { flex: 0 0 auto; }
+.home-search-field #board-search, :root[data-theme="light"] .home-search-field #board-search { flex: 1 1 auto; min-width: 0; background: transparent; border: none; font-size: 16px; color: var(--text-main); padding: 8px 0; outline: none; }
+.home-search-field #board-search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.home-search-close { flex: 0 0 auto; min-width: 40px; min-height: 40px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.home-search-close:hover { color: var(--text-main); background: var(--cell-hover); }
+
+/* Menú de orden */
+.home-sort { position: relative; }
+.home-sort-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 250px; padding: 6px; border-radius: 12px; background: var(--modal-solid); border: 1px solid var(--modal-border); box-shadow: var(--home-menu-shadow); display: flex; flex-direction: column; }
+.home-sort-menu [role^="menuitem"] { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 44px; padding: 8px 12px; border: none; border-radius: 8px; background: transparent; color: var(--text-main); font: 500 0.95rem 'Inter', sans-serif; text-align: left; cursor: pointer; }
+.home-sort-menu [role^="menuitem"]:hover, .home-sort-menu [role^="menuitem"]:focus-visible { background: var(--cell-hover); }
+.home-sort-menu [role^="menuitem"]:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.home-menu-check { color: var(--accent-text); font-weight: 700; visibility: hidden; }
+.home-sort-menu [aria-checked="true"] .home-menu-check { visibility: visible; }
+.home-menu-sep { height: 1px; margin: 6px 4px; background: var(--modal-border); }
+
+/* Secciones al agrupar por etiqueta (el scroll sigue siendo #board-list) */
+#home-view .board-grid.is-grouped { display: flex; flex-direction: column; gap: 28px; }
+.home-group { flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.home-group-title { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-main); overflow-wrap: anywhere; }
+.home-group-count { font-size: 0.9rem; font-weight: 500; color: var(--text-muted); }
+.home-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+@media (min-width: 1400px) { .home-group-grid { grid-template-columns: repeat(4, 1fr); } }
+.home-empty { color: var(--text-muted); }
+
+/* Pie de tarjeta: última modificación + etiquetas discretas */
+.board-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; width: 100%; margin-top: -4px; font-size: 0.8rem; color: var(--text-muted); }
+.board-card-time { white-space: nowrap; }
+.board-card-footer .board-card-tags { margin: 0; justify-content: flex-end; gap: 4px 12px; min-width: 0; }
+.tag-label { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 140px; color: var(--text-muted); font-size: 0.8rem; line-height: 1.4; }
+.tag-label-icon { display: inline-flex; flex: 0 0 auto; opacity: 0.8; }
+.tag-label-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-label-more { font-weight: 600; }
+
+@media (max-width: 820px) {
+    .home-tools { margin-left: 0; width: 100%; justify-content: flex-end; }
+    .home-search-field { max-width: 60vw; }
+}
+
+/* Tablet: del toolbar del home solo queda la lupa (sin etiquetas, usuario ni orden) */
+.device-mode #home-filters { display: flex !important; justify-content: flex-end; }
+.device-mode #tag-filter-chips, .device-mode #user-filter-wrap, .device-mode .home-sort { display: none !important; }

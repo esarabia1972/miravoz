@@ -30,7 +30,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=35">
+    <link rel="stylesheet" href="style.css?v=37">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -49,10 +49,6 @@
         </div>
         
         <div class="top-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
-            <div id="top-search-container" style="position: relative; width: 300px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" id="board-search" placeholder="Buscar tablero por nombre..." class="glass-input" style="width: 100%; border-radius: 20px; padding-left: 38px; box-sizing: border-box;" />
-            </div>
             <!-- Modo de acceso: botones visibles (el <select> queda oculto como fuente de verdad del código) -->
             <div id="mode-segmented" class="mode-segmented" role="radiogroup" aria-label="Modo de acceso"></div>
             <div class="mode-selector" hidden>
@@ -69,14 +65,39 @@
 
     <!-- Vista de Inicio (Galería) -->
     <div id="home-view" class="view-container" style="display: none;">
-        <div class="gallery-container" style="padding-top: 20px;">
-            <!-- Filtros del home (10/10/2026): etiquetas + usuario; se combinan con el buscador -->
-            <div id="home-filters" class="home-filters" hidden>
-                <div id="tag-filter-chips" class="filter-chips" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
-                <label id="user-filter-wrap" class="user-filter" for="user-filter" hidden>
-                    <span>Usuario:</span>
-                    <select id="user-filter" class="glass-select"><option value="">Todos</option></select>
-                </label>
+        <div class="gallery-container home-projects" style="padding-top: 20px;">
+            <h1 class="home-title">Tableros</h1>
+            <!-- Barra del home (estilo "Projects"): pestañas de etiquetas a la izquierda; usuario, buscador y orden a la derecha -->
+            <div id="home-filters" class="home-filters home-toolbar" hidden>
+                <div id="tag-filter-chips" class="home-tabs" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
+                <div class="home-tools">
+                    <label id="user-filter-wrap" class="user-filter" for="user-filter" hidden>
+                        <span>Usuario:</span>
+                        <select id="user-filter" class="glass-select"><option value="">Todos</option></select>
+                    </label>
+                    <div class="home-search">
+                        <button type="button" id="btn-home-search" class="home-tool-btn" aria-label="Buscar tablero" title="Buscar tablero" aria-expanded="false" aria-controls="home-search-field">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                        <div id="home-search-field" class="home-search-field" hidden>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="search" id="board-search" placeholder="Buscar tablero..." aria-label="Buscar tablero por nombre" autocomplete="off" enterkeyhint="search" />
+                            <button type="button" id="btn-home-search-close" class="home-search-close" aria-label="Cerrar la búsqueda" title="Cerrar la búsqueda">&times;</button>
+                        </div>
+                    </div>
+                    <div class="home-sort">
+                        <button type="button" id="btn-home-sort" class="home-tool-btn" aria-label="Ordenar tableros" title="Ordenar tableros" aria-haspopup="menu" aria-expanded="false" aria-controls="home-sort-menu">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V4"></path><path d="M3 8l4-4 4 4"></path><path d="M17 4v16"></path><path d="M21 16l-4 4-4-4"></path></svg>
+                        </button>
+                        <div id="home-sort-menu" class="home-sort-menu" role="menu" aria-label="Ordenar tableros" hidden>
+                            <button type="button" role="menuitemradio" tabindex="-1" data-sort="modified" aria-checked="true"><span class="home-menu-label">Última modificación</span><span class="home-menu-check" aria-hidden="true">✓</span></button>
+                            <button type="button" role="menuitemradio" tabindex="-1" data-sort="created" aria-checked="false"><span class="home-menu-label">Fecha de creación</span><span class="home-menu-check" aria-hidden="true">✓</span></button>
+                            <button type="button" role="menuitemradio" tabindex="-1" data-sort="alpha" aria-checked="false"><span class="home-menu-label">Alfabético</span><span class="home-menu-check" aria-hidden="true">✓</span></button>
+                            <div class="home-menu-sep" role="separator"></div>
+                            <button type="button" role="menuitemcheckbox" tabindex="-1" data-group="tag" aria-checked="false"><span class="home-menu-label">Agrupar por etiqueta</span><span class="home-menu-check" aria-hidden="true">✓</span></button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <p id="home-filter-empty" class="home-filter-empty" role="status" hidden>Ningún tablero coincide con los filtros.</p>
             <div id="board-list" class="board-grid">
@@ -458,6 +479,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=42"></script>
+    <script type="module" src="js/main.js?v=44"></script>
 </body>
 </html>

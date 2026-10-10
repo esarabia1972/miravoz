@@ -5,6 +5,7 @@ import { customAlert, customConfirm, addToSentence, showUndoToast } from './ui.j
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
+import { bundleTime } from './sync-plan.js';
 
 export const IMPORTER_VERSION = 1;
 
@@ -227,9 +228,10 @@ const tagKey = (t) => t.toLocaleLowerCase('es');
 
 /**
  * Filtro del home (lógica pura). Etiquetas: el tablero debe tener TODAS las elegidas (cada chip achica).
- * Usuario: solo tableros asignados a ese usuario.
+ * Usuario: solo tableros asignados a ese usuario. Texto: el nombre contiene la búsqueda (ya en minúsculas).
  */
-export function matchesHomeFilters(bundle, { tags = [], userBoardIds = null } = {}) {
+export function matchesHomeFilters(bundle, { tags = [], userBoardIds = null, query = '' } = {}) {
+    if (query && !String(bundle.name || '').toLocaleLowerCase('es').includes(query)) return false;
     if (tags.length) {
         const own = new Set(normalizeTags(bundle.tags).map(tagKey));
         if (!tags.every(t => own.has(t))) return false;
@@ -239,15 +241,90 @@ export function matchesHomeFilters(bundle, { tags = [], userBoardIds = null } = 
 }
 
 // Estado de filtros y asignaciones del home
-const homeFilters = { tags: new Set(), userId: '' }; // tags en minúsculas
-let homeCards = [];             // [{ card, bundle, entry }]
+const homeFilters = { tags: new Set(), userId: '', query: '' }; // tags y query en minúsculas
+let homeBundles = [];           // un bundle por tablero visible para esta cuenta
+let homeCards = [];             // [{ card, bundle, entry }] (agrupando, un tablero puede tener varias tarjetas)
 let assignCountByBoard = new Map();
 let boardsByUser = new Map();   // aac_user_id -> Set(board_id)
 let filterUsers = [];           // [{ id, display_name }]
 let assignmentsRequest = 0;
 
+// --- Orden y agrupación del home (estilo "Projects"; se recuerdan en este dispositivo) ---
+const SORT_KEY = 'miravoz_home_sort';
+const GROUP_KEY = 'miravoz_home_group';
+const SORTS = ['modified', 'created', 'alpha'];
+function readPref(key, fallback) {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+function writePref(key, value) {
+    try { localStorage.setItem(key, value); } catch { /* modo privado o cuota: no se recuerda */ }
+}
+const homeView = {
+    sort: SORTS.includes(readPref(SORT_KEY, '')) ? readPref(SORT_KEY, '') : 'modified',
+    group: readPref(GROUP_KEY, '0') === '1'
+};
+
+/** Última modificación: bundle.updatedAt o el mayor lastUpdateTime de los grids. */
+export function bundleModifiedTime(bundle) { return bundleTime(bundle) || 0; }
+
+/** Creación: no hay campo; se usa el timestamp del id `bundle_<ms>` y, si no, la última modificación. */
+export function bundleCreatedTime(bundle) {
+    const m = /^bundle_(\d{10,})/.exec(String(bundle?.id || ''));
+    return m ? Number(m[1]) : (bundle?.updatedAt || bundleModifiedTime(bundle));
+}
+
+const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base', numeric: true });
+
+/** Ordena una copia de la lista: 'modified' y 'created' del más nuevo al más viejo; 'alpha' por nombre. */
+export function sortBundles(list, sort = 'modified') {
+    const out = [...list];
+    if (sort === 'alpha') return out.sort(byName);
+    const key = sort === 'created' ? bundleCreatedTime : bundleModifiedTime;
+    return out.sort((a, b) => (key(b) - key(a)) || byName(a, b));
+}
+
+/**
+ * Secciones para "Agrupar por etiqueta": una por etiqueta (alfabético) y al final "Sin etiqueta".
+ * Un tablero con varias etiquetas aparece en cada sección. Devuelve [{ key, title, bundles }].
+ */
+export function groupBundlesByTag(list) {
+    const groups = new Map();
+    const untagged = [];
+    list.forEach(b => {
+        const tags = normalizeTags(b.tags);
+        if (!tags.length) { untagged.push(b); return; }
+        tags.forEach(t => {
+            const k = tagKey(t);
+            if (!groups.has(k)) groups.set(k, { key: k, title: t, bundles: [] });
+            groups.get(k).bundles.push(b);
+        });
+    });
+    const out = [...groups.values()].sort((a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base' }));
+    if (untagged.length) out.push({ key: '', title: 'Sin etiqueta', bundles: untagged });
+    return out;
+}
+
+let relativeFormatter = null;
+/** "hace 1 minuto", "ayer", "hace 3 días"… ('' si no hay fecha). */
+export function formatRelativeTime(ts, now = Date.now()) {
+    if (!ts || !Number.isFinite(ts)) return '';
+    if (!relativeFormatter) {
+        try { relativeFormatter = new Intl.RelativeTimeFormat('es', { numeric: 'auto' }); } catch { return ''; }
+    }
+    const sec = Math.round((ts - now) / 1000); // negativo = pasado
+    const abs = Math.abs(sec);
+    if (abs < 60) return relativeFormatter.format(0, 'second'); // "ahora"
+    const steps = [[3600, 60, 'minute'], [86400, 3600, 'hour'], [604800, 86400, 'day'],
+        [2629800, 604800, 'week'], [31557600, 2629800, 'month'], [Infinity, 31557600, 'year']];
+    for (const [limit, unit, name] of steps) {
+        if (abs < limit) return relativeFormatter.format(Math.round(sec / unit), name);
+    }
+    return '';
+}
+
 const ICONS = {
     assign: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+    tag: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>',
     tags: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>',
     export: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
     duplicate: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
@@ -265,24 +342,34 @@ function makeActionButton(kind, label, onClick) {
     return btn;
 }
 
+function makeTagLabel(text) {
+    const label = document.createElement('span');
+    label.className = 'tag-label';
+    const icon = document.createElement('span');
+    icon.className = 'tag-label-icon';
+    icon.innerHTML = ICONS.tag; // SVG fijo
+    const txt = document.createElement('span');
+    txt.className = 'tag-label-text';
+    txt.textContent = text; // lo escribe la profesional: textContent
+    label.append(icon, txt);
+    return label;
+}
+
+/** Etiquetas de la tarjeta como labels discretos con ícono (pie de la tarjeta). */
 function renderCardTags(container, bundle) {
     const tags = normalizeTags(bundle.tags);
     container.replaceChildren();
     container.hidden = tags.length === 0;
-    tags.slice(0, 3).forEach(t => {
-        const chip = document.createElement('span');
-        chip.className = 'tag-chip';
-        chip.textContent = t;
-        container.appendChild(chip);
-    });
+    tags.slice(0, 3).forEach(t => container.appendChild(makeTagLabel(t)));
     if (tags.length > 3) {
         const more = document.createElement('span');
-        more.className = 'tag-chip tag-chip-more';
+        more.className = 'tag-label tag-label-more';
         more.textContent = `+${tags.length - 3}`;
         more.title = tags.slice(3).join(', ');
         container.appendChild(more);
     }
-    container.setAttribute('aria-label', tags.length ? `Etiquetas: ${tags.join(', ')}` : '');
+    if (tags.length) container.setAttribute('aria-label', `Etiquetas: ${tags.join(', ')}`);
+    else container.removeAttribute('aria-label');
 }
 
 /** Miniatura del tablero principal: grilla chica con los colores y pictogramas de cada celda. */
@@ -349,16 +436,13 @@ function buildBoardCard(bundle) {
     const h3 = document.createElement('h3');
     h3.className = 'board-card-title';
     h3.textContent = bundle.name;
-    const tagsDiv = document.createElement('div');
-    tagsDiv.className = 'board-card-tags';
-    renderCardTags(tagsDiv, bundle);
     // Vista previa: miniatura del tablero principal armada en el momento con los datos locales
     // (no se guarda en la base). Si no hay celdas, se muestra el texto de siempre.
     const thumb = buildBoardThumb(bundle);
     const pMeta = document.createElement('p');
     pMeta.className = 'board-card-meta';
     pMeta.textContent = optionsCount ? `${optionsCount} celdas` : previewText;
-    infoDiv.append(h3, tagsDiv, ...(thumb ? [thumb] : []), pMeta);
+    infoDiv.append(h3, ...(thumb ? [thumb] : []), pMeta);
 
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'board-card-actions';
@@ -414,7 +498,22 @@ function buildBoardCard(bundle) {
     progress.className = 'progress-bar';
     progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
 
-    card.append(infoDiv, actionsDiv, progress);
+    // Pie (como en "Projects"): última modificación a la izquierda y etiquetas a la derecha
+    const footer = document.createElement('div');
+    footer.className = 'board-card-footer';
+    const time = document.createElement('span');
+    time.className = 'board-card-time';
+    const modified = bundleModifiedTime(bundle);
+    time.textContent = formatRelativeTime(modified);
+    if (modified) time.title = 'Última modificación: ' + new Date(modified).toLocaleString('es');
+    const tagsDiv = document.createElement('div');
+    tagsDiv.className = 'board-card-tags';
+    tagsDiv.setAttribute('role', 'group');
+    renderCardTags(tagsDiv, bundle);
+    footer.append(time, tagsDiv);
+    footer.hidden = !time.textContent && tagsDiv.hidden;
+
+    card.append(infoDiv, actionsDiv, footer, progress);
     card.onclick = () => openBundle(bundle);
 
     const entry = { element: card, data: bundle, isBoardCard: true };
@@ -427,11 +526,7 @@ export async function loadSavedBoards() {
     isRenderingBoards = true;
     try {
         const keys = await localforage.keys();
-        boardList.innerHTML = '';
-        activeHomeElements = [];
-        homeCards = [];
-
-        const fragment = document.createDocumentFragment();
+        const bundles = [];
         for (const key of keys) {
             if (key.startsWith('miravoz_')) continue; // settings, calibración, benchmarks
 
@@ -442,18 +537,10 @@ export async function loadSavedBoards() {
             if (bundle.type === 'test') { await localforage.removeItem(key); continue; }
             // F4: tableros de una cuenta solo se ven con esa cuenta; los locales sin dueño, siempre
             if (!isVisibleTo(bundle, S.currentUser?.id)) continue;
-
-            const item = buildBoardCard(bundle);
-            homeCards.push(item);
-            fragment.appendChild(item.card);
+            bundles.push(bundle);
         }
-
-        if (homeCards.length === 0) {
-            boardList.innerHTML = '<p style="color: var(--text-muted);">Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.</p>';
-        } else {
-            boardList.appendChild(fragment);
-        }
-        updateAssignBadges();
+        homeBundles = bundles;
+        renderHomeCards();
         renderHomeFilterBar();
         applyHomeFilters(); // también avisa a main (hooks.onHomeRendered) con las tarjetas visibles
         refreshAssignments(); // en segundo plano: badges y filtro por usuario
@@ -461,6 +548,57 @@ export async function loadSavedBoards() {
         isRenderingBoards = false;
         if (rerenderRequested) { rerenderRequested = false; loadSavedBoards(); }
     }
+}
+
+/** Arma las tarjetas según el orden y la agrupación elegidos (sin releer el disco). */
+function renderHomeCards() {
+    boardList.replaceChildren();
+    activeHomeElements = [];
+    homeCards = [];
+    boardList.classList.toggle('is-grouped', homeView.group && homeBundles.length > 0);
+
+    if (homeBundles.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'home-empty';
+        p.textContent = 'Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.';
+        boardList.appendChild(p);
+        return;
+    }
+    const sorted = sortBundles(homeBundles, homeView.sort);
+    const fragment = document.createDocumentFragment();
+    const addCard = (parent, bundle) => {
+        const item = buildBoardCard(bundle);
+        homeCards.push(item);
+        parent.appendChild(item.card);
+    };
+    if (homeView.group) {
+        // Mismo texto de etiqueta que en las pestañas (sin depender del orden elegido)
+        const titles = new Map(tagsInUse(homeBundles).map(u => [u.key, u.tag]));
+        groupBundlesByTag(sorted).forEach((g, i) => {
+            if (g.key && titles.has(g.key)) g.title = titles.get(g.key);
+            const section = document.createElement('section');
+            section.className = 'home-group';
+            const headId = `home-group-${i}`;
+            section.setAttribute('aria-labelledby', headId);
+            const h2 = document.createElement('h2');
+            h2.className = 'home-group-title';
+            h2.id = headId;
+            const name = document.createElement('span');
+            name.textContent = g.title; // etiqueta escrita por la profesional
+            const count = document.createElement('span');
+            count.className = 'home-group-count';
+            h2.append(name, count);
+            const grid = document.createElement('div');
+            grid.className = 'home-group-grid';
+            g.bundles.forEach(b => addCard(grid, b));
+            section.append(h2, grid);
+            fragment.appendChild(section);
+        });
+    } else {
+        sorted.forEach(b => addCard(fragment, b));
+    }
+    boardList.appendChild(fragment);
+    updateAssignBadges();
 }
 
 // --- Asignaciones para badges y filtro por usuario ---
@@ -532,37 +670,43 @@ function tagsInUse(bundles) {
     return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag, 'es', { sensitivity: 'base' }));
 }
 
-function makeFilterChip(text, pressed, onClick) {
+function makeFilterTab(text, pressed, onClick) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'filter-chip';
+    btn.className = 'home-tab';
     btn.textContent = text;
     btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     btn.onclick = onClick;
     return btn;
 }
 
+/** Pestañas tipo píldora: "Todos" + una por etiqueta (varias elegidas = tableros con todas). */
 function renderHomeFilterBar() {
     if (!tagFilterChips) return;
-    const used = tagsInUse(homeCards.map(c => c.bundle));
+    const used = tagsInUse(homeBundles);
     // Descartar etiquetas elegidas que ya no existen
     [...homeFilters.tags].forEach(k => { if (!used.some(u => u.key === k)) homeFilters.tags.delete(k); });
 
     tagFilterChips.replaceChildren();
     if (used.length) {
-        tagFilterChips.appendChild(makeFilterChip('Todas', homeFilters.tags.size === 0, () => {
+        const all = makeFilterTab('Todos', homeFilters.tags.size === 0, () => {
             homeFilters.tags.clear();
             renderHomeFilterBar(); applyHomeFilters();
-        }));
+            tagFilterChips.querySelector('.home-tab')?.focus();
+        });
+        all.setAttribute('aria-label', 'Todos los tableros');
+        tagFilterChips.appendChild(all);
         used.forEach(({ tag, key, count }) => {
-            const chip = makeFilterChip(`${tag} (${count})`, homeFilters.tags.has(key), () => {
+            const tab = makeFilterTab(tag, homeFilters.tags.has(key), () => {
                 if (homeFilters.tags.has(key)) homeFilters.tags.delete(key); else homeFilters.tags.add(key);
                 renderHomeFilterBar(); applyHomeFilters();
-                [...tagFilterChips.querySelectorAll('.filter-chip')].find(c => c.dataset.key === key)?.focus();
+                [...tagFilterChips.querySelectorAll('.home-tab')].find(c => c.dataset.key === key)?.focus();
             });
-            chip.dataset.key = key;
-            chip.setAttribute('aria-label', `${tag}, ${count} ${count === 1 ? 'tablero' : 'tableros'}`);
-            tagFilterChips.appendChild(chip);
+            tab.dataset.key = key;
+            const n = `${count} ${count === 1 ? 'tablero' : 'tableros'}`;
+            tab.setAttribute('aria-label', `${tag}, ${n}`);
+            tab.title = n;
+            tagFilterChips.appendChild(tab);
         });
     }
     tagFilterChips.hidden = used.length === 0;
@@ -588,7 +732,8 @@ function renderUserFilter() {
     } else {
         homeFilters.userId = '';
     }
-    if (filterBar) filterBar.hidden = (tagFilterChips?.hidden ?? true) && userFilterWrap.hidden;
+    // La barra (pestañas, buscador y orden) se ve siempre que haya tableros
+    if (filterBar) filterBar.hidden = homeBundles.length === 0;
 }
 
 if (userFilterSelect) {
@@ -598,11 +743,12 @@ if (userFilterSelect) {
     });
 }
 
-/** Aplica etiquetas + usuario con una clase propia (el buscador de texto usa style.display y no la pisa). */
+/** Aplica búsqueda + etiquetas + usuario con la clase .is-filtered-out y actualiza los targets de dwell/barrido. */
 export function applyHomeFilters() {
     const criteria = {
         tags: [...homeFilters.tags],
-        userBoardIds: homeFilters.userId ? (boardsByUser.get(homeFilters.userId) || new Set()) : null
+        userBoardIds: homeFilters.userId ? (boardsByUser.get(homeFilters.userId) || new Set()) : null,
+        query: homeFilters.query
     };
     const visible = [];
     homeCards.forEach(({ card, bundle, entry }) => {
@@ -611,8 +757,122 @@ export function applyHomeFilters() {
         if (ok) visible.push(entry);
     });
     activeHomeElements = visible;
+    // Agrupado: ocultar secciones vacías y mostrar cuántos tableros quedan en cada una
+    boardList.querySelectorAll('.home-group').forEach(section => {
+        const n = section.querySelectorAll('.board-card:not(.is-filtered-out)').length;
+        section.hidden = n === 0;
+        const count = section.querySelector('.home-group-count');
+        if (count) count.textContent = String(n);
+    });
     if (filterEmptyMsg) filterEmptyMsg.hidden = !(homeCards.length > 0 && visible.length === 0);
     hooks.onHomeRendered(activeHomeElements);
+}
+
+// --- Buscador del home (lupa que se expande) ---
+const searchBtn = document.getElementById('btn-home-search');
+const searchField = document.getElementById('home-search-field');
+const searchInput = document.getElementById('board-search');
+const searchCloseBtn = document.getElementById('btn-home-search-close');
+
+function openHomeSearch() {
+    if (!searchField || !searchInput) return;
+    searchField.hidden = false;
+    if (searchBtn) { searchBtn.hidden = true; searchBtn.setAttribute('aria-expanded', 'true'); }
+    searchInput.focus();
+}
+
+function closeHomeSearch({ returnFocus = true } = {}) {
+    if (!searchField || !searchInput) return;
+    const hadQuery = !!homeFilters.query;
+    searchInput.value = '';
+    homeFilters.query = '';
+    searchField.hidden = true;
+    if (searchBtn) {
+        searchBtn.hidden = false;
+        searchBtn.setAttribute('aria-expanded', 'false');
+        if (returnFocus) searchBtn.focus();
+    }
+    if (hadQuery) applyHomeFilters();
+}
+
+if (searchInput && searchField) {
+    searchBtn?.addEventListener('click', openHomeSearch);
+    searchCloseBtn?.addEventListener('click', () => closeHomeSearch());
+    searchInput.addEventListener('input', () => {
+        homeFilters.query = searchInput.value.trim().toLocaleLowerCase('es');
+        applyHomeFilters();
+    });
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeHomeSearch(); }
+    });
+    // Si se va el foco y no hay nada escrito, vuelve a ser solo la lupa
+    searchField.addEventListener('focusout', (e) => {
+        if (searchField.contains(e.relatedTarget)) return;
+        if (!searchInput.value.trim()) closeHomeSearch({ returnFocus: false });
+    });
+}
+
+// --- Menú de orden y agrupación ---
+const sortBtn = document.getElementById('btn-home-sort');
+const sortMenu = document.getElementById('home-sort-menu');
+const sortItems = () => sortMenu ? [...sortMenu.querySelectorAll('[role^="menuitem"]')] : [];
+
+function syncSortMenu() {
+    sortItems().forEach(item => {
+        const on = item.dataset.sort ? item.dataset.sort === homeView.sort : homeView.group;
+        item.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+}
+
+function openSortMenu() {
+    if (!sortMenu || !sortBtn) return;
+    syncSortMenu();
+    sortMenu.hidden = false;
+    sortBtn.setAttribute('aria-expanded', 'true');
+    (sortItems().find(i => i.getAttribute('aria-checked') === 'true') || sortItems()[0])?.focus();
+}
+
+function closeSortMenu({ returnFocus = true } = {}) {
+    if (!sortMenu || sortMenu.hidden) return;
+    sortMenu.hidden = true;
+    sortBtn?.setAttribute('aria-expanded', 'false');
+    if (returnFocus) sortBtn?.focus();
+}
+
+function chooseSortItem(item) {
+    if (item.dataset.sort) {
+        homeView.sort = item.dataset.sort;
+        writePref(SORT_KEY, homeView.sort);
+    } else {
+        homeView.group = !homeView.group;
+        writePref(GROUP_KEY, homeView.group ? '1' : '0');
+    }
+    syncSortMenu();
+    closeSortMenu();
+    renderHomeCards();
+    applyHomeFilters();
+}
+
+if (sortBtn && sortMenu) {
+    syncSortMenu();
+    sortBtn.addEventListener('click', () => (sortMenu.hidden ? openSortMenu() : closeSortMenu()));
+    sortBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openSortMenu(); }
+    });
+    sortItems().forEach(item => item.addEventListener('click', () => chooseSortItem(item)));
+    sortMenu.addEventListener('keydown', (e) => {
+        const items = sortItems();
+        const i = items.indexOf(document.activeElement);
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSortMenu(); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+        else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+        else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+        else if (e.key === 'Tab') closeSortMenu({ returnFocus: false });
+    });
+    document.addEventListener('pointerdown', (e) => {
+        if (!sortMenu.hidden && !sortMenu.contains(e.target) && !sortBtn.contains(e.target)) closeSortMenu({ returnFocus: false });
+    });
 }
 
 // --- Apertura y render de tableros ---
@@ -1146,7 +1406,7 @@ function renderTagsModal() {
     // Sugerencias: etiquetas usadas en otros tableros que este no tiene
     const own = new Set(current.map(tagKey));
     const typed = tagKey((tagsInput?.value || '').trim());
-    const suggestions = tagsInUse(homeCards.map(c => c.bundle).filter(b => b.id !== tagsBundle.id))
+    const suggestions = tagsInUse(homeBundles.filter(b => b.id !== tagsBundle.id))
         .filter(s => !own.has(s.key) && (!typed || s.key.includes(typed)));
     tagsSuggestions.replaceChildren();
     suggestions.forEach(({ tag }) => {
@@ -1195,7 +1455,7 @@ async function closeTagsModal() {
     tagsModal.style.display = 'none';
     tagsBundle = null;
     const focusId = tagsReturnFocusId;
-    await loadSavedBoards(); // chips de la tarjeta y filtros
+    await loadSavedBoards(); // etiquetas de la tarjeta y pestañas
     if (focusId) [...boardList.querySelectorAll('[data-tags-for]')].find(b => b.dataset.tagsFor === focusId)?.focus();
 }
 

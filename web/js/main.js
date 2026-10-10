@@ -465,19 +465,7 @@ document.getElementById('btn-edit-board').addEventListener('click', () => {
 });
 
 // --- Buscador ---
-const searchInput = document.getElementById('board-search');
-if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        document.querySelectorAll('.board-card').forEach(card => {
-            const name = card.getAttribute('data-name') || '';
-            card.style.display = name.includes(query) ? 'flex' : 'none';
-        });
-        // Dwell/barrido: solo las tarjetas visibles (buscador + filtros de etiquetas/usuario)
-        const vis = boards.activeHomeElements.filter(t => t.element.style.display !== 'none' && !t.element.classList.contains('is-filtered-out'));
-        if (S.state === 'HOME') { dwell.setTargets(vis); if (S.trackingMode === 'SCAN') scan.setTargets(vis); }
-    });
-}
+// Vive en boards.js (barra del home): se combina con etiquetas/usuario vía .is-filtered-out.
 
 // --- Settings modal ---
 const btnSettings = document.getElementById('btn-settings');
@@ -815,9 +803,24 @@ async function openDeviceHome({ casita = false } = {}) {
         list.appendChild(card);
         targets.push({ element: card, data: copy, isBoardCard: true });
     }
-    dwell.setTargets(targets);
-    scan.setTargets(targets);
+    deviceTargets = targets;
+    filterDeviceCards();
 }
+
+// Buscador en la tablet: usa la misma lupa del home y filtra las tarjetas de sus tableros
+let deviceTargets = [];
+function filterDeviceCards() {
+    const q = (document.getElementById('board-search')?.value || '').trim().toLowerCase();
+    const vis = [];
+    for (const t of deviceTargets) {
+        const ok = !q || (t.element.getAttribute('data-name') || '').includes(q);
+        t.element.classList.toggle('is-filtered-out', !ok);
+        if (ok) vis.push(t);
+    }
+    if (S.state === 'HOME') { dwell.setTargets(vis); scan.setTargets(vis); }
+}
+document.getElementById('board-search')?.addEventListener('input', () => { if (deviceMod.isDeviceMode()) filterDeviceCards(); });
+document.getElementById('btn-home-search-close')?.addEventListener('click', () => { if (deviceMod.isDeviceMode()) setTimeout(filterDeviceCards, 0); });
 
 function updateDeviceAccountUI() {
     const name = deviceMod.device?.displayName || '';
