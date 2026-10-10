@@ -357,8 +357,27 @@ export function wireLinkForm({ onLinked }) {
     };
 }
 
-// --- Salida para adultos: mantener apretada la esquina 3 segundos ---
-export function wireAdultExit({ onUnlinked }) {
+/** Registra qué configuración del servidor ya se aplicó (para no pisar un cambio hecho por un adulto en la tablet). */
+export async function markSettingsApplied(key) {
+    if (!device) return;
+    device.appliedSettingsKey = key;
+    await localforage.setItem(DEVICE_KEY, device);
+}
+
+/** Pide confirmación (y que se escriba DESVINCULAR) y desvincula. Devuelve true si se desvinculó. */
+export async function confirmAndUnlink() {
+    const ok = await customConfirm(`¿Desvincular la tablet de ${device?.displayName || 'este usuario'}? Los tableros dejan de estar en este dispositivo (siguen en la cuenta de la profesional).`);
+    if (!ok) return false;
+    const left = await flushCopies();
+    const warn = left ? `\nOJO: ${left} tablero(s) tienen cambios que no se pudieron subir y se van a perder.` : '';
+    const typed = typeof window.prompt === 'function' ? window.prompt('Para confirmar, escribí DESVINCULAR' + warn) : null;
+    if ((typed || '').trim().toUpperCase() !== 'DESVINCULAR') { customAlert('No se desvinculó.'); return false; }
+    await unlink();
+    return true;
+}
+
+// --- Menú para adultos: mantener apretada la esquina superior derecha 3 segundos ---
+export function wireAdultMenu({ onOpen }) {
     let corner = document.getElementById('device-corner');
     if (!corner) {
         corner = document.createElement('div');
@@ -371,16 +390,7 @@ export function wireAdultExit({ onUnlinked }) {
         e.stopPropagation();
         e.preventDefault();
         clearTimeout(timer);
-        timer = setTimeout(async () => {
-            const ok = await customConfirm(`Opciones de la tablet de ${device?.displayName || 'este usuario'}: ¿querés desvincularla? Los tableros dejan de estar en este dispositivo (siguen en la cuenta de la profesional).`);
-            if (!ok) return;
-            const left = await flushCopies();
-            const warn = left ? `\nOJO: ${left} tablero(s) tienen cambios que no se pudieron subir y se van a perder.` : '';
-            const typed = typeof window.prompt === 'function' ? window.prompt('Para confirmar, escribí DESVINCULAR' + warn) : null;
-            if ((typed || '').trim().toUpperCase() !== 'DESVINCULAR') { customAlert('No se desvinculó.'); return; }
-            await unlink();
-            onUnlinked();
-        }, 3000);
+        timer = setTimeout(() => onOpen(), 3000);
     };
     const cancel = () => clearTimeout(timer);
     corner.addEventListener('pointerdown', start);

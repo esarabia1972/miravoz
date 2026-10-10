@@ -2,12 +2,34 @@
 // Regla: todo texto que escribe una persona (nombres de usuarios y de tableros) va con textContent.
 
 import { supabaseClient } from './auth.js';
-import { customAlert, customConfirm } from './ui.js';
+import { customAlert, customConfirm, showInfoToast } from './ui.js';
 
 export let users = [];
 let currentProfessionalId = null;
 let loadError = false;               // falló la consulta principal de usuarios
 const expandedUsers = new Set();     // fichas abiertas ("Ver tableros"), sobrevive a los re-render
+const expandedSettings = new Set();  // "Configuración de su tablet" abierta, sobrevive a los re-render
+const settingsDrafts = new Map();    // cambios sin guardar por usuario (no se pierden si se re-renderiza)
+
+// F4-6: configuración de acceso por perfil (aac_users.settings)
+const SETTINGS_DEFAULTS = { accessMode: 'CLICKS', dwellMs: 1200, scan: { pattern: 'ROW_COLUMN', intervalMs: 1200, audio: 'none' } };
+const ACCESS_MODES = [
+    { value: 'CLICKS', label: 'Manual (tocar o hacer clic)' },
+    { value: 'CARA', label: 'Rostro' },
+    { value: 'SCAN', label: 'Barrido' }
+];
+const ACCESS_MODE_NAMES = { CLICKS: 'Manual', CARA: 'Rostro', SCAN: 'Barrido' };
+const DWELL_OPTIONS = [800, 1200, 2000, 3000, 5000];
+const SCAN_PATTERNS = [
+    { value: 'ROW_COLUMN', label: 'Fila → elemento' },
+    { value: 'LINEAR', label: 'Elemento por elemento' }
+];
+const SCAN_INTERVALS = [600, 900, 1200, 1800, 2500, 3000];
+const SCAN_AUDIO = [
+    { value: 'none', label: 'Silencio' },
+    { value: 'beep', label: 'Beep' },
+    { value: 'speak', label: 'Decir la opción' }
+];
 
 export function setProfessionalId(id) {
     currentProfessionalId = id;
@@ -202,6 +224,54 @@ async function unlinkDevice(user, device) {
     await fetchUsers();
 }
 
+/** Lee aac_users.settings y completa con defaults los valores que falten o no sean válidos. */
+function accessSettingsOf(user) {
+    const s = (user && user.settings && typeof user.settings === 'object') ? user.settings : {};
+    const scan = (s.scan && typeof s.scan === 'object') ? s.scan : {};
+    const pick = (v, allowed, def) => allowed.includes(v) ? v : def;
+    return {
+        accessMode: pick(s.accessMode, ACCESS_MODES.map(m => m.value), SETTINGS_DEFAULTS.accessMode),
+        dwellMs: pick(Number(s.dwellMs), DWELL_OPTIONS, SETTINGS_DEFAULTS.dwellMs),
+        scan: {
+            pattern: pick(scan.pattern, SCAN_PATTERNS.map(p => p.value), SETTINGS_DEFAULTS.scan.pattern),
+            intervalMs: pick(Number(scan.intervalMs), SCAN_INTERVALS, SETTINGS_DEFAULTS.scan.intervalMs),
+            audio: pick(scan.audio, SCAN_AUDIO.map(a => a.value), SETTINGS_DEFAULTS.scan.audio)
+        }
+    };
+}
+
+async function saveSettings(user, draft, saveBtn) {
+    const prev = (user.settings && typeof user.settings === 'object') ? user.settings : {};
+    const prevScan = (prev.scan && typeof prev.scan === 'object') ? prev.scan : {};
+    // Merge: no se pierden claves que no maneja esta pantalla (p. ej. vocabularyLevel)
+    const settings = {
+        ...prev,
+        accessMode: draft.accessMode,
+        dwellMs: draft.dwellMs,
+        scan: { ...prevScan, ...draft.scan }
+    };
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Guardando...';
+    let error = null;
+    try {
+        ({ error } = await supabaseClient.from('aac_users').update({ settings }).eq('id', user.id));
+    } catch (err) {
+        error = err;
+    }
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Guardar configuración';
+    if (error) {
+        console.error('Error guardando la configuración de la tablet:', error);
+        customAlert('No se pudo guardar la configuración. Revisá la conexión e intentá de nuevo.');
+        return;
+    }
+    user.settings = settings;
+    settingsDrafts.delete(user.id);
+    const msg = `Listo: la tablet de ${user.display_name} va a usar ${ACCESS_MODE_NAMES[settings.accessMode]} la próxima vez que se conecte.`;
+    if (typeof showInfoToast === 'function') showInfoToast(msg, 5000); else customAlert(msg);
+    renderUsersList(`settings-save:${user.id}`);
+}
+
 function copyName(copy) {
     return (copy && typeof copy.name === 'string' && copy.name.trim()) ? copy.name : 'Tablero sin nombre';
 }
@@ -281,6 +351,95 @@ function renderTablet(user) {
     gen.title = 'Genera un código de un solo uso (vence en 7 días). El código anterior deja de servir.';
     row.appendChild(gen);
     box.appendChild(row);
+    return box;
+}
+
+function seconds(ms) {
+    const s = String(ms / 1000).replace('.', ',');
+    return s === '1' ? '1 segundo' : `${s} segundos`;
+}
+
+/** Campo con label visible asociado (for/id) a un select. */
+function selectField(id, labelText, options, value, onChange) {
+    const field = el('div', 'user-settings-field');
+    const label = el('label', 'user-settings-label', labelText);
+    label.htmlFor = id;
+    const sel = el('select', 'glass-select user-settings-select');
+    sel.id = id;
+    options.forEach(opt => {
+        const o = el('option', null, opt.label);
+        o.value = String(opt.value);
+        sel.appendChild(o);
+    });
+    sel.value = String(value);
+    sel.addEventListener('change', () => onChange(sel.value));
+    field.appendChild(label);
+    field.appendChild(sel);
+    return field;
+}
+
+/** F4-6: "Configuración de su tablet" (plegable). Edita aac_users.settings. */
+function renderSettings(user) {
+    const box = el('div', 'user-settings');
+    const panelId = `user-settings-${user.id}`;
+    const open = expandedSettings.has(user.id);
+
+    const toggle = button(open ? 'Ocultar configuración de su tablet' : 'Configuración de su tablet',
+        `${open ? 'Ocultar' : 'Ver'} la configuración de la tablet de ${user.display_name}`, () => {
+            if (expandedSettings.has(user.id)) expandedSettings.delete(user.id); else expandedSettings.add(user.id);
+            renderUsersList(`settings-toggle:${user.id}`);
+        }, 'btn btn-secondary user-btn user-settings-toggle');
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-controls', panelId);
+    toggle.dataset.focusKey = `settings-toggle:${user.id}`;
+    box.appendChild(toggle);
+
+    const panel = el('div', 'user-settings-panel');
+    panel.id = panelId;
+    panel.hidden = !open;
+    box.appendChild(panel);
+    if (!open) return box;
+
+    if (!settingsDrafts.has(user.id)) settingsDrafts.set(user.id, accessSettingsOf(user));
+    const draft = settingsDrafts.get(user.id);
+
+    panel.appendChild(el('p', 'user-note', 'Se aplica en la tablet vinculada la próxima vez que se abra o se conecte. Un adulto puede cambiarlo en la tablet manteniendo apretada la esquina superior derecha.'));
+
+    const grid = el('div', 'user-settings-grid');
+    const base = `us-${user.id}`;
+
+    const caraFields = [];
+    const scanFields = [];
+    const updateVisibility = () => {
+        caraFields.forEach(f => { f.hidden = draft.accessMode !== 'CARA'; });
+        scanFields.forEach(f => { f.hidden = draft.accessMode !== 'SCAN'; });
+    };
+
+    grid.appendChild(selectField(`${base}-mode`, 'Modo de acceso', ACCESS_MODES, draft.accessMode, v => {
+        draft.accessMode = v;
+        updateVisibility();
+    }));
+
+    const dwell = selectField(`${base}-dwell`, 'Tiempo de fijación (Rostro)',
+        DWELL_OPTIONS.map(ms => ({ value: ms, label: seconds(ms) })), draft.dwellMs, v => { draft.dwellMs = Number(v); });
+    caraFields.push(dwell);
+    grid.appendChild(dwell);
+
+    const pattern = selectField(`${base}-pattern`, 'Patrón', SCAN_PATTERNS, draft.scan.pattern, v => { draft.scan.pattern = v; });
+    const speed = selectField(`${base}-interval`, 'Velocidad',
+        SCAN_INTERVALS.map(ms => ({ value: ms, label: seconds(ms) })), draft.scan.intervalMs, v => { draft.scan.intervalMs = Number(v); });
+    const audio = selectField(`${base}-audio`, 'Sonido al barrer', SCAN_AUDIO, draft.scan.audio, v => { draft.scan.audio = v; });
+    [pattern, speed, audio].forEach(f => { scanFields.push(f); grid.appendChild(f); });
+
+    updateVisibility();
+    panel.appendChild(grid);
+
+    const saveBtn = button('Guardar configuración', `Guardar la configuración de la tablet de ${user.display_name}`,
+        () => saveSettings(user, draft, saveBtn), 'btn btn-primary user-btn');
+    saveBtn.dataset.focusKey = `settings-save:${user.id}`;
+    const row = el('div', 'user-row');
+    row.appendChild(saveBtn);
+    panel.appendChild(row);
     return box;
 }
 
@@ -399,6 +558,7 @@ export function renderUsersList(focusKey = null) {
         card.appendChild(head);
 
         card.appendChild(renderTablet(user));
+        card.appendChild(renderSettings(user));
 
         const panel = el('div', 'user-copies');
         panel.id = panelId;

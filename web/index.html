@@ -2,14 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Instalable en pantalla de inicio (sin barras del navegador). iOS: "Compartir → Agregar a inicio" -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MiraVoz">
+    <meta name="theme-color" content="#0d0f14">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Miravoz - Tu mirada ya tiene voz</title>
     <meta name="description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:title" content="Miravoz - Tu mirada ya tiene voz">
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=28">
+    <link rel="stylesheet" href="style.css?v=29">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -376,6 +384,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=33"></script>
+    <script type="module" src="js/main.js?v=34"></script>
 </body>
 </html>

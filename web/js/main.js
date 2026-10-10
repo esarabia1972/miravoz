@@ -689,15 +689,106 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
 // --- Tablet vinculada a un usuario (F4-4) ---
 const ACCESS_MODE_MAP = { MANUAL: 'CLICKS', CLICKS: 'CLICKS', FACE: 'CARA', CARA: 'CARA', SCAN: 'SCAN' }; // OJOS (experimental) no se aplica desde el servidor
 
+// La configuración que define la profesional (aac_users.settings) se aplica SOLO cuando cambia: así un
+// ajuste hecho por un adulto en la tablet (menú de la esquina) no se pisa en cada arranque.
 async function applyDeviceSettings(s = {}) {
-    const patch = {};
-    const mode = ACCESS_MODE_MAP[s.accessMode];
-    if (mode) patch.accessMode = mode;
-    if (Number.isFinite(s.dwellMs)) patch.dwellMs = s.dwellMs;
-    if (s.scan && typeof s.scan === 'object') patch.scan = { ...settings.scan, ...s.scan };
-    if (Object.keys(patch).length) await saveSettings(patch);
+    const key = JSON.stringify(s || {});
+    if (key !== deviceMod.device?.appliedSettingsKey) {
+        const patch = {};
+        const mode = ACCESS_MODE_MAP[s.accessMode];
+        if (mode) patch.accessMode = mode;
+        if (Number.isFinite(s.dwellMs)) patch.dwellMs = s.dwellMs;
+        if (s.scan && typeof s.scan === 'object') patch.scan = { ...settings.scan, ...s.scan };
+        if (Object.keys(patch).length) {
+            await saveSettings(patch);
+            syncSettingsControls();
+        }
+        await deviceMod.markSettingsApplied(key);
+    }
     const target = settings.accessMode || 'CLICKS';
     if (target !== S.trackingMode) { modeSelect.value = target; applyMode(target); }
+}
+
+// Refleja los settings guardados en los controles del panel de configuración
+function syncSettingsControls() {
+    if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
+    for (const [id, key] of [['scan-pattern', 'pattern'], ['scan-interval', 'intervalMs'], ['scan-audio', 'audio']]) {
+        const el = document.getElementById(id);
+        if (el) el.value = String(settings.scan[key]);
+    }
+}
+
+// --- Pantalla completa (tablet): se pide con un gesto del usuario; donde no se puede, no pasa nada ---
+function requestFullscreenSafe() {
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (fn) { try { const p = fn.call(el); if (p && p.catch) p.catch(() => {}); } catch { /* no soportado */ } }
+}
+
+// --- Menú para adultos en la tablet (mantener apretada la esquina superior derecha 3 s) ---
+function openAdultMenu() {
+    document.getElementById('adult-menu')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'adult-menu';
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex; z-index: 30010;';
+    const box = document.createElement('div');
+    box.className = 'modal-content glass-box adult-menu';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-labelledby', 'adult-menu-title');
+    const h = document.createElement('h3');
+    h.id = 'adult-menu-title';
+    h.textContent = `Opciones de la tablet de ${deviceMod.device?.displayName || 'este usuario'}`;
+    box.appendChild(h);
+
+    const label = document.createElement('label');
+    label.textContent = 'Modo de acceso';
+    label.htmlFor = 'adult-mode';
+    const sel = document.createElement('select');
+    sel.id = 'adult-mode';
+    sel.className = 'glass-select';
+    const modes = [['CLICKS', 'Manual (tocar)'], ['CARA', 'Rostro'], ['SCAN', 'Barrido (pulsador)']];
+    if (document.getElementById('opt-ojos')) modes.push(['OJOS', 'Iris (experimental)']);
+    for (const [v, t] of modes) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+    sel.value = S.trackingMode;
+    sel.onchange = () => {
+        modeSelect.value = sel.value;
+        saveSettings({ accessMode: sel.value });
+        close();
+        applyMode(sel.value);
+    };
+    box.append(label, sel);
+
+    const mkBtn = (text, cls, fn) => {
+        const b = document.createElement('button');
+        b.className = `btn ${cls}`;
+        b.textContent = text;
+        b.onclick = fn;
+        box.appendChild(b);
+        return b;
+    };
+    if (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') {
+        mkBtn('Recalibrar', 'btn-secondary', () => { close(); btnRecalibrar.click(); });
+    }
+    mkBtn('Tiempos y barrido…', 'btn-secondary', () => {
+        close();
+        syncSettingsControls();
+        document.getElementById('settings-modal').style.display = 'flex';
+    });
+    mkBtn('Pantalla completa', 'btn-secondary', () => { requestFullscreenSafe(); close(); });
+    mkBtn('Desvincular tablet', 'btn-danger', async () => {
+        close();
+        if (await deviceMod.confirmAndUnlink()) window.location.reload();
+    });
+    mkBtn('Cerrar', 'btn-primary', () => close());
+
+    function close() { overlay.remove(); }
+    overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) close(); });
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    sel.focus();
 }
 
 async function openDeviceHome() {
@@ -750,7 +841,9 @@ async function enterDeviceMode() {
     document.body.classList.add('device-mode');
     document.getElementById('auth-view').style.display = 'none';
     S.state = 'HOME';
-    deviceMod.wireAdultExit({ onUnlinked: () => window.location.reload() });
+    deviceMod.wireAdultMenu({ onOpen: openAdultMenu });
+    // Pantalla completa al primer toque (los navegadores solo la permiten tras un gesto del usuario)
+    window.addEventListener('pointerdown', requestFullscreenSafe, { once: true });
     await openDeviceHome();
     await applyDeviceSettings(deviceMod.device?.settings); // después de abrir: calibra una sola vez si hace falta
 

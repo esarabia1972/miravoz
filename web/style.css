@@ -942,3 +942,19 @@ button:focus-visible, .btn:focus-visible, .btn-icon:focus-visible, [role="button
 .google-btn:disabled { opacity: 0.7; cursor: wait; }
 .auth-divider { display: flex; align-items: center; gap: 12px; color: var(--text-muted); margin: 26px 0 12px; font-size: 0.9rem; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.15); }
+
+/* F4-6: Configuración de su tablet (por perfil, en "Mis usuarios") */
+.user-settings { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+.user-settings-toggle { align-self: flex-start; }
+.user-settings-panel { display: flex; flex-direction: column; gap: 10px; }
+.user-settings-panel[hidden], .user-settings-field[hidden] { display: none; }
+.user-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.user-settings-field { display: flex; flex-direction: column; gap: 4px; }
+.user-settings-label { font-size: 0.95rem; font-weight: 600; }
+.user-settings-select { min-height: 44px; width: 100%; }
+
+/* Menú para adultos en la tablet (10/10/2026) */
+.adult-menu { max-width: 440px; width: 92vw; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.adult-menu h3 { margin: 0 0 6px; }
+.adult-menu label { color: var(--text-muted); font-size: 0.95rem; }
+.adult-menu select, .adult-menu .btn { min-height: 48px; font-size: 1.05rem; width: 100%; }

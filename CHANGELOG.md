@@ -181,3 +181,10 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Tests**: `test-boot` (64) y `test-device` (75) actualizados al acceso nuevo.
 - **Backlog modo Iris**: guía visual de alineación de la cabeza "tipo Starlink", que muestre cuánto y hacia dónde falta para volver a la pose de la calibración (idea de Esteban).
 
+### Tablet vinculada: configuración y pantalla completa (10/10/2026)
+- **Added (F4-6)**: en "Mis usuarios", cada ficha tiene "Configuración de su tablet".
+  - Permite elegir modo de acceso, tiempo de fijación y barrido (patrón, velocidad, sonido); se guarda en `aac_users.settings`.
+  - La tablet la aplica al abrirse o conectarse, solo cuando la profesional la cambió, así no pisa un ajuste hecho en la tablet.
+- **Added**: menú para adultos en la tablet (mantener apretada 3 s la esquina superior derecha) con modo de acceso, recalibrar, tiempos y barrido, pantalla completa y desvincular. Antes solo permitía desvincular, así que no había forma de cambiar el modo.
+- **Added**: pantalla completa al primer toque donde el navegador lo permite, y app instalable con `manifest.webmanifest` (display fullscreen), meta tags de iOS e íconos nuevos. En iPad: Compartir → "Agregar a inicio".
+
