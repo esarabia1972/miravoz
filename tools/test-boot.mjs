@@ -115,7 +115,7 @@ function makeSupabase({ user = null, tables = {} } = {}) {
         const q = { table, ops: [] };
         const rec = (op) => (...args) => { q.ops.push([op, args]); sbCalls.push({ table, op, args, q }); return builder; };
         const builder = {};
-        for (const op of ['select', 'eq', 'in', 'order', 'insert', 'upsert', 'update', 'delete', 'single', 'maybeSingle']) builder[op] = rec(op);
+        for (const op of ['select', 'eq', 'in', 'is', 'gt', 'order', 'insert', 'upsert', 'update', 'delete', 'single', 'maybeSingle']) builder[op] = rec(op);
         builder.then = (res, rej) => {
             let data = typeof tables[table] === 'function' ? tables[table](q) : (tables[table] ?? []);
             if (q.ops.some(([op]) => op === 'maybeSingle')) {
@@ -135,7 +135,8 @@ function makeSupabase({ user = null, tables = {} } = {}) {
                 signInWithPassword: async () => ({ error: null }),
                 signUp: async () => ({ data: {}, error: null })
             },
-            from: query
+            from: query,
+            rpc: async (fn, args) => { sbCalls.push({ table: 'rpc:' + fn, op: 'rpc', args: [args] }); return { data: null, error: null }; }
         })
     };
 }

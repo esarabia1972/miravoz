@@ -26,7 +26,8 @@ export async function fetchUsers() {
     // Fetch access codes (only for the current professional's users)
     const ids = usersData.map(u => u.id);
     const { data: codesData, error: codesError } = ids.length
-        ? await supabaseClient.from('access_codes').select('code, aac_user_id').in('aac_user_id', ids)
+        ? await supabaseClient.from('access_codes').select('code, aac_user_id, expires_at')
+            .in('aac_user_id', ids).is('redeemed_at', null).gt('expires_at', new Date().toISOString())
         : { data: [], error: null };
 
     if (codesError) {
@@ -35,7 +36,8 @@ export async function fetchUsers() {
         // Map codes to users
         usersData.forEach(user => {
             const codeRecord = codesData.find(c => c.aac_user_id === user.id);
-            user.access_code = codeRecord ? codeRecord.code : 'Sin código';
+            user.access_code = codeRecord ? formatCode(codeRecord.code) : null;
+            user.access_code_expires = codeRecord ? codeRecord.expires_at : null;
         });
     }
 
@@ -63,29 +65,28 @@ export async function createUser(displayName) {
         return;
     }
 
-    // 2. Generate 6-digit access code (format: XXX-XXX)
-    const rawCode = (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)).toString(); // CSPRNG
-    const formattedCode = `${rawCode.substring(0,3)}-${rawCode.substring(3)}`;
-
-    // 3. Insert code
-    const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 10);
-    
-    const { error: codeError } = await supabaseClient
-        .from('access_codes')
-        .insert([{
-            code: formattedCode,
-            aac_user_id: newUser.id,
-            expires_at: expiresAt.toISOString()
-        }]);
-
-    if (codeError) {
-        console.error('Error creating access code:', codeError);
-        customAlert('Usuario creado, pero hubo un error generando el código: ' + (codeError.message || JSON.stringify(codeError)));
-    }
+    // 2. Código para vincular su tablet: lo genera el servidor (F4-4, supabase/02)
+    await generateCode(newUser.id, { silent: true });
 
     // Refresh list
     await fetchUsers();
+}
+
+/** Formato legible: ABCD-EFGH */
+function formatCode(code) {
+    return code && code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+}
+
+/** Pide al servidor un código nuevo (invalida el anterior no usado). */
+export async function generateCode(aacUserId, { silent = false } = {}) {
+    const { data, error } = await supabaseClient.rpc('create_access_code', { p_aac_user_id: aacUserId });
+    if (error) {
+        console.error('Error generando código:', error);
+        customAlert('No se pudo generar el código para la tablet. Probá de nuevo en un rato.');
+        return null;
+    }
+    if (!silent) await fetchUsers();
+    return data;
 }
 
 export async function deleteUser(userId) {
@@ -142,7 +143,19 @@ export function renderUsersList() {
         codeSpan.style.background = 'rgba(255,255,255,0.1)';
         codeSpan.style.padding = '5px 10px';
         codeSpan.style.borderRadius = '5px';
-        codeSpan.innerText = `Código: ${user.access_code}`;
+        if (user.access_code) {
+            const days = Math.max(0, Math.ceil((new Date(user.access_code_expires) - Date.now()) / 86400000));
+            codeSpan.textContent = `Código para su tablet: ${user.access_code}`;
+            codeSpan.title = `Se usa una sola vez. Vence en ${days} día(s).`;
+        } else {
+            codeSpan.textContent = 'Sin código vigente';
+        }
+
+        const genBtn = document.createElement('button');
+        genBtn.className = 'btn btn-secondary';
+        genBtn.textContent = user.access_code ? 'Nuevo código' : 'Generar código';
+        genBtn.title = 'Genera un código de un solo uso (vence en 7 días) para vincular la tablet de este usuario';
+        genBtn.onclick = () => generateCode(user.id);
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn-icon';
@@ -150,14 +163,14 @@ export function renderUsersList() {
         deleteBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
         deleteBtn.title = 'Eliminar usuario';
         deleteBtn.onclick = async () => {
-            const confirmed = await customConfirm(`¿Estás seguro de que quieres eliminar a ${user.display_name}? Esta acción no se puede deshacer.`);
+            const confirmed = await customConfirm(`¿Eliminar a ${user.display_name}? Se borran también sus copias de tableros y su tablet queda desvinculada. No se puede deshacer.`);
             if (confirmed) {
                 await deleteUser(user.id);
             }
         };
 
-        codeDiv.appendChild(codeSpan);
-        codeDiv.appendChild(deleteBtn);
+        deleteBtn.setAttribute('aria-label', `Eliminar a ${user.display_name}`);
+        codeDiv.append(codeSpan, genBtn, deleteBtn);
 
         div.appendChild(nameDiv);
         div.appendChild(codeDiv);

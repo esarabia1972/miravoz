@@ -86,6 +86,7 @@ create trigger on_auth_user_created_professional
 insert into public.professionals (id, display_name)
 select u.id, coalesce(nullif(split_part(u.email, '@', 1), ''), 'Profesional')
 from auth.users u
+where not coalesce((to_jsonb(u)->>'is_anonymous')::boolean, false) -- las tablets anónimas no son profesionales
 on conflict (id) do nothing;
 
 -- =====================================================================

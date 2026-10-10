@@ -30,6 +30,9 @@ export async function getUser() {
  *  - onSignedIn(user):   cuando alguien inicia sesión después del arranque.
  *  - onSignedOut():      cuando la sesión se cierra o expira.
  */
+// Una sesión ANÓNIMA es la de una tablet vinculada (F4-4), nunca una profesional.
+const asProfessional = (u) => (u && !u.is_anonymous ? u : null);
+
 export function initAuth({ onReady, onSignedIn, onSignedOut }) {
     let ready = false;
     const fireReady = (user) => {
@@ -44,7 +47,7 @@ export function initAuth({ onReady, onSignedIn, onSignedOut }) {
         fireReady(null);
     } else {
         supabaseClient.auth.onAuthStateChange((event, session) => {
-            const user = session?.user || null;
+            const user = asProfessional(session?.user);
             if (event === 'INITIAL_SESSION') { fireReady(user); return; }
             if (!ready) return; // el arranque lo resuelve INITIAL_SESSION / getSession
             if (event === 'SIGNED_IN' && user && user.id !== S.currentUser?.id) {
@@ -57,7 +60,7 @@ export function initAuth({ onReady, onSignedIn, onSignedOut }) {
             }
         });
         // Red de seguridad por si la versión del SDK no emite INITIAL_SESSION
-        getUser().then(fireReady);
+        getUser().then(u => fireReady(asProfessional(u)));
     }
 
     wireAuthForm();
