@@ -1164,6 +1164,17 @@ export function renderGrid(gridId) {
                     cell.appendChild(label);
                 }
 
+                // Señal de que la celda abre otra página: esquina doblada con flecha (convención de carpetas en CAA)
+                if ((elData.actions || []).some(isNavigateAction)) {
+                    cell.classList.add('cell-nav');
+                    const mark = document.createElement('div');
+                    mark.className = 'cell-nav-mark';
+                    mark.setAttribute('aria-hidden', 'true');
+                    mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>'; // SVG fijo
+                    cell.appendChild(mark);
+                    cell.title = 'Abre otra página';
+                }
+
                 const progress = document.createElement('div');
                 progress.className = 'progress-bar';
                 cell.appendChild(progress);
@@ -1172,7 +1183,7 @@ export function renderGrid(gridId) {
                 cell.setAttribute('role', 'button');
                 cell.setAttribute('tabindex', '0');
                 const ariaLabel = cellText(elData);
-                if (ariaLabel) cell.setAttribute('aria-label', ariaLabel);
+                if (ariaLabel) cell.setAttribute('aria-label', cell.classList.contains('cell-nav') ? `${ariaLabel} (abre otra página)` : ariaLabel);
                 cell.addEventListener('keydown', (e) => {
                     // Solo en modo Manual: en Barrido, Espacio/Enter son la activación del switch
                     if (S.trackingMode === 'CLICKS' && (e.code === 'Enter' || e.code === 'Space')) {

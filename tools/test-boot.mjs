@@ -307,6 +307,7 @@ if (caseArg === 'paginas') {
     await sleep(50);
     check('el texto automático no se ve en la celda', !document.querySelector('#grid-container .picto-label') || ![...document.querySelectorAll('#grid-container .picto-label')].some(l => l.textContent === 'auto'), 'se ve "auto"');
     const titleCell = document.getElementById('cell-0-0');
+    check('la celda que navega tiene la señal de "abre otra página" y el pictograma no', titleCell.querySelector('.cell-nav-mark') && !document.getElementById('cell-0-2').querySelector('.cell-nav-mark'), 'falta o sobra la marca');
     spoken.length = 0;
     titleCell.click();
     await sleep(200);

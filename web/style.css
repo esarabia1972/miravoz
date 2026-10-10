@@ -1354,3 +1354,15 @@ body.test-board #btn-edit-board { display: none !important; }
 #editor-pages .ep-autolabels { flex-basis: 100%; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-main); cursor: pointer; }
 #editor-pages .et-dark { background: var(--field-bg) !important; color: var(--text-main) !important; border: 1px solid var(--field-border) !important; }
 #dialog-message { white-space: pre-line; }
+
+/* Celda que abre otra página: esquina doblada con flecha, arriba a la derecha (10/10/2026) */
+.cell.cell-nav { border-color: var(--text-muted); }
+.cell-nav-mark {
+    position: absolute; top: 0; right: 0; z-index: 2; pointer-events: none;
+    width: clamp(28px, 18%, 56px); aspect-ratio: 1;
+    background: var(--text-main); color: var(--bg-color);
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+    border-top-right-radius: 10px;
+}
+.cell-nav-mark svg { position: absolute; top: 10%; right: 10%; width: 46%; height: 46%; }
+.dense-grid .cell-nav-mark { width: clamp(16px, 22%, 28px); }
