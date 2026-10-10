@@ -320,11 +320,21 @@ if (caseArg === 'paginas') {
     // Editor: franja de páginas
     editor.enterEditMode();
     const chips = () => [...document.querySelectorAll('#editor-pages .ep-page')];
-    check('la franja muestra las 3 páginas en orden', chips().length === 3 && chips().map(c => c.title).join('|') === '¿Cuál tiene ruedas?|¿Cuál ladra?|¿Cuál vuela?', chips().map(c => c.title).join('|'));
+    const panel = () => document.getElementById('editor-pages');
+    const curBtn = document.querySelector('#editor-toolbar .ep-current');
+    check('las páginas van en un selector compacto en la barra, con el panel cerrado', curBtn && /Página 2 de 3/.test(curBtn.textContent) && panel()?.hidden === true, curBtn?.textContent + ' hidden=' + panel()?.hidden);
+    curBtn.click();
+    check('tocar el selector abre el panel de páginas', panel().hidden === false, 'sigue cerrado');
+    document.querySelector('#editor-toolbar .ep-arrow[aria-label="Página siguiente"]').click();
+    await sleep(20);
+    check('la flecha › pasa a la página siguiente', S.currentGridId === 'q3', S.currentGridId);
+    document.querySelector('#editor-toolbar .ep-arrow[aria-label="Página anterior"]').click();
+    await sleep(20);
+    check('la lista del panel muestra las 3 páginas en orden', chips().length === 3 && chips().map(c => c.title).join('|') === '¿Cuál tiene ruedas?|¿Cuál ladra?|¿Cuál vuela?', chips().map(c => c.title).join('|'));
     check('la de inicio está marcada', chips()[0].querySelector('.ep-start'), 'sin marca');
     chips()[2].click();
     await sleep(20);
-    check('tocar una página la abre para editar', S.currentGridId === 'q3' && chips()[2].classList.contains('is-active') && editor.isEditMode(), S.currentGridId);
+    check('tocar una página la abre para editar y cierra el panel', S.currentGridId === 'q3' && chips()[2].classList.contains('is-active') && editor.isEditMode() && panel().hidden, S.currentGridId);
     document.querySelector('#editor-pages .ep-add').click();
     await sleep(100);
     check('"+ Página" agrega y abre una página nueva', chips().length === 4 && S.currentGridId !== 'q3' && /Página 4/.test(document.querySelector('#editor-pages .is-active').title), chips().map(c => c.title).join('|'));

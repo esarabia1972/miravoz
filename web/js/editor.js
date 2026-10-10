@@ -73,8 +73,7 @@ export function exitEditMode() {
     document.body.classList.remove('edit-mode');
     const tb = document.getElementById('editor-toolbar');
     if (tb) tb.remove();
-    const pages = document.getElementById('editor-pages');
-    if (pages) pages.remove();
+    pagesOpen = false;
     boards.renderGrid(S.currentGridId);
 }
 
@@ -157,18 +156,85 @@ function hasAutoLabels(b) {
     return Object.values(b.boards || {}).some(g => (g.gridElements || []).some(el => el.autoLabel && el.autoLabel.es));
 }
 
+// La franja ocupaba demasiado alto (10/10/2026, pedido de Esteban): ahora las páginas van en un selector
+// compacto dentro de la barra del editor ("‹ Página 1 de 5 · Nombre ▾ ›") que despliega un panel.
+let pagesOpen = false;
+
+function setPagesOpen(open) {
+    pagesOpen = open;
+    const panel = document.getElementById('editor-pages');
+    const btn = document.querySelector('#editor-toolbar .ep-current');
+    if (panel) panel.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('pointerdown', (e) => {
+        if (!pagesOpen) return;
+        const nav = document.querySelector('#editor-toolbar .ep-nav');
+        const dialog = document.getElementById('custom-dialog');
+        if (nav && !nav.contains(e.target) && !(dialog && dialog.contains(e.target))) setPagesOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+        if (pagesOpen && e.key === 'Escape') {
+            setPagesOpen(false);
+            const btn = document.querySelector('#editor-toolbar .ep-current');
+            if (btn) btn.focus();
+        }
+    });
+}
+
 export function renderPagesStrip() {
     const b = S.currentBundle;
-    const view = document.getElementById('board-view');
-    let bar = document.getElementById('editor-pages');
-    if (!editMode || !b) { if (bar) bar.remove(); return; }
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.id = 'editor-pages';
-        const tb = document.getElementById('editor-toolbar');
-        if (tb) tb.after(bar); else view.prepend(bar);
+    const tb = document.getElementById('editor-toolbar');
+    let nav = tb && tb.querySelector('.ep-nav');
+    if (!editMode || !b || !tb) { if (nav) nav.remove(); pagesOpen = false; return; }
+    if (!nav) {
+        nav = document.createElement('div');
+        nav.className = 'ep-nav';
+        const anchor = tb.querySelector('.et-name');
+        if (anchor) anchor.after(nav); else tb.prepend(nav);
     }
-    bar.replaceChildren();
+    nav.replaceChildren();
+
+    const order = pageOrder(b);
+    const idx = Math.max(0, order.indexOf(S.currentGridId));
+    const mkArrow = (txt, label, target) => {
+        const a = document.createElement('button');
+        a.type = 'button';
+        a.className = 'btn btn-secondary ep-arrow';
+        a.textContent = txt;
+        a.title = label;
+        a.setAttribute('aria-label', label);
+        a.disabled = !target;
+        a.onclick = () => { if (target) goToPage(target); };
+        return a;
+    };
+    const current = document.createElement('button');
+    current.type = 'button';
+    current.className = 'ep-current';
+    current.setAttribute('aria-haspopup', 'true');
+    current.title = 'Ver todas las páginas';
+    const curName = gridName(b.boards[S.currentGridId]) || `Página ${idx + 1}`;
+    const count = document.createElement('span');
+    count.className = 'ep-count';
+    count.textContent = order.length > 1 ? `Página ${idx + 1} de ${order.length}` : 'Página';
+    const nm = document.createElement('span');
+    nm.className = 'ep-current-name';
+    nm.textContent = curName; // viene del archivo importado: textContent
+    const caret = document.createElement('span');
+    caret.className = 'ep-caret';
+    caret.setAttribute('aria-hidden', 'true');
+    caret.textContent = '▾';
+    current.append(count, nm, caret);
+    current.onclick = () => setPagesOpen(!pagesOpen);
+    nav.append(mkArrow('‹', 'Página anterior', order[idx - 1]), current, mkArrow('›', 'Página siguiente', order[idx + 1]));
+
+    const bar = document.createElement('div');
+    bar.id = 'editor-pages';
+    bar.setAttribute('role', 'dialog');
+    bar.setAttribute('aria-label', 'Páginas del tablero');
+    nav.appendChild(bar);
 
     const list = document.createElement('div');
     list.className = 'ep-list';
@@ -197,7 +263,7 @@ export function renderPagesStrip() {
             start.textContent = 'Inicio';
             chip.appendChild(start);
         }
-        chip.onclick = () => { if (id !== S.currentGridId) goToPage(id); };
+        chip.onclick = () => { setPagesOpen(false); if (id !== S.currentGridId) goToPage(id); };
         list.appendChild(chip);
     });
     const add = document.createElement('button');
@@ -259,8 +325,7 @@ export function renderPagesStrip() {
     }
 
     bar.append(list, tools);
-    const active = list.querySelector('.is-active');
-    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    setPagesOpen(pagesOpen);
 }
 
 function buildToolbar() {
@@ -292,8 +357,7 @@ function buildToolbar() {
     // Nombre del tablero (rename, F3-1). Con varias páginas, cada página se renombra en la franja de páginas.
     tb.appendChild(mkLabel('Tablero'));
     const nameInput = document.createElement('input');
-    nameInput.className = 'glass-input et-dark';
-    nameInput.style.width = '160px';
+    nameInput.className = 'glass-input et-dark et-name';
     nameInput.value = b.name;
     nameInput.onchange = async () => {
         b.name = nameInput.value.trim() || b.name;
