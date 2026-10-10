@@ -143,13 +143,21 @@ async function startTasks(video, gen) {
     await video.play();
     if (gen !== generation) return false;
 
+    // Procesar como máximo al ritmo REAL de la cámara (normalmente 30 cps). Antes se procesaba en cada
+    // refresco de pantalla (60-120 Hz) analizando varias veces la misma imagen: CPU de más en tablets.
+    const camFps = s.getVideoTracks()[0]?.getSettings?.().frameRate || 30;
+    const minIntervalMs = 1000 / Math.min(camFps, 60) * 0.9;
+    let lastDetect = 0;
+
     let consecutiveErrors = 0;
     let recovering = false;
     const step = () => {
         if (gen !== generation) return;
         try {
-            if (!recovering && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+            const tNow = performance.now();
+            if (!recovering && video.readyState >= 2 && video.currentTime !== lastVideoTime && tNow - lastDetect >= minIntervalMs) {
                 lastVideoTime = video.currentTime;
+                lastDetect = tNow;
                 const res = landmarker.detectForVideo(video, performance.now());
                 consecutiveErrors = 0;
                 const lm = res.faceLandmarks && res.faceLandmarks[0];
