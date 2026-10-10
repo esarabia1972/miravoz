@@ -517,7 +517,7 @@ function wireScanSetting(id, key, isNumber = false) {
 if (urlParams.get('benchmark') === '1') {
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary';
-    btn.textContent = '📊 Benchmark';
+    btn.textContent = 'Benchmark';
     btn.onclick = () => benchmark.start();
     const group = document.querySelector('.bottom-group.group-right .control-group');
     if (group) group.prepend(btn);
@@ -553,7 +553,7 @@ function recordDiag(now) {
 if (diag) {
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary';
-    btn.textContent = '⬇ Diagnóstico';
+    btn.textContent = 'Diagnóstico';
     btn.title = 'Descarga los datos numéricos de la sesión (sin video) para ajustar el modo Iris';
     btn.onclick = () => {
         const payload = { version: 1, engine: tracking.engineName, viewport: [innerWidth, innerHeight],

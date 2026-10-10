@@ -211,7 +211,7 @@ export function openCellEditor(gridId, elData, x, y) {
 
     // Navegación: poblar tableros del bundle
     const navSel = get('ce-nav');
-    navSel.innerHTML = '<option value="">No navega</option><option value="__new__">➕ Crear tablero nuevo…</option>';
+    navSel.innerHTML = '<option value="">No navega</option><option value="__new__">Crear tablero nuevo…</option>';
     Object.values(S.currentBundle.boards).forEach(g => {
         if (g.id === gridId) return;
         const opt = document.createElement('option');
