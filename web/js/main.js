@@ -18,6 +18,7 @@ import { DwellEngine } from './dwell.js';
 import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
+import { initTheme } from './theme.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -102,6 +103,7 @@ const urlParams = new URLSearchParams(window.location.search);
 if (optOjos && !CONFIG.EXPERIMENTAL_IRIS && urlParams.get('iris') !== '1') {
     optOjos.remove();
 }
+// (los botones de modo se arman en init, cuando ya existe applyMode)
 
 // --- Filtros 1 Euro (F1-2) ---
 const filterX = new OneEuroFilter({ minCutoff: CONFIG.ONE_EURO_MIN_CUTOFF, beta: CONFIG.ONE_EURO_BETA, dCutoff: CONFIG.ONE_EURO_D_CUTOFF });
@@ -300,8 +302,35 @@ modeSelect.addEventListener('change', (e) => {
     saveSettings({ accessMode: e.target.value }); // persistir entre sesiones
 });
 
+// --- Modo de acceso como botones visibles (el <select> oculto sigue siendo la fuente de verdad) ---
+const MODE_LABELS = { CLICKS: 'Manual', CARA: 'Rostro', SCAN: 'Barrido', OJOS: 'Iris (exp.)' };
+function renderModeSegmented() {
+    const box = document.getElementById('mode-segmented');
+    if (!box) return;
+    box.innerHTML = '';
+    const available = [...modeSelect.options].map(o => o.value);
+    for (const v of ['CLICKS', 'CARA', 'SCAN', 'OJOS'].filter(m => available.includes(m))) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('role', 'radio');
+        b.dataset.mode = v;
+        b.textContent = MODE_LABELS[v];
+        b.onclick = () => {
+            if (S.trackingMode === v) return;
+            modeSelect.value = v;
+            modeSelect.dispatchEvent(new Event('change'));
+        };
+        box.appendChild(b);
+    }
+    updateModeSegmented();
+}
+function updateModeSegmented() {
+    document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === S.trackingMode)));
+}
+
 function applyMode(mode) {
     S.trackingMode = mode;
+    updateModeSegmented();
     // 1 Euro por modo: el iris tiembla más que la nariz → suavizado más fuerte en modo Iris
     const iris = mode === 'OJOS';
     for (const f of [filterX, filterY]) {
@@ -817,7 +846,9 @@ window.addEventListener('miravoz:device-unlinked', async () => {
 
 // --- Arranque ---
 (async function init() {
+    initTheme();
     await initSettings();
+    renderModeSegmented();
     if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
     wireScanSetting('scan-pattern', 'pattern');
     wireScanSetting('scan-interval', 'intervalMs', true);

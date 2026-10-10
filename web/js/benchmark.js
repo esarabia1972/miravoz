@@ -71,7 +71,7 @@ export class Benchmark {
         const cells = this._cells();
         if (cells.length === 0) return;
         this.currentTarget = cells[Math.floor(Math.random() * cells.length)];
-        this.currentTarget.element.style.outline = '8px solid #ffdd00';
+        this.currentTarget.element.style.outline = '8px solid var(--scan-group)';
         this.currentTarget.element.style.outlineOffset = '-8px';
         this.targetShownAt = performance.now();
     }
@@ -130,9 +130,9 @@ export class Benchmark {
 
     _showResults(summary) {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:30000; display:flex; align-items:center; justify-content:center;';
+        overlay.style.cssText = 'position:fixed; inset:0; background:var(--overlay-bg); z-index:30000; display:flex; align-items:center; justify-content:center;';
         const box = document.createElement('div');
-        box.style.cssText = 'background:#1a1a2e; border-radius:20px; padding:40px; color:white; font-family:Inter,sans-serif; text-align:center; max-width:500px;';
+        box.style.cssText = 'background:var(--modal-solid); border-radius:20px; padding:40px; color:var(--text-main); font-family:Inter,sans-serif; text-align:center; max-width:500px;';
         const title = document.createElement('h2');
         title.textContent = `Resultados del Benchmark (${S.trackingMode} · motor ${tracking.engineName === 'tasks' ? 'FaceLandmarker' : 'FaceMesh legado'} · ${Math.round(tracking.fps)} fps)`;
         box.appendChild(title);
@@ -146,7 +146,7 @@ export class Benchmark {
         });
 
         const note = document.createElement('p');
-        note.style.cssText = 'color:#aaa; font-size:0.85rem;';
+        note.style.cssText = 'color:var(--text-muted); font-size:0.85rem;';
         note.textContent = 'Criterio Fase 1: ≥95% en 3x3 y ≥85% en 4x4. Guardado en miravoz_benchmarks.';
         box.appendChild(note);
 

@@ -195,3 +195,11 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Se quitó el menú oculto de la esquina.
   - En modo barrido, tocar la barra superior ya no activa el pulsador.
 
+### Interfaz: modo de acceso con botones, alto en iPad y modo Día/Noche (10/10/2026)
+- **Changed**: el modo de acceso (Manual, Rostro, Barrido e Iris experimental) pasa a ser un grupo de botones visibles en la barra superior, en lugar del select nativo que se veía mal en iPad.
+- **Fixed**: en iPad la barra inferior quedaba tapada. Ahora se usa `100dvh` y los márgenes seguros de iOS (safe-area).
+- **Added**: modo **Día / Noche** en la web y en la tablet.
+  - Se cambia con el ícono sol/luna al lado de la configuración, o en la pantalla de ingreso.
+  - Se aplica antes del primer pintado y se guarda en el dispositivo.
+  - Paleta clara con contraste AA medido, logo oscuro en modo día y colores fijos pasados a variables (`theme.js`).
+

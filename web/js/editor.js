@@ -236,7 +236,7 @@ export function openCellEditor(gridId, elData, x, y) {
 // Búsqueda ARASAAC (F3-4)
 async function searchArasaac(query) {
     const results = document.getElementById('ce-arasaac-results');
-    results.innerHTML = '<p style="color:#aaa;">Buscando…</p>';
+    results.innerHTML = '<p style="color:var(--text-muted);">Buscando…</p>';
     try {
         const resp = await fetch(`https://api.arasaac.org/api/pictograms/es/search/${encodeURIComponent(query)}`);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -254,9 +254,9 @@ async function searchArasaac(query) {
             };
             results.appendChild(img);
         });
-        if (list.length === 0) results.innerHTML = '<p style="color:#aaa;">Sin resultados.</p>';
+        if (list.length === 0) results.innerHTML = '<p style="color:var(--text-muted);">Sin resultados.</p>';
     } catch (e) {
-        results.innerHTML = '<p style="color:#f88;">Error buscando en ARASAAC (¿hay internet?).</p>';
+        results.innerHTML = '<p style="color:var(--error-text);">Error buscando en ARASAAC (¿hay internet?).</p>';
     }
 }
 

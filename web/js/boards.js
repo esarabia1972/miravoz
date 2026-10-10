@@ -247,13 +247,13 @@ export async function loadSavedBoards() {
 
             const infoDiv = document.createElement('div');
             const h3 = document.createElement('h3');
-            h3.style.cssText = 'margin:0; font-size:1.2rem; color:white;';
+            h3.style.cssText = 'margin:0; font-size:1.2rem; color:var(--text-main);';
             h3.textContent = bundle.name;
             const pType = document.createElement('p');
-            pType.style.cssText = 'font-size:0.85rem; color:#aaa; margin:5px 0 0 0;';
+            pType.style.cssText = 'font-size:0.85rem; color:var(--text-muted); margin:5px 0 0 0;';
             pType.textContent = `Tipo: ${(bundle.type || '').toUpperCase()} | Opciones: ${optionsCount}`;
             const pPrev = document.createElement('p');
-            pPrev.style.cssText = 'font-size:0.8rem; color:#888; margin:2px 0 0 0; font-style:italic;';
+            pPrev.style.cssText = 'font-size:0.8rem; color:var(--text-muted); margin:2px 0 0 0; font-style:italic;';
             pPrev.textContent = previewText;
             infoDiv.append(h3, pType, pPrev);
 
@@ -308,7 +308,7 @@ export async function loadSavedBoards() {
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-icon';
-            deleteBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; color: #ff4444;';
+            deleteBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; color: var(--danger-text);';
             deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
             deleteBtn.title = 'Eliminar tablero';
             deleteBtn.setAttribute('aria-label', deleteBtn.title);
@@ -336,7 +336,7 @@ export async function loadSavedBoards() {
         }
 
         if (boardCount === 0) {
-            boardList.innerHTML = '<p style="color: #aaa;">Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.</p>';
+            boardList.innerHTML = '<p style="color: var(--text-muted);">Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.</p>';
         } else {
             boardList.appendChild(fragment);
         }
@@ -678,7 +678,7 @@ async function openAssignModal(bundle) {
     if (assignPermission) assignPermission.value = 'read_only'; // default: Solo mirar
     if (assignSelectAll) { assignSelectAll.checked = false; assignSelectAll.indeterminate = false; }
 
-    assignUsersList.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="border-width:2px; width:20px; height:20px; border-top-color:#00ff88; margin:0 auto;"></div></div>';
+    assignUsersList.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="border-width:2px; width:20px; height:20px; border-top-color:var(--accent-text); margin:0 auto;"></div></div>';
     assignModal.style.display = 'flex';
     updateAssignButton();
 
