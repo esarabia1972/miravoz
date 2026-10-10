@@ -7,7 +7,9 @@ La anon key de MiraVoz es pública (va en el cliente). Por eso la seguridad depe
 - ✅ `00_auditoria.sql` corrido. ✅ `01_schema_f4.sql` aplicado (verificación: assignments_ok=true, profesionales_sin_fila=0, políticas de storage eliminadas).
 - ✅ Prueba con anon key sin sesión: 0 filas en todas las tablas (RLS OK para anónimos).
 - Triggers en auth.users: `on_auth_user_created → handle_new_user` (legado) y `on_auth_user_created_professional → ensure_professional`.
-- Pendiente: borrar el bucket `boards` desde el panel; probar RLS con la sesión de OTRA cuenta; F4-4 (canje de código por RPC security definer, sin políticas para anon).
+- ✅ `02_f4-4_vinculacion.sql` aplicado (funciones_ok, device_links_rls, codigos_solo_por_servidor = true; profesionales_anonimos = 0). Anonymous sign-ins activado.
+- ✅ Bucket legado `boards` eliminado de Storage (no quedan buckets).
+- Pendiente: probar RLS con la sesión de OTRA cuenta (criterio 7 de F4).
 
 ### Estado inicial
 
