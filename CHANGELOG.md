@@ -227,4 +227,7 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Fixed**:
   - "Editar copia" fallaba con "No se pudo abrir la copia". La consulta pedía el nombre del usuario embebido (`aac_users(...)`), y desde la migración 01 hay dos relaciones entre `assignments` y `aac_users` (la del usuario y la de la casita), así que PostgREST la rechazaba por ambigua. Ahora son dos consultas.
   - Se quitaron los emojis del permiso en la ficha del usuario.
+- **Fixed**:
+  - Con varias tarjetas y miniaturas, el home empujaba la barra inferior fuera de la pantalla. Ahora las tarjetas scrollean dentro del home.
+  - La tablet también muestra la miniatura de cada tablero.
 

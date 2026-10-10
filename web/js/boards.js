@@ -286,7 +286,7 @@ function renderCardTags(container, bundle) {
 }
 
 /** Miniatura del tablero principal: grilla chica con los colores y pictogramas de cada celda. */
-function buildBoardThumb(bundle) {
+export function buildBoardThumb(bundle) {
     const grid = bundle.boards && bundle.boards[bundle.mainBoard];
     const els = (grid && grid.gridElements || []).filter(e => !e.hidden);
     if (!els.length) return null;

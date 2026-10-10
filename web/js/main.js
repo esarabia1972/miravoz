@@ -805,10 +805,11 @@ async function openDeviceHome({ casita = false } = {}) {
         card.setAttribute('tabindex', '0');
         const h3 = document.createElement('h3');
         h3.textContent = copy.name || 'Tablero';
+        const thumb = boards.buildBoardThumb(copy); // misma miniatura que en la web
         const progress = document.createElement('div');
         progress.className = 'progress-bar';
         progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
-        card.append(h3, progress);
+        card.append(h3, ...(thumb ? [thumb] : []), progress);
         card.onclick = () => boards.openBundle(copy);
         card.onkeydown = (e) => { if (e.key === 'Enter') boards.openBundle(copy); };
         list.appendChild(card);

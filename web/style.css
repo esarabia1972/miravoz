@@ -1211,3 +1211,12 @@ body.test-board #btn-edit-board { display: none !important; }
 .assign-permission-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
 .assign-permission-help { font-size: 0.85rem; color: var(--text-muted); margin: 6px 0 0; }
 #assign-permission[hidden] { display: none !important; }
+
+/* El home no empuja la barra inferior fuera de la pantalla: las tarjetas scrollean adentro (10/10/2026) */
+#home-view { min-height: 0; overflow: hidden; align-items: stretch; }
+#home-view .gallery-container { min-height: 0; margin: 0 auto; }
+#home-view .board-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; -webkit-overflow-scrolling: touch; }
+/* Tarjetas de la tablet con miniatura */
+.device-card { flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 8px; padding: 18px; }
+.device-card h3 { text-align: left; font-size: 1.4rem; }
+.device-card .board-thumb { height: 150px; }
