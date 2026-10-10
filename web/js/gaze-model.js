@@ -8,15 +8,21 @@
 // Features crudas por cuadro (rawFeatures):
 //   ix, iy   : iris dentro del ojo (headpose.irisInEye), ~[-1, 1]
 //   yaw, pch : pose de la cabeza en grados / 20
-//   nx, ny   : posición de la nariz en la imagen (landmark 1), [0, 1]
+//   nx, ny   : posición de la nariz en la imagen (landmark 1): dónde está la cabeza (traslación)
 //   gh, gv   : blendshapes de mirada combinados (horizontal / vertical), ~[-1, 1]
-// Modelo: features estandarizadas (z-score) + términos cuadráticos del iris y cruces iris×cabeza,
-// ridge por eje con objetivo centrado (el intercepto no se penaliza).
+// Modelo: features estandarizadas (z-score) + términos cuadráticos del iris, ridge por eje con objetivo
+// centrado (el intercepto no se penaliza). λ escala con la cantidad de muestras.
+//
+// v2 (10/10/2026, tras la primera prueba real: "muy inestable si muevo apenas la cabeza"):
+//  - Se quitaron los cruces iris×cabeza: multiplican el ruido de la pose por el del iris.
+//  - Regularización proporcional a n (antes λ=1 fijo, casi nula con ~900 filas).
+//  - tracking.js aplica mediana de 5 cuadros a las features y main.js un 1 Euro más suave en este modo.
+//  - El resto se ajusta con datos reales del diagnóstico (?diag=1), no a ciegas.
 
 import { ridgeTrain, dot } from './regression.js';
 
 export const RAW_NAMES = ['ix', 'iy', 'yaw', 'pitch', 'nx', 'ny', 'gh', 'gv'];
-export const MODEL_KIND = 'hybrid-v1';
+export const MODEL_KIND = 'hybrid-v2'; // v1 (8 features) queda invalidado: hay que recalibrar
 export const BLINK_OPEN_RATIO = 0.12; // alto/ancho del ojo por debajo del cual se considera parpadeo
 const Z_CLIP = 5;                      // una feature fuera de ±5σ de la calibración no puede dominar la predicción
 const IMPLICIT_MAX_SHARE = 0.3;        // lo implícito nunca supera el 30% de las filas de entrenamiento
@@ -38,8 +44,8 @@ export function rawFeatures(faceData) {
 
 /** Expansión sobre features estandarizadas z = (raw - mean) / std */
 export function expand(z) {
-    const [ix, iy, yaw, pitch] = z;
-    return [...z, ix * ix, iy * iy, ix * iy, ix * yaw, iy * pitch];
+    const [ix, iy] = z;
+    return [...z, ix * ix, iy * iy, ix * iy];
 }
 
 function standardize(raw, mean, std) {
@@ -54,11 +60,11 @@ export function predict(model, raw) {
 /**
  * Entrena el modelo.
  * @param {Array<{target:[x,y], samples:Array<{raw:number[]}>}>} pointSamples  calibración
- * @param {number} lambda   regularización ridge (sobre features estandarizadas; ~1)
+ * @param {number} lambdaRel regularización ridge relativa: λ = lambdaRel × n (features estandarizadas)
  * @param {Array<{target:[x,y], raw:number[]}>} extra  muestras implícitas (aprendizaje con el uso)
  * @returns {{model, pointErrors:number[], meanError:number}}
  */
-export function train(pointSamples, lambda = 1, extra = []) {
+export function train(pointSamples, lambdaRel = 0.005, extra = []) {
     const rows = [];
     for (const p of pointSamples) for (const s of p.samples) rows.push({ raw: s.raw, t: p.target });
     // Lo implícito suma, pero sin desplazar a la calibración: como máximo 30% del total (las más recientes)
@@ -78,6 +84,7 @@ export function train(pointSamples, lambda = 1, extra = []) {
     const X = rows.map(r => expand(standardize(r.raw, mean, std)));
     const cx = rows.reduce((a, r) => a + r.t[0], 0) / rows.length;
     const cy = rows.reduce((a, r) => a + r.t[1], 0) / rows.length;
+    const lambda = lambdaRel * rows.length;
     const wx = ridgeTrain(X, rows.map(r => r.t[0] - cx), lambda);
     const wy = ridgeTrain(X, rows.map(r => r.t[1] - cy), lambda);
     const model = { kind: MODEL_KIND, mean, std, wx, wy, cx, cy };

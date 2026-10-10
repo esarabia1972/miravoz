@@ -70,14 +70,14 @@ const cell3 = (x, y) => Math.min(2, Math.max(0, Math.floor(x / (W / 3)))) + 3 * 
 console.log('gaze-model (simulador)');
 const cal = calibration();
 const test = testSet();
-const { model, meanError } = train(cal, 1);
+const { model, meanError } = train(cal, 0.005);
 
 t('rawFeatures devuelve 8 valores y null si falta la pose', () => {
     assert(observe(640, 400, stillHead()).length === 8, 'largo');
     assert(rawFeatures({ landmarks: [{}, { x: 0.5, y: 0.5 }], iris: { x: 0, y: 0 }, pose: null }) === null, 'sin pose debería ser null');
 });
 
-t('expand agrega 5 términos (8 → 13)', () => assert(expand(new Array(8).fill(1)).length === 13, 'largo'));
+t('expand agrega 3 términos cuadráticos del iris (8 → 11)', () => assert(expand(new Array(8).fill(1)).length === 11, 'largo'));
 
 const hyb = s => avgPred(r => predict(model, r), s.frames);
 const hybErr = test.map(s => { const [x, y] = hyb(s); return Math.hypot(x - s.tx, y - s.ty); });
@@ -97,6 +97,16 @@ t('con movimiento de cabeza, el híbrido es mucho mejor que solo-iris (≥2× me
 
 t('en el simulador, el híbrido acierta ≥90% en 3×3', () => assert(hybAcc >= 0.9, `${(hybAcc * 100).toFixed(1)}%`));
 
+t('estabilidad: con la mirada fija, el ruido de la pose no hace saltar el cursor (desvío < 60 px)', () => {
+    // Misma mirada y misma cabeza; solo cambia el ruido de los detectores entre cuadros
+    const head = { hx: 0, hy: 0, yaw: 6, pitch: 3 };
+    const preds = Array.from({ length: 200 }, () => predict(model, observe(W / 2, H / 2, head)));
+    const mx = preds.reduce((a, p) => a + p[0], 0) / preds.length, my = preds.reduce((a, p) => a + p[1], 0) / preds.length;
+    const sd = Math.sqrt(preds.reduce((a, p) => a + (p[0] - mx) ** 2 + (p[1] - my) ** 2, 0) / preds.length);
+    console.log(`    (simulador) desvío cuadro a cuadro sin suavizado: ${sd.toFixed(0)} px`);
+    assert(sd < 60, `desvío ${sd.toFixed(0)} px`);
+});
+
 t('aprendizaje implícito: buffer FIFO acotado', () => {
     let b = [];
     for (let i = 0; i < 40; i++) b = addImplicit(b, Array.from({ length: 10 }, (_, k) => ({ i, k })), 300);
@@ -111,8 +121,8 @@ t('las muestras implícitas corrigen un sesgo que la calibración no vio (p. ej.
     const before = errOf(model);
     const implicit = [];
     for (let i = 0; i < 40; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = movingHead(); for (let k = 0; k < 6; k++) implicit.push({ target: [tx, ty], raw: observe(tx, ty, h, 1, BIAS) }); }
-    const after = errOf(train(cal, 1, implicit).model);
-    console.log(`    (simulador) con el sesgo nuevo: ${before.toFixed(0)} px → tras 40 selecciones confirmadas ${after.toFixed(0)} px · ¿la salvaguarda lo acepta? ${acceptRetrain(model, train(cal, 1, implicit).model, cal) ? 'sí' : 'no (conservador: pide recalibrar)'}`);
+    const after = errOf(train(cal, 0.005, implicit).model);
+    console.log(`    (simulador) con el sesgo nuevo: ${before.toFixed(0)} px → tras 40 selecciones confirmadas ${after.toFixed(0)} px · ¿la salvaguarda lo acepta? ${acceptRetrain(model, train(cal, 0.005, implicit).model, cal) ? 'sí' : 'no (conservador: pide recalibrar)'}`);
     assert(after <= before * 0.8, `no mejoró lo suficiente: ${before.toFixed(0)} → ${after.toFixed(0)}`);
 });
 
@@ -120,7 +130,7 @@ t('salvaguarda: si lo implícito aprendió de errores (etiquetas de la celda vec
     const wrong = [];
     for (let i = 0; i < 60; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = movingHead();
         for (let k = 0; k < 6; k++) wrong.push({ target: [tx + W / 3, ty], raw: observe(tx, ty, h) }); } // etiqueta corrida una celda
-    const bad = train(cal, 1, wrong).model;
+    const bad = train(cal, 0.005, wrong).model;
     assert(!acceptRetrain(model, bad, cal), 'debería rechazar el modelo sesgado');
     assert(acceptRetrain(model, model, cal), 'el mismo modelo se acepta');
 });
@@ -128,7 +138,7 @@ t('salvaguarda: si lo implícito aprendió de errores (etiquetas de la celda vec
 t('lo implícito nunca supera el 30% de las filas (no desplaza a la calibración)', () => {
     const many = [];
     for (let i = 0; i < 5000; i++) many.push({ target: [W / 2 + W / 3, H / 2], raw: observe(W / 2, H / 2, movingHead()) });
-    const m = train(cal, 1, many).model;
+    const m = train(cal, 0.005, many).model;
     const [x] = predict(m, observe(W / 2, H / 2, stillHead(), 0));
     assert(Math.abs(x - W / 2) < W / 3, `el centro se corrió a ${x.toFixed(0)} px (demasiado peso implícito)`);
 });
@@ -149,7 +159,7 @@ t('selección confiable solo si el cursor estuvo en el centro del objetivo', () 
 
 t('entrenar con muy pocas muestras lanza error claro', () => {
     let msg = '';
-    try { train([{ target: [0, 0], samples: [{ raw: observe(10, 10, stillHead()) }] }], 1); } catch (e) { msg = e.message; }
+    try { train([{ target: [0, 0], samples: [{ raw: observe(10, 10, stillHead()) }] }], 0.005); } catch (e) { msg = e.message; }
     assert(/insuficientes/.test(msg), msg);
 });
 

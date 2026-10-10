@@ -20,7 +20,10 @@ export const CONFIG = {
     RIDGE_LAMBDA_OJOS: 0.01,      // F1-3 (modelo solo-iris anterior; ya no se usa)
 
     // Modo Iris híbrido (etapa 2): cabeza + iris
-    GAZE_LAMBDA: 1,               // ridge sobre features estandarizadas
+    GAZE_LAMBDA: 0.005,           // ridge relativo (λ = 0.005 × n) sobre features estandarizadas
+    GAZE_MEDIAN_FRAMES: 5,        // mediana de N cuadros sobre las features (quita picos)
+    ONE_EURO_IRIS_MIN_CUTOFF: 0.3, // 1 Euro más suave en modo Iris (el iris tiembla más que la nariz)
+    ONE_EURO_IRIS_BETA: 0.005,
     GAZE_HEADMOVE_SAMPLING_MS: 2500, // puntos de "mové suavemente la cabeza"
     IMPLICIT_CONFIRM_MS: 3000,    // una selección cuenta como acierto si no se borra/vuelve en este tiempo
     IMPLICIT_SAMPLES_PER_SELECT: 8,

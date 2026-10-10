@@ -123,10 +123,10 @@ await t('OJOS: los puntos de mover la cabeza muestrean más tiempo (GAZE_HEADMOV
     assert(Math.abs(d[0] - exp(CONFIG.SAMPLING_MS)) <= 70, `quieto ${d[0]} ms`);
     assert(Math.abs(d[9] - exp(CONFIG.GAZE_HEADMOVE_SAMPLING_MS)) <= 70, `cabeza ${d[9]} ms`);
 });
-await t('OJOS: perfil kind hybrid-v1 con model, samples (14 con raw), implicit []', () => {
+await t('OJOS: perfil kind hybrid-v2 con model, samples (14 con raw), implicit []', () => {
     const p = ojos.result;
     assert(ojos.done && p, 'perfil null');
-    assert(p.kind === 'hybrid-v1' && p.model && p.model.wx && p.model.mean, 'kind/model');
+    assert(p.kind === 'hybrid-v2' && p.model && p.model.wx && p.model.mean, 'kind/model');
     assert(p.samples.length === 14, `samples ${p.samples.length}`);
     assert(p.samples.every(s => s.samples.length >= CONFIG.MIN_SAMPLES_PER_POINT && s.samples.every(x => x.raw.length === 8 && Object.keys(x).length === 1)), 'raw');
     assert(Array.isArray(p.implicit) && p.implicit.length === 0, 'implicit');
@@ -144,7 +144,7 @@ await t('persistencia: miravoz_calibration_v2 con ambos perfiles y loadProfiles(
     await new Promise(r => setTimeout(r, 0));
     const st = store.get('miravoz_calibration_v2');
     assert(st && st.CARA && st.OJOS, `guardado: ${st && Object.keys(st)}`);
-    assert(st.OJOS.kind === 'hybrid-v1' && st.CARA.weightsX, 'contenido');
+    assert(st.OJOS.kind === 'hybrid-v2' && st.CARA.weightsX, 'contenido');
     cal.profiles.OJOS = null; cal.profiles.CARA = null;
     await loadProfiles();
     assert(isUsableProfile('OJOS', cal.profiles.OJOS) && isUsableProfile('CARA', cal.profiles.CARA), 'no recuperó');
@@ -184,7 +184,7 @@ await t('implícito: 4 llamadas → null; la 5ª re-entrena (model nuevo) y acum
     }
     assert(JSON.stringify(cal.profiles.OJOS.model) === before, 'cambió el modelo antes de la 5ª');
     const r = await addImplicitSamples('OJOS', implicitBatch());
-    assert(r && r.kind === 'hybrid-v1', '5ª no devolvió perfil');
+    assert(r && r.kind === 'hybrid-v2', '5ª no devolvió perfil');
     assert(JSON.stringify(r.model) !== before, 'modelo igual');
     const n = CONFIG.IMPLICIT_RETRAIN_EVERY * CONFIG.IMPLICIT_SAMPLES_PER_SELECT;
     assert(r.implicit.length === n, `implicit ${r.implicit.length} ≠ ${n}`);

@@ -13,6 +13,7 @@ import { S } from './state.js';
 import { phi, dot } from './regression.js';
 import { poseFromMatrix, pickEyeBlendshapes, irisInEye } from './headpose.js';
 import * as gaze from './gaze-model.js';
+import { CONFIG } from './config.js';
 import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
 
 const TASKS_VERSION = '1.1.0';
@@ -56,10 +57,22 @@ function extractFeatures(fd, mode) {
     return [fd.landmarks[1].x, fd.landmarks[1].y];
 }
 
+// Modo Iris: mediana por componente de los últimos N cuadros (quita picos de parpadeos/ruido sin retrasar
+// tanto como un promedio). Se resetea al detener la cámara.
+const medianBuf = [];
+function medianFeatures(f) {
+    medianBuf.push(f);
+    while (medianBuf.length > CONFIG.GAZE_MEDIAN_FRAMES) medianBuf.shift();
+    return f.map((_, i) => {
+        const vals = medianBuf.map(v => v[i]).sort((a, b) => a - b);
+        return vals[Math.floor(vals.length / 2)];
+    });
+}
+
 function predict(features) {
     let x, y;
     if (S.trackingMode === 'OJOS') {
-        [x, y] = gaze.predict(gazeModel, features);
+        [x, y] = gaze.predict(gazeModel, medianFeatures(features));
     } else {
         const f = phi(features[0], features[1]);
         x = dot(weightsX, f); y = dot(weightsY, f);
@@ -312,4 +325,5 @@ export function stopMediaPipe() {
     currentFeatures = null;
     faceData = null;
     recent.length = 0;
+    medianBuf.length = 0;
 }

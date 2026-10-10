@@ -147,4 +147,10 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Sin cambios** en los modos Rostro, Barrido y Manual (verificado por revisión y por `tools/test-calibration.mjs`).
 - **Tests**: `tools/test-gaze.mjs` (11) y `tools/test-calibration.mjs` (14).
 - **Pendiente**: benchmark real con webcam. Criterio de reingreso: ≥90% en 3×3.
+- **Fixed (10/10/2026, primera prueba real: "se vuelve muy inestable si muevo apenas la cabeza")**: modelo `hybrid-v2`. Los perfiles v1 se invalidan y hay que recalibrar.
+  - Se quitaron los cruces iris×cabeza, que multiplicaban el ruido de la pose.
+  - Regularización proporcional a la cantidad de muestras.
+  - Mediana de 5 cuadros sobre las features.
+  - Filtro 1 Euro más suave en modo Iris (minCutoff 0.3, beta 0.005), mientras que el modo Rostro sigue igual.
+- **Added**: diagnóstico para desarrollo con `?diag=1`. El botón "⬇ Diagnóstico" descarga un JSON con features, pose, cursor y objetivo por cuadro (solo números, nunca video) para ajustar el modelo con datos reales. Usarlo solo con la cara de quien desarrolla.
 

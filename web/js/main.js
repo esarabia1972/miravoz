@@ -141,7 +141,7 @@ function recordImplicitSelection(rect) {
     if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || !rect || !rect.width) return;
     if (!calibration.isUsableProfile('OJOS', calibration.profiles.OJOS)) return;
     const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
-    const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === 8);
+    const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === gaze.RAW_NAMES.length);
     if (feats.length < 3) return;
     // Solo aprender de selecciones "seguras": el cursor estuvo en el centro del objetivo casi todo el dwell
     if (!gaze.isConfidentSelection(calibration.profiles.OJOS.model, feats, rect)) return;
@@ -303,6 +303,12 @@ modeSelect.addEventListener('change', (e) => {
 
 function applyMode(mode) {
     S.trackingMode = mode;
+    // 1 Euro por modo: el iris tiembla más que la nariz → suavizado más fuerte en modo Iris
+    const iris = mode === 'OJOS';
+    for (const f of [filterX, filterY]) {
+        f.minCutoff = iris ? CONFIG.ONE_EURO_IRIS_MIN_CUTOFF : CONFIG.ONE_EURO_MIN_CUTOFF;
+        f.beta = iris ? CONFIG.ONE_EURO_IRIS_BETA : CONFIG.ONE_EURO_BETA;
+    }
 
     if (S.trackingMode === 'CLICKS' || S.trackingMode === 'SCAN') {
         S.isCalibrated = false;
@@ -479,6 +485,51 @@ if (urlParams.get('benchmark') === '1') {
     if (group) group.prepend(btn);
 }
 
+// --- Diagnóstico para desarrollo (?diag=1) ---
+// Graba por cuadro las features del modelo, la pose, el cursor y el objetivo (punto de calibración o
+// celda del benchmark) para ajustar el modo Iris con datos reales. SOLO números derivados (nunca video
+// ni imágenes) y SOLO se descarga si la persona toca el botón: no se envía a ningún lado.
+// Usar únicamente con la cara de quien desarrolla, nunca con usuarios.
+const diag = urlParams.get('diag') === '1';
+const diagRows = [];
+function recordDiag(now) {
+    if (S.trackingMode !== 'OJOS' && S.trackingMode !== 'CARA') return;
+    const fd = tracking.faceData;
+    let target = null;
+    if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
+        const info = calibSession.renderInfo(now);
+        if (info) target = { kind: info.hint && /cabeza despacito/.test(info.hint) ? 'calib-head' : 'calib', x: info.x, y: info.y, sampling: info.sampling };
+    } else if (benchmark.active && benchmark.currentTarget?.element) {
+        const r = benchmark.currentTarget.element.getBoundingClientRect();
+        target = { kind: 'bench', x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    if (diagRows.length >= 20000) return; // ~10 min a 30 cps
+    diagRows.push({
+        t: Math.round(now), mode: S.trackingMode,
+        f: tracking.currentFeatures, pose: fd?.pose || null, iris: fd?.iris || null,
+        raw: S.rawX === null ? null : [Math.round(S.rawX), Math.round(S.rawY)],
+        smooth: S.smoothX === null ? null : [Math.round(S.smoothX), Math.round(S.smoothY)],
+        target
+    });
+}
+if (diag) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary';
+    btn.textContent = '⬇ Diagnóstico';
+    btn.title = 'Descarga los datos numéricos de la sesión (sin video) para ajustar el modo Iris';
+    btn.onclick = () => {
+        const payload = { version: 1, engine: tracking.engineName, viewport: [innerWidth, innerHeight],
+                          ua: navigator.userAgent, rows: diagRows };
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+        a.download = `miravoz-diag-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    };
+    const group = document.querySelector('.bottom-group.group-right .control-group');
+    if (group) group.prepend(btn);
+}
+
 // --- Loop principal ---
 function appLoop() {
     // El try/catch garantiza que una excepción en un frame NUNCA mate el loop:
@@ -487,6 +538,7 @@ function appLoop() {
         ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
         const now = performance.now();
 
+        if (diag) recordDiag(now);
         if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
             calibSession.onFrame(tracking.currentFeatures, now);
             // onFrame puede completar la sesión (onCalibrationComplete pone calibSession en null):
