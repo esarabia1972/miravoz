@@ -5,7 +5,9 @@
 //   node tools/test-device.mjs --case=vincular   (un solo caso, salida cruda)
 //
 // Mismo armado que tools/test-boot.mjs: cada caso en un proceso aparte (módulos ES singleton) y
-// stubs de CDN. El stub de supabase soporta auth anónima, rpc por función y consultas encadenadas.
+// stubs de CDN. El stub de supabase soporta rpc por función y consultas encadenadas.
+// Desde 10/10/2026 la tablet NO inicia sesión: vincula por token (supabase/03_tokens_de_tablet.sql:
+// device_redeem / device_fetch / device_save_copy). signInAnonymously queda en el stub solo para detectar regresiones.
 
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -15,7 +17,7 @@ import fs from 'node:fs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, '../web');
-const CASES = ['vincular', 'vincular-invalido', 'arranque-sin-casita', 'desvinculada',
+const CASES = ['vincular', 'vincular-invalido', 'arranque-sin-casita', 'desvinculada', 'sin-token',
     'guardar-editable', 'guardar-readonly', 'profesional-edita'];
 
 // ---------------------------------------------------------------- orquestador
@@ -164,39 +166,51 @@ function makeSupabase({ user = null, tables = {}, rpc = {} } = {}) {
 
 // ---------------------------------------------------------------- escenario por caso
 const cfg = { user: null, tables: {}, rpc: {} };
-const DEVICE = (home) => ({ aacUserId: 'au1', displayName: 'Mateo', homeAssignmentId: home, settings: {}, linkedAt: 1 });
+const TOKEN = 'tok_secreto_123';
+const DEVICE = (home) => ({ token: TOKEN, aacUserId: 'au1', displayName: 'Mateo', homeAssignmentId: home, settings: {}, linkedAt: 1 });
+// device_fetch: con el token correcto devuelve usuario + asignaciones; con otro, desvinculada
+const FETCH = (home, rows) => ({ p_token }) => (p_token === TOKEN
+    ? { data: { ok: true, user: { display_name: 'Mateo', home_board_id: home, settings: {} }, assignments: clone(rows) }, error: null }
+    : { data: { ok: false, unlinked: true }, error: null });
 let profUpdateRow = null; // para profesional-edita
 
 switch (caseArg) {
     case 'vincular':
     case 'vincular-invalido':
-        cfg.tables = { aac_users: [{ ...AAC, home_board_id: 'as1' }], assignments: [ROW1], boards: [] };
-        cfg.rpc.redeem_access_code = caseArg === 'vincular'
-            ? { data: { ok: true, aac_user_id: 'au1', display_name: 'Mateo', home_board_id: 'as1', settings: {} }, error: null }
+        cfg.tables = { boards: [] };
+        cfg.rpc.device_redeem = caseArg === 'vincular'
+            ? { data: { ok: true, token: TOKEN, aac_user_id: 'au1', display_name: 'Mateo', home_board_id: 'as1', settings: {} }, error: null }
             : { data: { ok: false, error: 'Código inválido, vencido o ya usado.' }, error: null };
+        cfg.rpc.device_fetch = FETCH('as1', [ROW1]);
         break;
     case 'arranque-sin-casita':
         store.set('miravoz_device', DEVICE(null));
         store.set('miravoz_copy_as1', asCopy(ROW1));
         store.set('miravoz_copy_as2', asCopy(ROW2));
-        cfg.user = ANON;
-        cfg.tables = { aac_users: [AAC], assignments: [ROW1, ROW2], boards: [] };
+        cfg.rpc.device_fetch = FETCH(null, [ROW1, ROW2]);
         break;
     case 'desvinculada':
         store.set('miravoz_device', DEVICE('as1'));
         store.set('miravoz_copy_as1', asCopy(ROW1));
         store.set('miravoz_copy_as2', asCopy(ROW2));
-        cfg.user = ANON;
-        cfg.tables = { aac_users: [], assignments: [] };
+        cfg.rpc.device_fetch = { data: { ok: false, unlinked: true }, error: null };
         break;
+    case 'sin-token': {
+        // vínculo de la versión anterior (sesión anónima): miravoz_device sin token
+        const { token, ...old } = DEVICE('as1');
+        store.set('miravoz_device', old);
+        store.set('miravoz_copy_as1', asCopy(ROW1));
+        cfg.user = ANON;
+        cfg.rpc.device_fetch = FETCH('as1', [ROW1]);
+        break;
+    }
     case 'guardar-editable':
     case 'guardar-readonly': {
         const row = caseArg === 'guardar-editable' ? ROW1 : ROW2;
         store.set('miravoz_device', DEVICE(row.id));
         store.set('miravoz_copy_' + row.id, asCopy(row));
-        cfg.user = ANON;
-        cfg.tables = { aac_users: [{ ...AAC, home_board_id: row.id }], assignments: [row] };
-        cfg.rpc.save_assignment_copy = { data: { ok: true, copy_updated_at: '2026-10-09T12:00:00.000Z' }, error: null };
+        cfg.rpc.device_fetch = FETCH(row.id, [row]);
+        cfg.rpc.device_save_copy = { data: { ok: true, copy_updated_at: '2026-10-09T12:00:00.000Z' }, error: null };
         break;
     }
     case 'profesional-edita':
@@ -237,9 +251,7 @@ async function rename(newName) {
 
 // 1. Vincular
 if (caseArg === 'vincular' || caseArg === 'vincular-invalido') {
-    $('btn-account').click();
-    await sleep(50);
-    check('#auth-view visible tras "Ingresar"', visible($('auth-view')), $('auth-view').style.display);
+    check('#auth-view visible al arrancar (sin sesión ni tablet)', visible($('auth-view')), $('auth-view').style.display);
     $('btn-show-link').click();
     check('#auth-step-link visible', visible($('auth-step-link')), $('auth-step-link').style.display);
     const input = $('link-code-input');
@@ -248,17 +260,20 @@ if (caseArg === 'vincular' || caseArg === 'vincular-invalido') {
     check('input formatea "abcd efgh" → "ABCD-EFGH"', input.value === 'ABCD-EFGH', `value="${input.value}"`);
     $('btn-link-device').click();
     await sleep(400);
-    check('se llamó signInAnonymously', anonSignIns === 1, `llamadas=${anonSignIns}`);
-    const redeem = rpcCalls.find(c => c.fn === 'redeem_access_code');
-    check("rpc('redeem_access_code', {p_code:'ABCDEFGH'})", redeem?.args?.p_code === 'ABCDEFGH', JSON.stringify(rpcCalls));
+    check('NO se llamó signInAnonymously', anonSignIns === 0, `llamadas=${anonSignIns}`);
+    const redeem = rpcCalls.find(c => c.fn === 'device_redeem');
+    check("rpc('device_redeem', {p_code:'ABCDEFGH'})", redeem?.args?.p_code === 'ABCDEFGH', JSON.stringify(rpcCalls));
+    check('no se usa la RPC vieja redeem_access_code', !rpcCalls.some(c => c.fn === 'redeem_access_code'), JSON.stringify(rpcCalls));
     if (caseArg === 'vincular') {
         check('miravoz_device guardado', store.get('miravoz_device')?.aacUserId === 'au1' && store.get('miravoz_device')?.homeAssignmentId === 'as1', JSON.stringify(store.get('miravoz_device')));
+        check('miravoz_device.token guardado', store.get('miravoz_device')?.token === TOKEN, JSON.stringify(store.get('miravoz_device')?.token));
+        check("pull con rpc('device_fetch', {p_token})", rpcCalls.some(c => c.fn === 'device_fetch' && c.args?.p_token === TOKEN), JSON.stringify(rpcCalls.map(c => c.fn)));
         check('copia bajada a miravoz_copy_as1', store.get('miravoz_copy_as1')?.bundleId === 'orig1', JSON.stringify(Object.keys(Object.fromEntries(store))));
         check('body.device-mode', document.body.classList.contains('device-mode'), document.body.className);
         check('#bottom-bar oculto', !visible($('bottom-bar')), $('bottom-bar').style.display);
         check('#auth-view oculto', !visible($('auth-view')), $('auth-view').style.display);
         check('#board-view visible con la casita abierta', visible($('board-view')) && S.currentBundle?.id === 'miravoz_copy_as1', `board=${$('board-view').style.display} current=${S.currentBundle?.id}`);
-        check('ninguna llamada a "boards" (la sesión anónima no sincroniza)', !sbCalls.some(c => c.table === 'boards'), JSON.stringify(sbCalls.filter(c => c.table === 'boards').map(c => c.op)));
+        check('ninguna consulta directa a tablas (todo por RPC con token)', sbCalls.length === 0, JSON.stringify(sbCalls.map(c => c.table + '.' + c.op)));
     } else {
         check('#link-error muestra el error', /Código inválido/.test($('link-error').textContent), `"${$('link-error').textContent}"`);
         check('no hay modo tablet', !document.body.classList.contains('device-mode') && !store.has('miravoz_device'), document.body.className);
@@ -274,7 +289,9 @@ if (caseArg === 'arranque-sin-casita') {
     check('título con el nombre del usuario', document.querySelector('#board-list .device-title')?.textContent === 'Tableros de Mateo', document.querySelector('#board-list .device-title')?.textContent);
     check('body.device-mode y barras ocultas', document.body.classList.contains('device-mode') && !visible($('bottom-bar')) && !visible($('top-bar')), `${document.body.className} bottom=${$('bottom-bar').style.display}`);
     check('ninguna llamada a "boards" de supabase', !sbCalls.some(c => c.table === 'boards'), JSON.stringify(sbCalls.map(c => c.table)));
-    check('pullCopies consultó aac_users y assignments', sbCalls.some(c => c.table === 'aac_users') && sbCalls.some(c => c.table === 'assignments'), JSON.stringify([...new Set(sbCalls.map(c => c.table))]));
+    check("pullCopies usó rpc('device_fetch', {p_token})", rpcCalls.some(c => c.fn === 'device_fetch' && c.args?.p_token === TOKEN), JSON.stringify(rpcCalls));
+    check('sin consultas directas a aac_users/assignments', !sbCalls.some(c => ['aac_users', 'assignments'].includes(c.table)), JSON.stringify([...new Set(sbCalls.map(c => c.table))]));
+    check('NO se llamó signInAnonymously', anonSignIns === 0, `llamadas=${anonSignIns}`);
     cards[1].click();
     await sleep(50);
     check('click en card abre la copia', S.currentBundle?.id === 'miravoz_copy_as2' && visible($('board-view')), S.currentBundle?.id);
@@ -282,6 +299,7 @@ if (caseArg === 'arranque-sin-casita') {
 
 // 3. Desvinculada remotamente
 if (caseArg === 'desvinculada') {
+    check("se consultó rpc('device_fetch', {p_token})", rpcCalls.some(c => c.fn === 'device_fetch' && c.args?.p_token === TOKEN), JSON.stringify(rpcCalls));
     check('miravoz_device borrado', !store.has('miravoz_device'), JSON.stringify(store.get('miravoz_device')));
     check('copias borradas', ![...store.keys()].some(k => k.startsWith('miravoz_copy_')), JSON.stringify([...store.keys()]));
     const msg = $('dialog-message');
@@ -290,6 +308,15 @@ if (caseArg === 'desvinculada') {
     check('(info) respaldo de copias antes de borrar', true, '');
     // Decisión de producto: al desvincular se borran copias Y respaldos (son datos del chico; privacidad).
     check('desvinculada: no quedan respaldos de copias en la tablet', !bks.length, JSON.stringify(bks));
+}
+
+// 3b. Vínculo viejo sin token → desvinculada
+if (caseArg === 'sin-token') {
+    check('no se llamó device_fetch (no hay token)', !rpcCalls.some(c => c.fn === 'device_fetch'), JSON.stringify(rpcCalls));
+    check('miravoz_device borrado', !store.has('miravoz_device'), JSON.stringify(store.get('miravoz_device')));
+    check('copias borradas', ![...store.keys()].some(k => k.startsWith('miravoz_copy_')), JSON.stringify([...store.keys()]));
+    const msg = $('dialog-message');
+    check('customAlert visible "desvinculada"', visible($('custom-dialog')) && /desvinculada/.test(msg.innerText || msg.textContent), `"${msg.innerText || msg.textContent}"`);
 }
 
 // 4. Guardar copia
@@ -309,10 +336,12 @@ if (caseArg === 'guardar-editable' || caseArg === 'guardar-readonly') {
     }
     const saved = store.get('miravoz_copy_' + aid);
     if (editable) check('copia renombrada en localforage', saved?.name === 'Renombrada', JSON.stringify(saved?.name));
-    const calls = rpcCalls.filter(c => c.fn === 'save_assignment_copy');
+    const calls = rpcCalls.filter(c => c.fn === 'device_save_copy');
     if (editable) {
         const a = calls[0]?.args;
-        check("rpc('save_assignment_copy') llamada", calls.length >= 1, JSON.stringify(rpcCalls.map(c => c.fn)));
+        check("rpc('device_save_copy') llamada", calls.length >= 1, JSON.stringify(rpcCalls.map(c => c.fn)));
+        check('p_token = token de la tablet', a?.p_token === TOKEN, JSON.stringify(a?.p_token));
+        check('no se usa la RPC vieja save_assignment_copy', !rpcCalls.some(c => c.fn === 'save_assignment_copy'), 'se usó');
         check('p_assignment_id = as1', a?.p_assignment_id === 'as1', JSON.stringify(a?.p_assignment_id));
         check('p_copy_bundle.id = id original (orig1)', a?.p_copy_bundle?.id === 'orig1', JSON.stringify(a?.p_copy_bundle?.id));
         const leaked = ['assignmentId', 'permission', 'copyUpdatedAt', 'dirty', 'bundleId', 'profEdit', 'ownerLabel'].filter(k => a?.p_copy_bundle && k in a.p_copy_bundle);
@@ -321,7 +350,7 @@ if (caseArg === 'guardar-editable' || caseArg === 'guardar-readonly') {
         check('p_expected_updated_at = valor original', a?.p_expected_updated_at === STAMP1, JSON.stringify(a?.p_expected_updated_at));
         check('tras subir: dirty=false y copyUpdatedAt nuevo', saved?.dirty === false && saved?.copyUpdatedAt === '2026-10-09T12:00:00.000Z', JSON.stringify({ d: saved?.dirty, c: saved?.copyUpdatedAt }));
     } else {
-        check('read_only: NO se llamó a save_assignment_copy', calls.length === 0, JSON.stringify(calls));
+        check('read_only: NO se llamó a device_save_copy (ni a la vieja)', calls.length === 0 && !rpcCalls.some(c => c.fn === 'save_assignment_copy'), JSON.stringify(rpcCalls.map(c => c.fn)));
     }
     check('ninguna escritura en "boards"', !sbCalls.some(c => c.table === 'boards'), JSON.stringify(sbCalls.filter(c => c.table === 'boards').map(c => c.op)));
 }
@@ -346,7 +375,7 @@ if (caseArg === 'profesional-edita') {
     check(".eq('id','as2')", ops.some(([op, a]) => op === 'eq' && a[0] === 'id' && a[1] === 'as2'), JSON.stringify(ops));
     check(".eq('copy_updated_at', valor original)", ops.some(([op, a]) => op === 'eq' && a[0] === 'copy_updated_at' && a[1] === STAMP2), JSON.stringify(ops));
     check('.select() al final (detecta conflicto)', ops.some(([op]) => op === 'select'), JSON.stringify(ops));
-    check('no se usó la RPC de la tablet', !rpcCalls.some(c => c.fn === 'save_assignment_copy'), JSON.stringify(rpcCalls));
+    check('no se usó la RPC de la tablet', !rpcCalls.some(c => ['device_save_copy', 'save_assignment_copy'].includes(c.fn)), JSON.stringify(rpcCalls));
     check('ninguna escritura en "boards" para la copia', !sbCalls.some(c => c.table === 'boards' && ['insert', 'upsert', 'update'].includes(c.op)), 'hubo escritura en boards');
     const saved = store.get('miravoz_copy_as2');
     check('copyUpdatedAt actualizado y dirty=false', saved?.copyUpdatedAt === '2026-10-09T13:00:00.000Z' && saved?.dirty === false, JSON.stringify({ c: saved?.copyUpdatedAt, d: saved?.dirty }));

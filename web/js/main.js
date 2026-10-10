@@ -6,7 +6,7 @@ import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
 import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
-import { initAuth, signOut } from './auth.js';
+import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
 import * as deviceMod from './device.js';
@@ -19,12 +19,14 @@ import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 
-// --- Cuenta (F4): opcional. Sin sesión la app funciona 100% local. ---
+// --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
+// Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
 function showAuthView(show) {
-    // Con el login abierto, barrido y dwell quedan en pausa (appLoop solo corre en HOME/BOARD)
+    // Con el ingreso abierto, barrido y dwell quedan en pausa (appLoop solo corre en HOME/BOARD)
     if (show) S.state = 'AUTH';
     else if (S.state === 'AUTH') S.state = 'HOME';
-    if (show) document.getElementById('auth-email-input')?.focus();
+    // Sin foco automático en "Ingresar con Google": en una tablet que quedó desvinculada, el pulsador
+    // (Espacio/Enter) activaría el botón y el chico terminaría en la pantalla de Google.
     document.getElementById('auth-view').style.display = show ? 'flex' : 'none';
     document.getElementById('home-view').style.display = show ? 'none' : 'flex';
     document.getElementById('top-bar').style.display = show ? 'none' : 'flex';
@@ -37,12 +39,13 @@ function updateAccountUI() {
     const avatarEl = document.querySelector('.user-avatar');
     const accountBtn = document.getElementById('btn-account');
     const usersBtn = document.getElementById('btn-nav-users');
-    if (nameEl) nameEl.textContent = user ? user.email : 'Sin cuenta (solo este dispositivo)';
+    const name = user ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email) : '';
+    if (nameEl) nameEl.textContent = name;
     if (avatarEl) {
         avatarEl.style.display = user ? 'flex' : 'none';
-        avatarEl.textContent = user ? user.email.substring(0, 2).toUpperCase() : '';
+        avatarEl.textContent = user ? (name || '?').substring(0, 2).toUpperCase() : '';
     }
-    if (accountBtn) accountBtn.textContent = user ? 'Cerrar sesión' : 'Ingresar (profesionales)';
+    if (accountBtn) { accountBtn.textContent = 'Cerrar sesión'; accountBtn.style.display = user ? '' : 'none'; }
     if (usersBtn) usersBtn.style.display = user ? '' : 'none';
 }
 
@@ -55,15 +58,11 @@ async function onProfessionalSession(user) {
 
 document.getElementById('btn-account')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (S.currentUser) {
-        await deviceMod.clearProfessionalCopies(); // no dejar copias de los chicos en este navegador
-        await signOut();
-        window.location.reload(); // estado limpio; los tableros locales NO se borran (F0-4)
-    } else {
-        showAuthView(true);
-    }
+    if (!S.currentUser) return;
+    await deviceMod.clearProfessionalCopies(); // no dejar copias de los chicos en este navegador
+    await signOut();
+    window.location.reload(); // vuelve a la pantalla de ingreso; los tableros locales NO se borran (F0-4)
 });
-document.getElementById('btn-auth-back')?.addEventListener('click', () => showAuthView(false));
 
 // --- Storage local ---
 localforage.config({ name: 'Miravoz', storeName: 'boards' });
@@ -763,9 +762,6 @@ async function enterDeviceMode() {
         window.location.reload();
         return;
     }
-    if (res === 'nosession') {
-        showInfoToast('Esta tablet perdió la conexión con la cuenta. Sigue funcionando, pero los cambios no se guardan en la nube: pedile a la profesional un código nuevo (esquina superior derecha, mantener apretado).', 12000);
-    }
     if (res === 'ok') {
         await applyDeviceSettings(deviceMod.device?.settings);
         if (S.state === 'HOME') openDeviceHome();
@@ -798,33 +794,29 @@ window.addEventListener('miravoz:device-unlinked', async () => {
     }
     deviceMod.wireLinkForm({ onLinked: () => enterDeviceMode() });
 
-    // Mostrar lo local de inmediato: la app nunca espera a la red ni a la sesión
-    showAuthView(false);
-    updateAccountUI();
-    boards.loadSavedBoards();
+
+    async function enterProfessionalApp(user) {
+        showAuthView(false);
+        updateAccountUI();
+        await calibration.loadProfiles();
+        await boards.loadSavedBoards();      // primero lo local (la sesión guardada funciona sin red)
+        restoreAccessMode();
+        await onProfessionalSession(user);
+        if (S.state === 'HOME') await boards.loadSavedBoards();
+    }
 
     initAuth({
         onReady: async (user) => {
-            showAuthView(false);
+            // Recién acá (supabase-js ya canjeó el ?code= de Google) se limpia la URL
+            const oauthError = consumeOAuthReturn();
+            if (user) { await enterProfessionalApp(user); return; }
+            showAuthView(true);
             updateAccountUI();
-            await calibration.loadProfiles();
-            await boards.loadSavedBoards();      // primero lo local: la app es usable ya
-            restoreAccessMode();
-            if (user) {
-                await onProfessionalSession(user);
-                if (S.state === 'HOME') await boards.loadSavedBoards();
-            }
+            const err = document.getElementById('auth-error');
+            if (oauthError && err) err.textContent = `No se pudo ingresar con Google: ${oauthError}`;
         },
-        onSignedIn: async (user) => {
-            showAuthView(false);
-            updateAccountUI();
-            await onProfessionalSession(user);
-            if (S.state === 'HOME') await boards.loadSavedBoards();
-        },
-        onSignedOut: () => {
-            updateAccountUI();
-            if (S.state === 'HOME') boards.loadSavedBoards();
-        }
+        onSignedIn: (user) => enterProfessionalApp(user),
+        onSignedOut: () => window.location.reload() // sesión cerrada o vencida: vuelve a la pantalla de ingreso
     });
 
     function restoreAccessMode() {

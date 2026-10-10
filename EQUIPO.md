@@ -21,7 +21,10 @@
    - Interoperabilidad copy-on-write con GRD.
    - Tracking y runtime en vanilla JS.
    - Se dice "usuario" y "profesional", **nunca "paciente"**.
-2. **La app funciona 100% sin cuenta.** El login suma sincronización y asignaciones; nunca es requisito.
+2. **Acceso (decisión de Esteban, 10/10/2026):**
+   - Las profesionales entran **solo con Google**; no hay modo sin cuenta ni contraseñas.
+   - Las tablets de los usuarios no inician sesión: se vinculan con un código de un solo uso y guardan un token (`supabase/03`).
+   - Una sesión ya iniciada sigue funcionando sin red con los datos locales.
 3. **Ningún dato del usuario se pierde.**
    - Todo guardado de un tablero pasa por `sync.saveBundle()` y todo borrado por `sync.removeBundle()`.
    - Prohibido borrar lo local "para reflejar la nube".

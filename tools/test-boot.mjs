@@ -15,7 +15,10 @@ import fs from 'node:fs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, '../web');
-const CASES = ['sin-cuenta', 'sin-cdn', 'con-sesion', 'con-sesion-rechaza', 'editor-local', 'editor-sesion', 'xss'];
+// Acceso (EQUIPO.md regla 2, 10/10/2026): sin modo sin cuenta; profesionales solo con Google.
+// 'editor-local' se eliminó: sin sesión el home no es alcanzable, así que el editor siempre corre con sesión
+// (lo cubre 'editor-sesion').
+const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'xss'];
 
 // ---------------------------------------------------------------- orquestador
 const caseArg = process.argv.find(a => a.startsWith('--case='))?.slice(7);
@@ -60,7 +63,8 @@ const done = () => { console.log('@@RESULT ' + JSON.stringify({ checks, errors }
 
 const JSDOM = loadJSDOM();
 const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-const dom = new JSDOM(html, { url: 'http://localhost/', pretendToBeVisual: false });
+const START_URL = caseArg === 'vuelta-google-error' ? 'http://localhost/?iris=1&error=access_denied&error_description=Acceso%20denegado' : 'http://localhost/';
+const dom = new JSDOM(html, { url: START_URL, pretendToBeVisual: false });
 const win = dom.window;
 
 // Exponer el entorno del navegador como globals de Node
@@ -132,8 +136,9 @@ function makeSupabase({ user = null, tables = {} } = {}) {
                 getSession: async () => ({ data: { session } }),
                 onAuthStateChange: (cb) => { setTimeout(() => cb('INITIAL_SESSION', session), 0); return { data: { subscription: { unsubscribe() {} } } }; },
                 signOut: async () => ({ error: null }),
-                signInWithPassword: async () => ({ error: null }),
-                signUp: async () => ({ data: {}, error: null })
+                signInWithOAuth: async (opts) => { sbCalls.push({ table: 'auth', op: 'signInWithOAuth', args: [JSON.parse(JSON.stringify(opts))] }); return { data: {}, error: null }; },
+                signInWithPassword: async () => { sbCalls.push({ table: 'auth', op: 'signInWithPassword', args: [] }); return { error: null }; },
+                signUp: async () => { sbCalls.push({ table: 'auth', op: 'signUp', args: [] }); return { data: {}, error: null }; }
             },
             from: query,
             rpc: async (fn, args) => { sbCalls.push({ table: 'rpc:' + fn, op: 'rpc', args: [args] }); return { data: null, error: null }; }
@@ -172,13 +177,45 @@ await sleep(300);
 
 const cards = () => [...document.querySelectorAll('#board-list .board-card')].map(c => c.querySelector('h3')?.textContent);
 
-if (caseArg === 'sin-cuenta' || caseArg === 'sin-cdn') {
-    check('#home-view visible', visible($('home-view')), `display=${$('home-view').style.display}`);
-    check('#auth-view oculto', !visible($('auth-view')), `display=${$('auth-view').style.display}`);
-    check('#btn-account dice "Ingresar (profesionales)"', $('btn-account').textContent.trim() === 'Ingresar (profesionales)', `texto="${$('btn-account').textContent.trim()}"`);
+if (caseArg === 'sin-sesion' || caseArg === 'sin-cdn' || caseArg === 'vuelta-google-error') {
+    check('#auth-view visible', visible($('auth-view')), `display=${$('auth-view').style.display}`);
+    check('#btn-google y #btn-show-link presentes', !!$('btn-google') && !!$('btn-show-link'), 'falta alguno');
+    check('#btn-google dice "Ingresar con Google"', /Ingresar con Google/.test($('btn-google')?.textContent || ''), $('btn-google')?.textContent);
+    check('#home-view, #top-bar y #bottom-bar ocultos', !visible($('home-view')) && !visible($('top-bar')) && !visible($('bottom-bar')),
+        `home=${$('home-view').style.display} top=${$('top-bar').style.display} bottom=${$('bottom-bar').style.display}`);
+    const gone = ['btn-auth-back', 'auth-email-input', 'auth-password-input', 'btn-signup', 'btn-login'].filter(id => $(id));
+    check('no existen los restos del modo sin cuenta / contraseña', gone.length === 0, `aparecen: ${gone}`);
+    check('#btn-account oculto sin sesión', !visible($('btn-account')), `display="${$('btn-account').style.display}"`);
     check('#btn-nav-users oculto', !visible($('btn-nav-users')), `display="${$('btn-nav-users').style.display}"`);
-    check('tablero local aparece en #board-list', cards().includes('Prueba'), `cards=${JSON.stringify(cards())}`);
-    check('sin llamadas a la nube', sbCalls.length === 0, JSON.stringify(sbCalls));
+    check('sin llamadas a tablas de la nube', !sbCalls.some(c => c.table !== 'auth'), JSON.stringify(sbCalls.map(c => c.table + '.' + c.op)));
+    check('el tablero local NO se borró', store.has('bundle_1') && lfCalls.removeItem.length === 0, JSON.stringify(lfCalls.removeItem));
+}
+
+if (caseArg === 'vuelta-google-error') {
+    check('URL limpia (sin error/error_description) y conserva ?iris=1', location.search === '?iris=1' && location.hash === '', location.href);
+    check('#auth-error muestra el error de Google', /Acceso denegado/.test($('auth-error').textContent), `"${$('auth-error').textContent}"`);
+}
+
+if (caseArg === 'sin-sesion') {
+    check('#auth-error vacío al arrancar', $('auth-error').textContent.trim() === '', `"${$('auth-error').textContent}"`);
+    // Simula restos de un intento anterior en la URL: redirectTo debe salir limpio
+    history.replaceState(null, '', '/?iris=1&code=abc&state=xyz#frag');
+    $('btn-google').click();
+    await sleep(50);
+    const oauth = sbCalls.filter(c => c.op === 'signInWithOAuth');
+    const o = oauth[0]?.args[0];
+    check('click en #btn-google llama signInWithOAuth una vez', oauth.length === 1, JSON.stringify(sbCalls.map(c => c.op)));
+    check("provider = 'google'", o?.provider === 'google', JSON.stringify(o));
+    check('redirectTo sin code/state/hash y con ?iris=1', o?.options?.redirectTo === 'http://localhost/?iris=1', JSON.stringify(o?.options?.redirectTo));
+    check('sin signInWithPassword ni signUp', !sbCalls.some(c => ['signInWithPassword', 'signUp'].includes(c.op)), 'hubo');
+}
+
+if (caseArg === 'sin-cdn') {
+    $('btn-google').click();
+    await sleep(50);
+    check('sin CDN: click en Google muestra mensaje en #auth-error', $('auth-error').textContent.trim().length > 0, `"${$('auth-error').textContent}"`);
+    check('sin CDN: sigue en la pantalla de ingreso', visible($('auth-view')) && !visible($('home-view')), $('auth-view').style.display);
+    check('sin CDN: sin excepciones', !errors.some(e => /unhandledRejection|TypeError/.test(e)), errors.join(' | '));
 }
 
 if (caseArg === 'con-sesion' || caseArg === 'con-sesion-rechaza') {
@@ -205,7 +242,7 @@ if (caseArg === 'con-sesion' || caseArg === 'con-sesion-rechaza') {
     check('ningún tablero local se borró', lfCalls.removeItem.length === 0 && store.has('bundle_1'), `removeItem=${JSON.stringify(lfCalls.removeItem)}`);
 }
 
-if (caseArg === 'editor-local' || caseArg === 'editor-sesion') {
+if (caseArg === 'editor-sesion') {
     const boards = await import(pathToFileURL(path.join(WEB, 'js/boards.js')).href);
     const editor = await import(pathToFileURL(path.join(WEB, 'js/editor.js')).href);
     const before = upserts().length;
@@ -222,12 +259,8 @@ if (caseArg === 'editor-local' || caseArg === 'editor-sesion') {
     check('nombre nuevo persistido en localforage', saved?.name === 'Renombrado', JSON.stringify(saved?.name));
     check('updatedAt actualizado', saved?.updatedAt >= t0, `updatedAt=${saved?.updatedAt}`);
     check('label del grid principal renombrado', saved?.boards?.g1?.label?.es === 'Renombrado', JSON.stringify(saved?.boards?.g1?.label));
-    if (caseArg === 'editor-sesion') {
-        const after = upserts().slice(before);
-        check('con sesión se llamó a upsert con el nombre nuevo', after.some(u => u.id === 'bundle_1' && u.name === 'Renombrado'), JSON.stringify(after.map(u => u.name)));
-    } else {
-        check('sin sesión no hay llamadas a la nube', sbCalls.length === 0, JSON.stringify(sbCalls));
-    }
+    const after = upserts().slice(before);
+    check('con sesión se llamó a upsert con el nombre nuevo', after.some(u => u.id === 'bundle_1' && u.name === 'Renombrado'), JSON.stringify(after.map(u => u.name)));
 }
 
 if (caseArg === 'xss') {

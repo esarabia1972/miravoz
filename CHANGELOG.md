@@ -167,3 +167,17 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Producto**: el modo Iris es para usuarios que no pueden mover la cabeza. Quien puede moverla usa el modo Rostro (95-100%).
 - **Tools**: `tools/replay-diag.mjs` reproduce un diagnóstico contra el modelo. Los JSON de diagnóstico no se versionan.
 
+### Acceso: solo Google y tablets con token (10/10/2026, decisión de Esteban)
+- **Changed**: las profesionales entran **solo con Google** (`signInWithOAuth`, PKCE).
+  - Se eliminaron el modo sin cuenta, el formulario de email y contraseña, "Crear cuenta", "Seguir sin cuenta" y "Ingresar (profesionales)".
+  - Sin sesión se muestra la pantalla de ingreso: "Ingresar con Google" o "Vincular esta tablet con un código".
+- **Fixed (vinculación)**: la tablet ya no usa una sesión anónima de Supabase, que fallaba.
+  - Canjea el código por un token secreto que solo vive en el dispositivo y lee y guarda sus copias con `device_fetch` y `device_save_copy`, que validan el token en el servidor (`supabase/03_tokens_de_tablet.sql`).
+  - En la base se guarda solo el hash del token.
+  - Límite de intentos por IP más uno global.
+  - Se retira el esquema de la 02 (políticas de dispositivo, `device_links`, sesiones anónimas).
+- **Fixed**: en "Mis usuarios", el campo de nombre se autocompletaba con el email del navegador. Se desactivó el autocompletado.
+- **Security**: supabase-js con versión fija (2.117.3) y SRI. Sin foco automático en "Ingresar con Google", para que un pulsador no lo active en una tablet desvinculada.
+- **Tests**: `test-boot` (64) y `test-device` (75) actualizados al acceso nuevo.
+- **Backlog modo Iris**: guía visual de alineación de la cabeza "tipo Starlink", que muestre cuánto y hacia dónde falta para volver a la pose de la calibración (idea de Esteban).
+

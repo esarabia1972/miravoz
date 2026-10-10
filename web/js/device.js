@@ -1,9 +1,10 @@
 // device.js — Tablet vinculada a un usuario (SPEC F4-4)
-// La tablet del chico entra con una sesión ANÓNIMA de Supabase y canjea un código que generó
-// la profesional (supabase/02_f4-4_vinculacion.sql). Desde ahí:
+// La tablet del chico NO inicia sesión: canjea el código que generó la profesional por un TOKEN
+// secreto que guarda en el dispositivo (supabase/03_tokens_de_tablet.sql: device_redeem / device_fetch /
+// device_save_copy validan el token en el servidor). Desde ahí:
 //  - abre directo en su "casita" (home_board_id = una de sus copias asignadas), sin gestión;
 //  - trabaja SIEMPRE sobre copias locales (offline-first) y las refresca al abrir/volver;
-//  - solo guarda en la nube las copias con permiso 'editable' (RPC save_assignment_copy).
+//  - solo guarda en la nube las copias con permiso 'editable' (RPC device_save_copy).
 // Las copias se guardan en localforage con clave = id = 'miravoz_copy_<assignmentId>': el prefijo
 // miravoz_ las deja fuera del home de profesional y de la sync de tableros (sync.js).
 
@@ -70,16 +71,17 @@ export async function linkWithCode(rawCode) {
         if (session && !session.user.is_anonymous) {
             return { ok: false, error: 'Hay una profesional con sesión iniciada en este dispositivo. Cerrá esa sesión antes de vincular la tablet.' };
         }
-        if (!session) {
-            const { error } = await supabaseClient.auth.signInAnonymously();
-            if (error) throw error;
+        const { data, error } = await supabaseClient.rpc('device_redeem', { p_code: rawCode });
+        if (error) {
+            console.error('device_redeem:', error);
+            return { ok: false, error: error.message?.includes('intentos') ? error.message
+                : `No se pudo vincular (${error.code || error.message || 'error del servidor'}). Revisá la conexión e intentá de nuevo.` };
         }
-        const { data, error } = await supabaseClient.rpc('redeem_access_code', { p_code: rawCode });
-        if (error) return { ok: false, error: error.message?.includes('intentos') ? error.message : 'No se pudo vincular. Revisá el código y la conexión.' };
-        if (!data?.ok) return { ok: false, error: data?.error || 'Código inválido, vencido o ya usado.' };
+        if (!data?.ok || !data.token) return { ok: false, error: data?.error || 'Código inválido, vencido o ya usado.' };
 
         await clearCopiesFromDevice(); // restos de otro vínculo o de una profesional en este navegador
         device = {
+            token: data.token, // secreto de esta tablet: solo vive en este dispositivo
             aacUserId: data.aac_user_id,
             displayName: data.display_name,
             homeAssignmentId: data.home_board_id || null,
@@ -91,7 +93,7 @@ export async function linkWithCode(rawCode) {
         return { ok: true };
     } catch (e) {
         console.error('linkWithCode:', e);
-        return { ok: false, error: 'No se pudo vincular. Revisá la conexión e intentá de nuevo.' };
+        return { ok: false, error: `No se pudo vincular (${e?.message || 'sin conexión'}). Revisá la conexión e intentá de nuevo.` };
     }
 }
 
@@ -117,35 +119,30 @@ export async function unlink() {
     await clearCopiesFromDevice();
     await localforage.removeItem(DEVICE_KEY);
     device = null;
-    if (supabaseClient) await supabaseClient.auth.signOut({ scope: 'local' });
+    // (la tablet no tiene sesión: no hay nada que cerrar en Supabase)
 }
 
 // --- Traer copias del servidor (al abrir, al volver a la app, al recuperar conexión) ---
 let pulling = false;
 let lastPull = 0;
 
-/** @returns {'ok'|'offline'|'unlinked'|'nosession'} */
+/** @returns {'ok'|'offline'|'unlinked'} */
 export async function pullCopies() {
     if (!device || !supabaseClient || pulling) return 'offline';
     pulling = true;
     lastPull = Date.now();
     const changed = [], removed = [];
     try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) return 'nosession'; // se perdió la sesión anónima: sigue con lo local, hay que re-vincular
+        if (!device.token) return 'unlinked'; // vínculo viejo (sesión anónima): hay que volver a vincular
 
-        const { data: me, error: meErr } = await supabaseClient
-            .from('aac_users').select('display_name, home_board_id, settings').eq('id', device.aacUserId).maybeSingle();
-        if (meErr) throw meErr;
-        if (!me) return 'unlinked'; // la profesional desvinculó la tablet o borró al usuario
+        const { data: res, error } = await supabaseClient.rpc('device_fetch', { p_token: device.token });
+        if (error) throw error;
+        if (!res?.ok) return res?.unlinked ? 'unlinked' : 'offline'; // la profesional desvinculó o borró al usuario
 
+        const me = res.user;
         Object.assign(device, { displayName: me.display_name, homeAssignmentId: me.home_board_id || null, settings: me.settings || {} });
         await localforage.setItem(DEVICE_KEY, device);
-
-        const { data: rows, error } = await supabaseClient
-            .from('assignments').select('id, board_id, copy_bundle, permission, copy_updated_at')
-            .eq('aac_user_id', device.aacUserId);
-        if (error) throw error;
+        const rows = res.assignments || [];
 
         const serverIds = new Set();
         for (const row of rows || []) {
@@ -208,12 +205,15 @@ async function pushCopy(copy) {
     const current = (await localforage.getItem(copy.id)) || copy;
     if (current.profEdit) return pushCopyAsProfessional(copy, current);
     try {
-        const { data, error } = await supabaseClient.rpc('save_assignment_copy', {
+        if (!device?.token) return false;
+        const { data, error } = await supabaseClient.rpc('device_save_copy', {
+            p_token: device.token,
             p_assignment_id: current.assignmentId,
             p_copy_bundle: copyToServer(current),
             p_expected_updated_at: current.copyUpdatedAt
         });
         if (error) throw error;
+        if (data?.unlinked) { window.dispatchEvent(new CustomEvent('miravoz:device-unlinked')); return false; }
         if (data?.conflict) {
             // La profesional editó la copia desde su cuenta: gana su versión, lo de acá va a respaldo
             await backupBundle(current.id, current, 'conflicto: la profesional editó la copia');

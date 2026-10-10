@@ -1,17 +1,18 @@
 // auth.js — Autenticación de profesionales con Supabase (SPEC F4-1)
-// La cuenta es OPCIONAL: sin sesión la app funciona 100% local (invariante F4).
+// Decisión de producto (10/10/2026, Esteban): las profesionales entran SOLO con Google; no hay modo sin cuenta.
+// Las tablets de los usuarios no inician sesión: se vinculan con un código (device.js).
 // Este módulo solo maneja sesión y formulario; la sincronización de tableros vive en sync.js.
 
 import { S } from './state.js';
-import { customAlert } from './ui.js';
 
 const SUPABASE_URL = 'https://bpcedvpcwwwgnfinqztq.supabase.co';
 // Clave publicable (anon): es pública por diseño; la seguridad depende de las políticas RLS.
 const SUPABASE_ANON_KEY = 'sb_publishable_dqFw8-mzNW88E5aRgG7WMw_byIf-pT1';
 
-// Si el CDN de supabase-js no cargó (sin red, bloqueado), la app sigue en modo local.
+// Si el CDN de supabase-js no cargó (sin red, bloqueado), no hay ingreso: la pantalla lo avisa.
+// flowType 'pkce': la vuelta de Google trae ?code= (no el token en la URL) y supabase-js lo canjea al iniciar.
 export const supabaseClient = window.supabase
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', detectSessionInUrl: true } })
     : null;
 
 export async function getUser() {
@@ -71,66 +72,47 @@ export function initAuth({ onReady, onSignedIn, onSignedOut }) {
     wireAuthForm();
 }
 
+// --- Ingreso con Google (único método para profesionales, desde 10/10/2026) ---
+// Supabase redirige a Google y vuelve a esta misma página; supabase-js canjea el ?code= solo (PKCE).
 function wireAuthForm() {
-    const emailInput = document.getElementById('auth-email-input');
-    const passInput = document.getElementById('auth-password-input');
-    const btnLogin = document.getElementById('btn-login');
-    const btnSignup = document.getElementById('btn-signup');
-    if (!emailInput || !passInput) return;
-
-    const readForm = () => {
-        const email = emailInput.value.trim();
-        const password = passInput.value;
-        if (!email || !password) { customAlert('Completá el correo y la contraseña.'); return null; }
-        return { email, password };
-    };
-
-    const busy = (btn, text) => {
-        const original = btn.textContent;
-        btn.disabled = true; btn.textContent = text;
-        return () => { btn.disabled = false; btn.textContent = original; };
-    };
-
-    if (btnLogin) btnLogin.onclick = async () => {
-        if (!supabaseClient) { customAlert('Sin conexión con el servidor: podés seguir usando MiraVoz sin cuenta.'); return; }
-        const creds = readForm(); if (!creds) return;
-        const done = busy(btnLogin, 'Ingresando…');
-        const { error } = await supabaseClient.auth.signInWithPassword(creds);
-        done();
+    const btn = document.getElementById('btn-google');
+    const err = document.getElementById('auth-error');
+    if (!btn) return;
+    btn.onclick = async () => {
+        if (!supabaseClient) { if (err) err.textContent = 'Sin conexión con el servidor. Revisá internet y recargá la página.'; return; }
+        btn.disabled = true;
+        if (err) err.textContent = '';
+        // Volver a la misma URL (conserva parámetros como ?iris=1), sin restos de un intento anterior
+        const back = new URL(window.location.href);
+        ['code', 'error', 'error_code', 'error_description', 'state'].forEach(k => back.searchParams.delete(k));
+        back.hash = '';
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: back.toString(), queryParams: { prompt: 'select_account' } }
+        });
         if (error) {
-            console.error('Login falló:', error);
-            if (/invalid login credentials/i.test(error.message)) {
-                customAlert('Correo o contraseña incorrectos. Si todavía no tenés cuenta, usá "Crear cuenta".');
-            } else if (/email not confirmed/i.test(error.message)) {
-                customAlert('Tu cuenta todavía no está confirmada: revisá tu correo.');
-            } else {
-                customAlert('No se pudo ingresar: ' + error.message);
-            }
-        } else {
-            passInput.value = '';
+            console.error('Ingreso con Google:', error);
+            btn.disabled = false;
+            if (err) err.textContent = 'No se pudo abrir el ingreso con Google. Probá de nuevo en un rato.';
         }
+        // si no hay error, el navegador ya está yendo a Google
     };
+    // Si se vuelve con "Atrás" y el navegador restaura la página desde caché, rehabilitar el botón
+    window.addEventListener('pageshow', () => { btn.disabled = false; });
+}
 
-    // Enter en el formulario = Ingresar
-    [emailInput, passInput].forEach(el => el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); btnLogin?.click(); }
-    }));
-
-    if (btnSignup) btnSignup.onclick = async () => {
-        if (!supabaseClient) { customAlert('Sin conexión con el servidor.'); return; }
-        const creds = readForm(); if (!creds) return;
-        if (creds.password.length < 8) { customAlert('La contraseña debe tener al menos 8 caracteres.'); return; }
-        const done = busy(btnSignup, 'Creando…');
-        const { data, error } = await supabaseClient.auth.signUp(creds);
-        done();
-        if (error) {
-            customAlert(/already registered/i.test(error.message)
-                ? 'Ya existe una cuenta con ese correo. Usá "Ingresar".'
-                : 'No se pudo crear la cuenta: ' + error.message);
-        } else if (!data.session) {
-            customAlert('Cuenta creada. Revisá tu correo para confirmarla y después ingresá.');
-        }
-    };
+/** Si volvimos de Google con un error o con el ?code= ya canjeado, limpiar la URL y mostrar el error. */
+export function consumeOAuthReturn() {
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+    const desc = url.searchParams.get('error_description') || hashParams.get('error_description');
+    const had = ['code', 'error', 'error_code', 'error_description', 'state'].some(k => url.searchParams.has(k)) || hashParams.has('error');
+    if (had) {
+        ['code', 'error', 'error_code', 'error_description', 'state'].forEach(k => url.searchParams.delete(k));
+        url.hash = '';
+        window.history.replaceState(null, '', url.toString());
+    }
+    return desc ? decodeURIComponent(desc.replace(/\+/g, ' ')) : null;
 }
 
 export async function signOut() {

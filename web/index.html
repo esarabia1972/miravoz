@@ -9,13 +9,13 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=27">
+    <link rel="stylesheet" href="style.css?v=28">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
 </head>
 <body>
     <!-- Z-Index 50: UI Ocular Overlay -->
@@ -64,7 +64,7 @@
             <div class="glass-box" style="padding: 20px; margin-bottom: 20px;">
                 <h3>Crear nuevo usuario</h3>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="new-user-name" class="glass-input" placeholder="Nombre (ej. Mateo)" aria-label="Nombre del nuevo usuario" style="flex: 1;" />
+                    <input type="text" id="new-user-name" name="miravoz-aac-display-name" class="glass-input" placeholder="Nombre (ej. Mateo)" aria-label="Nombre del nuevo usuario" autocomplete="off" autocapitalize="words" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" style="flex: 1;" />
                     <button id="btn-create-user" class="btn btn-primary user-btn">Crear usuario</button>
                 </div>
             </div>
@@ -141,19 +141,14 @@
             
             <div id="auth-step-email">
                 <h2>Ingreso para profesionales</h2>
-                <p class="auth-desc">Con una cuenta tus tableros se guardan en la nube y podés asignarlos a tus usuarios. Sin cuenta, MiraVoz funciona igual en este dispositivo.</p>
-                <div class="input-group">
-                    <label for="auth-email-input" class="sr-only">Correo electrónico</label>
-                    <input type="email" id="auth-email-input" placeholder="Correo electrónico" autocomplete="email" class="glass-input auth-input" />
-                </div>
-                <div class="input-group" style="margin-top: 10px;">
-                    <label for="auth-password-input" class="sr-only">Contraseña</label>
-                    <input type="password" id="auth-password-input" placeholder="Contraseña" autocomplete="current-password" class="glass-input auth-input" />
-                </div>
-                <button id="btn-login" class="btn auth-btn" style="margin-top: 15px;">Ingresar</button>
-                <button id="btn-signup" class="btn auth-btn-secondary" style="margin-top: 10px;">Crear cuenta</button>
-                <button id="btn-auth-back" class="btn auth-btn-secondary" style="margin-top: 10px;">Seguir sin cuenta</button>
-                <button id="btn-show-link" class="btn auth-btn-secondary" style="margin-top: 22px;">Vincular esta tablet a un usuario</button>
+                <p class="auth-desc">Entrá con tu cuenta de Google para crear tableros, gestionar a tus usuarios y asignarles tableros.</p>
+                <button id="btn-google" class="btn google-btn" style="margin-top: 15px;">
+                    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
+                    <span>Ingresar con Google</span>
+                </button>
+                <p id="auth-error" class="link-error" role="alert"></p>
+                <div class="auth-divider"><span>¿Es la tablet de un usuario?</span></div>
+                <button id="btn-show-link" class="btn auth-btn-secondary">Vincular esta tablet con un código</button>
             </div>
 
             <!-- F4-4: vincular la tablet del chico con el código que genera la profesional -->
@@ -227,7 +222,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
                 <span style="color: var(--text-muted);">|</span>
-                <button type="button" id="btn-account" class="btn-logout btn-account">Ingresar (profesionales)</button>
+                <button type="button" id="btn-account" class="btn-logout btn-account">Cerrar sesión</button>
             </div>
         </div>
         
@@ -381,6 +376,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=31"></script>
+    <script type="module" src="js/main.js?v=33"></script>
 </body>
 </html>

@@ -39,7 +39,7 @@ export async function fetchUsers() {
         supabaseClient.from('assignments')
             .select('id, aac_user_id, permission, copy_updated_at, board_id, name:copy_bundle->>name')
             .in('aac_user_id', ids),
-        supabaseClient.from('device_links').select('device_uid, aac_user_id, linked_at')
+        supabaseClient.from('device_tokens').select('token_hash, aac_user_id, created_at, last_seen_at')
             .in('aac_user_id', ids)
     ]).catch(err => {
         console.error('Error cargando fichas de usuarios:', err);
@@ -191,9 +191,9 @@ async function unlinkDevice(user, device) {
     const ok = await customConfirm(`¿Desvincular la tablet de ${user.display_name}? Va a dejar de ver sus tableros hasta que la vincules de nuevo con un código.`);
     if (!ok) return;
     const { error } = await supabaseClient
-        .from('device_links')
+        .from('device_tokens')
         .delete()
-        .eq('device_uid', device.device_uid);
+        .eq('token_hash', device.token_hash);
     if (error) {
         console.error('Error desvinculando tablet:', error);
         customAlert('No se pudo desvincular la tablet. Revisá la conexión e intentá de nuevo.');
@@ -256,7 +256,8 @@ function renderTablet(user) {
         user.devices.forEach((device, i) => {
             const row = el('div', 'user-row');
             const label = user.devices.length > 1 ? `Tablet ${i + 1} vinculada` : 'Tablet vinculada';
-            row.appendChild(el('span', 'user-device', device.linked_at ? `${label} desde el ${shortDate(device.linked_at)}` : label));
+            const seen = device.last_seen_at ? ` · última conexión ${shortDate(device.last_seen_at)}` : '';
+            row.appendChild(el('span', 'user-device', device.created_at ? `${label} desde el ${shortDate(device.created_at)}${seen}` : label));
             row.appendChild(button('Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device)));
             box.appendChild(row);
         });

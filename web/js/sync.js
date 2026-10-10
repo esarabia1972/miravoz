@@ -293,7 +293,7 @@ async function askAdoption(candidates) {
     const names = toAsk.slice(0, 3).map(b => `"${b.name}"`).join(', ') + (toAsk.length > 3 ? '…' : '');
     const ok = await customConfirm(
         `Hay ${toAsk.length} tablero(s) en este dispositivo que no están en ninguna cuenta (${names}). ` +
-        `¿Querés guardarlos en tu cuenta? Si aceptás, se van a ver solo cuando ingreses.`);
+        `¿Querés guardarlos en tu cuenta? Así quedan en la nube y los podés asignar.`);
     if (ok) {
         const adopted = [];
         for (const b of toAsk) if (await pushBundle(b, { adopt: true })) adopted.push(b.id);
