@@ -202,7 +202,7 @@ async function setHome(user, assignmentId, focusCopyId) {
         .eq('id', user.id);
     if (error) {
         console.error('Error cambiando la casita:', error);
-        customAlert('No se pudo cambiar la casita. Revisá la conexión e intentá de nuevo.');
+        customAlert('No se pudo cambiar el tablero de inicio. Revisá la conexión e intentá de nuevo.');
         return;
     }
     user.home_board_id = assignmentId;
@@ -455,8 +455,8 @@ function renderCopies(user, container) {
 
     const home = user.copies.find(c => c.id === user.home_board_id);
     container.appendChild(el('p', 'user-note', home
-        ? `🏠 Casita: «${copyName(home)}» (la tablet abre directo acá)`
-        : 'Sin casita: la tablet muestra la lista de sus tableros'));
+        ? `Tablero de inicio: «${copyName(home)}» (la tablet abre directo acá)`
+        : 'Sin tablero de inicio: la tablet muestra la lista de sus tableros'));
 
     const list = el('ul', 'copy-list');
     user.copies.forEach(copy => {
@@ -483,8 +483,8 @@ function renderCopies(user, container) {
         sel.addEventListener('change', () => setPermission(user, copy, sel.value, sel));
         actions.appendChild(sel);
 
-        const homeBtn = button(isHome ? '🏠 Es su casita' : '🏠 Casita',
-            isHome ? `«${name}» es la casita de ${user.display_name}. Tocá para sacarla` : `Hacer de «${name}» la casita de ${user.display_name}`,
+        const homeBtn = button(isHome ? 'Es su inicio' : 'Usar como inicio',
+            isHome ? `«${name}» es el tablero de inicio de ${user.display_name}. Tocá para sacarlo` : `Hacer de «${name}» el tablero de inicio de ${user.display_name}`,
             () => setHome(user, isHome ? null : copy.id, copy.id),
             'btn btn-secondary user-btn' + (isHome ? ' is-home' : ''));
         homeBtn.setAttribute('aria-pressed', String(isHome));
