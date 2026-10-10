@@ -141,7 +141,7 @@ export class Benchmark {
             const p = document.createElement('p');
             p.style.fontSize = '1.2rem';
             const ok = (s.grid === '3x3' && s.accuracy >= 95) || (s.grid === '4x4' && s.accuracy >= 85);
-            p.textContent = `${s.grid}: ${s.accuracy}% de acierto (${s.correct}/${s.targets}) · ${(s.meanTimeMs / 1000).toFixed(1)}s por selección ${ok ? '✅' : '❌'}`;
+            p.textContent = `${s.grid}: ${s.accuracy}% de acierto (${s.correct}/${s.targets}) · ${(s.meanTimeMs / 1000).toFixed(1)}s por selección · ${ok ? 'cumple' : 'no cumple'}`;
             box.appendChild(p);
         });
 
