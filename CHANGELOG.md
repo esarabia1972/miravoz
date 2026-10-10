@@ -154,3 +154,16 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Filtro 1 Euro más suave en modo Iris (minCutoff 0.3, beta 0.005), mientras que el modo Rostro sigue igual.
 - **Added**: diagnóstico para desarrollo con `?diag=1`. El botón "⬇ Diagnóstico" descarga un JSON con features, pose, cursor y objetivo por cuadro (solo números, nunca video) para ajustar el modelo con datos reales. Usarlo solo con la cara de quien desarrolla.
 
+### Modo Iris v3: "cabeza quieta", basado en datos reales (10/10/2026)
+- **Diagnóstico** (`miravoz-diag-2026-10-10-13-51.json`, 9.659 cuadros, analizado con `tools/replay-diag.mjs`):
+  - En los puntos de "mové la cabeza" la cabeza casi no se movió (yaw ±0,1°): el modelo híbrido nunca pudo aprender a compensar. Por eso el cursor se corría al mover la cabeza aun mirando el botón.
+  - Con la cabeza en la pose de la calibración, el error mediano fue de ~130 px; a ±4° ~230 px y a ±8° ~340 px.
+  - Los blendshapes de mirada de FaceLandmarker resultaron la mejor señal: rango 2-3× mayor y menos temblor que la posición del iris.
+- **Changed**:
+  - Modelo `gaze-v3` con solo señales de los ojos (iris + blendshapes), calibración de 9 puntos con la cabeza quieta y vigilancia de la pose.
+  - Si la cabeza gira más de 4° o se desplaza respecto de la calibración, el cursor se pausa, el dwell no selecciona y aparece "Volvé a poner la cabeza como en la calibración" (con histéresis).
+  - Sin cara, no hay cursor.
+- **Resultado con los datos reales**, validación dejando un punto afuera: error mediano 122 px y **92% de acierto 3×3** con la cabeza quieta. En el benchmark grabado moviendo la cabeza, el 40% de los cuadros habría quedado en pausa en lugar de seleccionar mal.
+- **Producto**: el modo Iris es para usuarios que no pueden mover la cabeza. Quien puede moverla usa el modo Rostro (95-100%).
+- **Tools**: `tools/replay-diag.mjs` reproduce un diagnóstico contra el modelo. Los JSON de diagnóstico no se versionan.
+

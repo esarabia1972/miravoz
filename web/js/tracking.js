@@ -29,6 +29,8 @@ const forcedEngine = params.get('engine'); // 'legacy' | 'tasks' | null
 export let currentFeatures = null;
 /** Datos completos del último frame (para el modo Iris híbrido y diagnóstico) */
 export let faceData = null; // { landmarks, pose, eyes, iris, t }
+/** Modo Iris: la cabeza está fuera de la pose de la calibración (cursor en pausa) */
+export let headOutOfPose = false;
 /** Motor en uso: 'tasks' | 'legacy' | null (todavía no inició) */
 export let engineName = null;
 /** Cuadros procesados por segundo (promedio móvil) */
@@ -97,14 +99,30 @@ function onLandmarks(landmarks, extra = {}) {
     fpsFrames++;
     if (now - fpsWindowStart >= 1000) { fps = fpsFrames * 1000 / (now - fpsWindowStart); fpsFrames = 0; fpsWindowStart = now; }
 
-    if (!landmarks) { currentFeatures = null; faceData = null; return; }
+    if (!landmarks) {
+        currentFeatures = null; faceData = null; headOutOfPose = false;
+        // Modo Iris: sin cara no hay cursor (si quedara congelado, el dwell podría seleccionar esa celda)
+        if (S.trackingMode === 'OJOS') { S.rawX = null; S.rawY = null; }
+        return;
+    }
     faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, iris: irisInEye(landmarks), t: now };
     currentFeatures = extractFeatures(faceData, S.trackingMode);
     if (currentFeatures) {
         recent.push({ t: now, f: currentFeatures });
         while (recent.length && recent[0].t < now - 2000) recent.shift();
     }
-    if ((S.state === 'BOARD' || S.state === 'HOME') && currentFeatures && hasWeights()) {
+    // Modo Iris v3: si la cabeza se alejó de la pose de la calibración, el modelo no es válido → pausa
+    if (S.trackingMode === 'OJOS' && gazeModel && currentFeatures) {
+        const dev = gaze.headDeviation(gazeModel, currentFeatures);
+        // Histéresis: se pausa al pasar el umbral y se reanuda recién al volver por debajo del 75%
+        // (evita que el aviso parpadee cuando la cabeza está justo en el límite)
+        const k = headOutOfPose ? 0.75 : 1;
+        headOutOfPose = dev.deg > CONFIG.GAZE_HEAD_TOLERANCE_DEG * k || dev.shift > CONFIG.GAZE_HEAD_SHIFT_TOL * k;
+        if (headOutOfPose) { S.rawX = null; S.rawY = null; }
+    } else {
+        headOutOfPose = false;
+    }
+    if ((S.state === 'BOARD' || S.state === 'HOME') && currentFeatures && hasWeights() && !headOutOfPose) {
         const [px, py] = predict(currentFeatures);
         S.rawX = px;
         S.rawY = py;
@@ -326,4 +344,5 @@ export function stopMediaPipe() {
     faceData = null;
     recent.length = 0;
     medianBuf.length = 0;
+    headOutOfPose = false;
 }

@@ -1,5 +1,5 @@
 // Tests de la sesión de calibración REAL (web/js/calibration.js) en Node, con stubs mínimos de globals.
-// Cubre modo CARA (regresión), modo OJOS híbrido (14 puntos), abort sin rostro, aprendizaje implícito
+// Cubre modo CARA (regresión), modo OJOS v3 (9 puntos, cabeza quieta), abort sin rostro, aprendizaje implícito
 // y persistencia. Correr: node tools/test-calibration.mjs
 
 // --- Stubs de globals (antes de importar: calibration.js usa window al cargar) ---
@@ -107,27 +107,19 @@ const moving = now => ({ hx: 3 * Math.sin(now / 700), hy: 2 * Math.cos(now / 900
 const isHeadHint = h => typeof h === 'string' && /mov[eé] la cabeza/i.test(h) && !/sin mover/i.test(h);
 const ojosFeat = (info, now) => observe(info.x, info.y, isHeadHint(info.hint) ? moving(now) : still());
 const ojos = runSession('OJOS', ojosFeat);
-await t('OJOS: 14 puntos (9 + 5 con hint de mover la cabeza)', () => {
-    assert(ojos.s.points.length === 14, `${ojos.s.points.length}`);
+await t('OJOS (v3, cabeza quieta): 9 puntos, todos con la indicación de cabeza quieta', () => {
+    assert(ojos.s.points.length === 9, `${ojos.s.points.length}`);
     const byIdx = {};
     for (const e of ojos.log) byIdx[e.index] = e;
-    assert(Object.keys(byIdx).length === 14, `recorrió ${Object.keys(byIdx).length}`);
-    const head = Object.values(byIdx).filter(e => isHeadHint(e.hint)).map(e => e.index).sort((a, b) => a - b);
-    assert(JSON.stringify(head) === '[9,10,11,12,13]', `puntos con hint de cabeza: ${head}`);
-    assert(Object.values(byIdx).every(e => e.label.endsWith('/14')), 'label');
-    assert(byIdx[0].hint && !isHeadHint(byIdx[0].hint), 'hint de punto quieto');
+    assert(Object.keys(byIdx).length === 9, `recorrió ${Object.keys(byIdx).length}`);
+    assert(Object.values(byIdx).every(e => e.label.endsWith('/9')), 'label');
+    assert(Object.values(byIdx).every(e => e.hint && /cabeza quieta/i.test(e.hint) && !isHeadHint(e.hint)), 'hint');
 });
-await t('OJOS: los puntos de mover la cabeza muestrean más tiempo (GAZE_HEADMOVE_SAMPLING_MS)', () => {
-    const d = samplingDurations(ojos.log);
-    const exp = (ms) => ms + CONFIG.SAMPLE_WARMUP_MS;
-    assert(Math.abs(d[0] - exp(CONFIG.SAMPLING_MS)) <= 70, `quieto ${d[0]} ms`);
-    assert(Math.abs(d[9] - exp(CONFIG.GAZE_HEADMOVE_SAMPLING_MS)) <= 70, `cabeza ${d[9]} ms`);
-});
-await t('OJOS: perfil kind hybrid-v2 con model, samples (14 con raw), implicit []', () => {
+await t('OJOS: perfil kind gaze-v3 con model (y poseRef), samples (9 con raw), implicit []', () => {
     const p = ojos.result;
     assert(ojos.done && p, 'perfil null');
-    assert(p.kind === 'hybrid-v2' && p.model && p.model.wx && p.model.mean, 'kind/model');
-    assert(p.samples.length === 14, `samples ${p.samples.length}`);
+    assert(p.kind === 'gaze-v3' && p.model && p.model.wx && p.model.mean && p.model.poseRef, 'kind/model');
+    assert(p.samples.length === 9, `samples ${p.samples.length}`);
     assert(p.samples.every(s => s.samples.length >= CONFIG.MIN_SAMPLES_PER_POINT && s.samples.every(x => x.raw.length === 8 && Object.keys(x).length === 1)), 'raw');
     assert(Array.isArray(p.implicit) && p.implicit.length === 0, 'implicit');
     assert(Number.isFinite(p.meanError) && p.quality, 'meanError/quality');
@@ -144,7 +136,7 @@ await t('persistencia: miravoz_calibration_v2 con ambos perfiles y loadProfiles(
     await new Promise(r => setTimeout(r, 0));
     const st = store.get('miravoz_calibration_v2');
     assert(st && st.CARA && st.OJOS, `guardado: ${st && Object.keys(st)}`);
-    assert(st.OJOS.kind === 'hybrid-v2' && st.CARA.weightsX, 'contenido');
+    assert(st.OJOS.kind === 'gaze-v3' && st.CARA.weightsX, 'contenido');
     cal.profiles.OJOS = null; cal.profiles.CARA = null;
     await loadProfiles();
     assert(isUsableProfile('OJOS', cal.profiles.OJOS) && isUsableProfile('CARA', cal.profiles.CARA), 'no recuperó');
@@ -184,7 +176,7 @@ await t('implícito: 4 llamadas → null; la 5ª re-entrena (model nuevo) y acum
     }
     assert(JSON.stringify(cal.profiles.OJOS.model) === before, 'cambió el modelo antes de la 5ª');
     const r = await addImplicitSamples('OJOS', implicitBatch());
-    assert(r && r.kind === 'hybrid-v2', '5ª no devolvió perfil');
+    assert(r && r.kind === 'gaze-v3', '5ª no devolvió perfil');
     assert(JSON.stringify(r.model) !== before, 'modelo igual');
     const n = CONFIG.IMPLICIT_RETRAIN_EVERY * CONFIG.IMPLICIT_SAMPLES_PER_SELECT;
     assert(r.implicit.length === n, `implicit ${r.implicit.length} ≠ ${n}`);
@@ -193,7 +185,8 @@ await t('implícito: 4 llamadas → null; la 5ª re-entrena (model nuevo) y acum
 await t('implícito: respeta IMPLICIT_MAX_SAMPLES', async () => {
     const calls = Math.ceil(CONFIG.IMPLICIT_MAX_SAMPLES / CONFIG.IMPLICIT_SAMPLES_PER_SELECT) + 10;
     for (let i = 0; i < calls; i++) await addImplicitSamples('OJOS', implicitBatch());
-    assert(cal.profiles.OJOS.implicit.length === CONFIG.IMPLICIT_MAX_SAMPLES, `${cal.profiles.OJOS.implicit.length}`);
+    // Nunca supera el tope (puede quedar por debajo si la salvaguarda descartó un re-entrenamiento y vació lo implícito)
+    assert(cal.profiles.OJOS.implicit.length > 0 && cal.profiles.OJOS.implicit.length <= CONFIG.IMPLICIT_MAX_SAMPLES, `${cal.profiles.OJOS.implicit.length}`);
 });
 await t('implícito: modo CARA, sin perfil o samples vacío → null sin romper', async () => {
     assert(await addImplicitSamples('CARA', implicitBatch()) === null, 'CARA');

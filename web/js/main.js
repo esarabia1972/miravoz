@@ -551,6 +551,10 @@ function appLoop() {
             // En modo edición los motores de acceso quedan en pausa (se edita con mouse/touch)
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {
             scan.tick(now);
+        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'OJOS' && tracking.headOutOfPose) {
+            // Modo Iris: la cabeza salió de la posición de la calibración → cursor en pausa, sin selecciones
+            dwell.reset();
+            drawHeadWarning();
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
             if (S.rawX !== null && S.rawY !== null && !isNaN(S.rawX) && !isNaN(S.rawY)) {
                 S.smoothX = filterX.filter(S.rawX, now);
@@ -602,6 +606,19 @@ function drawCalibPoint(info) {
         ctxUI.fillStyle = '#ffd27a';
         ctxUI.fillText(info.hint, canvasUI.width / 2, hy, maxW);
     }
+}
+
+function drawHeadWarning() {
+    const msg = 'Volvé a poner la cabeza como en la calibración';
+    ctxUI.font = 'bold 28px Inter';
+    ctxUI.textAlign = 'center';
+    ctxUI.textBaseline = 'middle';
+    const y = canvasUI.height - 60, maxW = canvasUI.width - 40;
+    ctxUI.lineWidth = 6;
+    ctxUI.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctxUI.strokeText(msg, canvasUI.width / 2, y, maxW);
+    ctxUI.fillStyle = '#ffd27a';
+    ctxUI.fillText(msg, canvasUI.width / 2, y, maxW);
 }
 
 function drawCursor(x, y) {

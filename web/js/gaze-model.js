@@ -1,33 +1,35 @@
-// gaze-model.js — Modelo del modo Iris HÍBRIDO (cabeza + iris) · etapa 2
-// Módulo PURO (sin DOM): testeable con Node (tools/test-gaze.mjs).
+// gaze-model.js — Modelo del modo Iris (v3: "cabeza quieta") · Módulo PURO (sin DOM), testeable con Node.
 //
-// Idea: el punto de la pantalla depende de DÓNDE está la cabeza (pose + posición) y de HACIA DÓNDE
-// apuntan los ojos respecto de la cabeza (iris dentro del ojo + blendshapes de mirada). El modelo
-// anterior usaba solo el iris y confundía "giré la cabeza" con "miré para el costado".
+// Historia y evidencia (diagnóstico real del 10/10/2026, miravoz-diag-2026-10-10-13-51.json):
+//  - v1/v2 (híbrido cabeza+iris) eran inestables: en la calibración la cabeza casi no se movió
+//    (yaw ±0,1° aun en los puntos de "mové la cabeza"), así que el modelo no pudo aprender a compensar,
+//    y en el uso cada grado de giro movía el cursor.
+//  - Con la cabeza en la pose de la calibración, el error mediano fue ~130 px; a ±4° ya ~230 px y a ±8° ~340 px.
+//  - La mejor señal de mirada fueron los BLENDSHAPES de FaceLandmarker (eyeLook*): rango 2-3× mayor y
+//    menos temblor que la posición geométrica del iris. Iris + blendshapes: ~90% de acierto 3×3
+//    (validación dejando un punto afuera, cabeza quieta).
+// Decisión: el modo Iris es para usuarios que NO mueven la cabeza (los que sí pueden, usan el modo Rostro,
+// que da 95-100%). El modelo usa solo señales de los ojos y VIGILA la pose: si la cabeza se aleja de la
+// pose de la calibración, tracking.js congela el cursor y main.js avisa ("volvé a la posición").
 //
-// Features crudas por cuadro (rawFeatures):
-//   ix, iy   : iris dentro del ojo (headpose.irisInEye), ~[-1, 1]
-//   yaw, pch : pose de la cabeza en grados / 20
-//   nx, ny   : posición de la nariz en la imagen (landmark 1): dónde está la cabeza (traslación)
-//   gh, gv   : blendshapes de mirada combinados (horizontal / vertical), ~[-1, 1]
-// Modelo: features estandarizadas (z-score) + términos cuadráticos del iris, ridge por eje con objetivo
-// centrado (el intercepto no se penaliza). λ escala con la cantidad de muestras.
-//
-// v2 (10/10/2026, tras la primera prueba real: "muy inestable si muevo apenas la cabeza"):
-//  - Se quitaron los cruces iris×cabeza: multiplican el ruido de la pose por el del iris.
-//  - Regularización proporcional a n (antes λ=1 fijo, casi nula con ~900 filas).
-//  - tracking.js aplica mediana de 5 cuadros a las features y main.js un 1 Euro más suave en este modo.
-//  - El resto se ajusta con datos reales del diagnóstico (?diag=1), no a ciegas.
+// Features crudas por cuadro (rawFeatures, 8 valores, se guardan completas para diagnóstico):
+//   0 ix, 1 iy : iris dentro del ojo (headpose.irisInEye)
+//   2 yaw, 3 pitch : pose de la cabeza en grados / 20      (solo para vigilar la pose)
+//   4 nx, 5 ny : posición de la nariz en la imagen          (solo para vigilar la pose)
+//   6 gh, 7 gv : blendshapes de mirada combinados (horizontal / vertical)
+// Modelo: [ix, iy, gh, gv] estandarizadas + cuadráticos del iris, ridge con objetivo centrado.
 
 import { ridgeTrain, dot } from './regression.js';
 
 export const RAW_NAMES = ['ix', 'iy', 'yaw', 'pitch', 'nx', 'ny', 'gh', 'gv'];
-export const MODEL_KIND = 'hybrid-v2'; // v1 (8 features) queda invalidado: hay que recalibrar
-export const BLINK_OPEN_RATIO = 0.12; // alto/ancho del ojo por debajo del cual se considera parpadeo
-const Z_CLIP = 5;                      // una feature fuera de ±5σ de la calibración no puede dominar la predicción
+export const MODEL_KIND = 'gaze-v3';   // perfiles anteriores (hybrid-v1/v2) quedan invalidados: recalibrar
+export const BLINK_OPEN_RATIO = 0.12;  // alto/ancho del ojo por debajo del cual se considera parpadeo
+const FEATURE_IDX = [0, 1, 6, 7];      // ix, iy, gh, gv
+const FLOOR = [0.02, 0.02, 0.02, 0.02];
+const Z_CLIP = 5;                      // una feature fuera de ±5σ de la calibración no puede dominar
 const IMPLICIT_MAX_SHARE = 0.3;        // lo implícito nunca supera el 30% de las filas de entrenamiento
 
-/** faceData (de tracking.js) → vector crudo, o null si falta algo imprescindible. */
+/** faceData (de tracking.js) → vector crudo de 8 valores, o null si falta algo o hay parpadeo. */
 export function rawFeatures(faceData) {
     if (!faceData || !faceData.iris || !faceData.pose || !faceData.landmarks) return null;
     const { iris, pose, landmarks } = faceData;
@@ -42,19 +44,34 @@ export function rawFeatures(faceData) {
     return v.every(Number.isFinite) ? v : null;
 }
 
-/** Expansión sobre features estandarizadas z = (raw - mean) / std */
+const select = (raw) => FEATURE_IDX.map(i => raw[i]);
+
+/** Expansión sobre features estandarizadas z = [ix, iy, gh, gv] */
 export function expand(z) {
     const [ix, iy] = z;
     return [...z, ix * ix, iy * iy, ix * iy];
 }
 
-function standardize(raw, mean, std) {
-    return raw.map((v, i) => Math.max(-Z_CLIP, Math.min(Z_CLIP, (v - mean[i]) / std[i])));
+function standardize(x, mean, std) {
+    return x.map((v, i) => Math.max(-Z_CLIP, Math.min(Z_CLIP, (v - mean[i]) / std[i])));
 }
 
 export function predict(model, raw) {
-    const f = expand(standardize(raw, model.mean, model.std));
+    const f = expand(standardize(select(raw), model.mean, model.std));
     return [model.cx + dot(model.wx, f), model.cy + dot(model.wy, f)];
+}
+
+/**
+ * Cuánto se alejó la cabeza de la pose de la calibración: { deg, shift }
+ * deg = mayor desvío de yaw/pitch en grados; shift = desplazamiento de la nariz en la imagen (fracción).
+ */
+export function headDeviation(model, raw) {
+    if (!model?.poseRef || !raw) return { deg: 0, shift: 0 };
+    const p = model.poseRef;
+    return {
+        deg: Math.max(Math.abs(raw[2] * 20 - p.yaw), Math.abs(raw[3] * 20 - p.pitch)),
+        shift: Math.hypot(raw[4] - p.nx, raw[5] - p.ny)
+    };
 }
 
 /**
@@ -65,29 +82,32 @@ export function predict(model, raw) {
  * @returns {{model, pointErrors:number[], meanError:number}}
  */
 export function train(pointSamples, lambdaRel = 0.005, extra = []) {
-    const rows = [];
-    for (const p of pointSamples) for (const s of p.samples) rows.push({ raw: s.raw, t: p.target });
+    const calRows = [];
+    for (const p of pointSamples) for (const s of p.samples) calRows.push({ raw: s.raw, t: p.target });
+    if (calRows.length < 30) throw new Error('Muestras insuficientes para el modelo del modo Iris');
     // Lo implícito suma, pero sin desplazar a la calibración: como máximo 30% del total (las más recientes)
-    const maxExtra = Math.floor(rows.length * IMPLICIT_MAX_SHARE / (1 - IMPLICIT_MAX_SHARE));
-    for (const e of extra.slice(-maxExtra)) rows.push({ raw: e.raw, t: e.target });
-    const F = RAW_NAMES.length;
-    if (rows.length < 30) throw new Error('Muestras insuficientes para el modelo híbrido');
+    const maxExtra = Math.floor(calRows.length * IMPLICIT_MAX_SHARE / (1 - IMPLICIT_MAX_SHARE));
+    const rows = [...calRows, ...extra.slice(-maxExtra).map(e => ({ raw: e.raw, t: e.target }))];
 
+    const F = FEATURE_IDX.length;
+    const xs = rows.map(r => select(r.raw));
     const mean = new Array(F).fill(0), std = new Array(F).fill(0);
-    for (const r of rows) r.raw.forEach((v, i) => { mean[i] += v; });
-    mean.forEach((_, i) => { mean[i] /= rows.length; });
-    for (const r of rows) r.raw.forEach((v, i) => { std[i] += (v - mean[i]) ** 2; });
-    // Piso de desvío: una feature casi constante en la calibración (p. ej. pitch muy quieto) no explota al predecir
-    const FLOOR = [0.02, 0.02, 0.05, 0.05, 0.005, 0.005, 0.02, 0.02];
-    std.forEach((_, i) => { std[i] = Math.max(Math.sqrt(std[i] / rows.length), FLOOR[i] ?? 1e-3); });
+    for (const x of xs) x.forEach((v, i) => { mean[i] += v; });
+    mean.forEach((_, i) => { mean[i] /= xs.length; });
+    for (const x of xs) x.forEach((v, i) => { std[i] += (v - mean[i]) ** 2; });
+    std.forEach((_, i) => { std[i] = Math.max(Math.sqrt(std[i] / xs.length), FLOOR[i]); });
 
-    const X = rows.map(r => expand(standardize(r.raw, mean, std)));
+    const X = xs.map(x => expand(standardize(x, mean, std)));
     const cx = rows.reduce((a, r) => a + r.t[0], 0) / rows.length;
     const cy = rows.reduce((a, r) => a + r.t[1], 0) / rows.length;
     const lambda = lambdaRel * rows.length;
     const wx = ridgeTrain(X, rows.map(r => r.t[0] - cx), lambda);
     const wy = ridgeTrain(X, rows.map(r => r.t[1] - cy), lambda);
-    const model = { kind: MODEL_KIND, mean, std, wx, wy, cx, cy };
+
+    // Pose de referencia: SOLO de la calibración (lo implícito no la corre)
+    const avg = (i) => calRows.reduce((a, r) => a + r.raw[i], 0) / calRows.length;
+    const poseRef = { yaw: avg(2) * 20, pitch: avg(3) * 20, nx: avg(4), ny: avg(5) };
+    const model = { kind: MODEL_KIND, mean, std, wx, wy, cx, cy, poseRef };
 
     const pointErrors = pointSamples.map(p => {
         if (!p.samples.length) return Infinity;

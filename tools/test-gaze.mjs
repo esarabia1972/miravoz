@@ -1,7 +1,7 @@
 // Tests del modelo híbrido del modo Iris (web/js/gaze-model.js) con un simulador geométrico.
 // No reemplaza la prueba con webcam: verifica que la LÓGICA separa cabeza de ojos.
 // Correr: node tools/test-gaze.mjs
-import { rawFeatures, train, predict, addImplicit, expand, acceptRetrain, isConfidentSelection } from '../web/js/gaze-model.js';
+import { rawFeatures, train, predict, addImplicit, expand, acceptRetrain, isConfidentSelection, headDeviation } from '../web/js/gaze-model.js';
 import { trainModel, phi, dot } from '../web/js/regression.js';
 
 let pass = 0, fail = 0;
@@ -43,12 +43,9 @@ const pts5 = [[0.5 * W, 0.5 * H], [0.5 * W, 0.15 * H], [0.15 * W, 0.5 * H], [0.8
 const stillHead = () => ({ hx: gauss() * 0.5, hy: gauss() * 0.5, yaw: gauss() * 1.5, pitch: gauss() * 1.5 });
 const movingHead = () => ({ hx: gauss() * 3, hy: gauss() * 2, yaw: gauss() * 10, pitch: gauss() * 7 });
 
-// Calibración como la de la app: 9 puntos quietos + 5 puntos moviendo la cabeza
+// Calibración como la de la app (v3): 9 puntos con la cabeza quieta
 function calibration() {
-    const pts = [];
-    for (const p of pts9) pts.push({ target: p, samples: Array.from({ length: 30 }, () => ({ raw: observe(p[0], p[1], stillHead()) })) });
-    for (const p of pts5) pts.push({ target: p, samples: Array.from({ length: 50 }, () => ({ raw: observe(p[0], p[1], movingHead()) })) });
-    return pts;
+    return pts9.map(p => ({ target: p, samples: Array.from({ length: 30 }, () => ({ raw: observe(p[0], p[1], stillHead()) })) }));
 }
 
 // Prueba: 300 miradas a puntos al azar con movimiento de cabeza "de chico" (moderado)
@@ -58,7 +55,7 @@ function testSet(n = 300) {
     return Array.from({ length: n }, () => {
         const c = Math.floor(rnd() * 9);
         const tx = ((c % 3) + 0.5) * W / 3 + gauss() * 25, ty = (Math.floor(c / 3) + 0.5) * H / 3 + gauss() * 25;
-        const head = movingHead();
+        const head = stillHead(); // v3: el modo Iris es para usuarios que no mueven la cabeza
         return { tx, ty, cell: c, frames: Array.from({ length: 10 }, () => observe(tx, ty, head)) };
     });
 }
@@ -77,29 +74,27 @@ t('rawFeatures devuelve 8 valores y null si falta la pose', () => {
     assert(rawFeatures({ landmarks: [{}, { x: 0.5, y: 0.5 }], iris: { x: 0, y: 0 }, pose: null }) === null, 'sin pose debería ser null');
 });
 
-t('expand agrega 3 términos cuadráticos del iris (8 → 11)', () => assert(expand(new Array(8).fill(1)).length === 11, 'largo'));
+t('expand: [ix, iy, gh, gv] + 3 cuadráticos del iris (4 → 7)', () => assert(expand(new Array(4).fill(1)).length === 7, 'largo'));
 
 const hyb = s => avgPred(r => predict(model, r), s.frames);
 const hybErr = test.map(s => { const [x, y] = hyb(s); return Math.hypot(x - s.tx, y - s.ty); });
 const hybAcc = test.filter(s => { const [x, y] = hyb(s); return cell3(x, y) === s.cell; }).length / test.length;
+console.log(`    (simulador, cabeza quieta) error mediano ${median(hybErr).toFixed(0)} px · acierto 3×3 ${(hybAcc * 100).toFixed(0)}% · error de calibración ${meanError.toFixed(0)} px`);
 
-// Modelo anterior: solo iris con polinomio de 2º grado (como el modo Iris retirado)
-const old = trainModel(cal.map(p => ({ target: p.target, samples: p.samples.map(s => ({ fx: s.raw[0], fy: s.raw[1] })) })), 0.01);
-const oldP = s => avgPred(r => { const f = phi(r[0], r[1]); return [dot(old.weightsX, f), dot(old.weightsY, f)]; }, s.frames);
-const oldErr = test.map(s => { const [x, y] = oldP(s); return Math.hypot(x - s.tx, y - s.ty); });
-const oldAcc = test.filter(s => { const [x, y] = oldP(s); return cell3(x, y) === s.cell; }).length / test.length;
+t('con la cabeza quieta, el modelo v3 acierta ≥90% en 3×3 (simulador)', () => assert(hybAcc >= 0.9, `${(hybAcc * 100).toFixed(1)}%`));
 
-console.log(`    (simulador) error mediano: híbrido ${median(hybErr).toFixed(0)} px vs solo-iris ${median(oldErr).toFixed(0)} px · acierto 3×3: híbrido ${(hybAcc * 100).toFixed(0)}% vs solo-iris ${(oldAcc * 100).toFixed(0)}% · error de calibración ${meanError.toFixed(0)} px`);
-
-t('con movimiento de cabeza, el híbrido es mucho mejor que solo-iris (≥2× menos error)', () => {
-    assert(median(hybErr) * 2 <= median(oldErr), `híbrido ${median(hybErr).toFixed(0)} vs solo-iris ${median(oldErr).toFixed(0)}`);
+t('vigilancia de pose: detecta giros > 4° y desplazamientos, y no molesta con la cabeza quieta', () => {
+    const still = Array.from({ length: 50 }, () => headDeviation(model, observe(W / 2, H / 2, stillHead())).deg);
+    const turned = headDeviation(model, observe(W / 2, H / 2, { hx: 0, hy: 0, yaw: 8, pitch: 0 }, 0));
+    const moved = headDeviation(model, observe(W / 2, H / 2, { hx: 4, hy: 0, yaw: 0, pitch: 0 }, 0));
+    assert(still.filter(dg => dg > 4).length <= 2, `falsas alarmas con la cabeza quieta: ${still.filter(dg => dg > 4).length}/50`);
+    assert(turned.deg > 4, `giro de 8° no detectado (${turned.deg.toFixed(1)}°)`);
+    assert(moved.shift > 0.04 || moved.deg > 4, `desplazamiento de 4 cm no detectado (${moved.shift.toFixed(3)})`);
 });
-
-t('en el simulador, el híbrido acierta ≥90% en 3×3', () => assert(hybAcc >= 0.9, `${(hybAcc * 100).toFixed(1)}%`));
 
 t('estabilidad: con la mirada fija, el ruido de la pose no hace saltar el cursor (desvío < 60 px)', () => {
     // Misma mirada y misma cabeza; solo cambia el ruido de los detectores entre cuadros
-    const head = { hx: 0, hy: 0, yaw: 6, pitch: 3 };
+    const head = { hx: 0, hy: 0, yaw: 1, pitch: 1 };
     const preds = Array.from({ length: 200 }, () => predict(model, observe(W / 2, H / 2, head)));
     const mx = preds.reduce((a, p) => a + p[0], 0) / preds.length, my = preds.reduce((a, p) => a + p[1], 0) / preds.length;
     const sd = Math.sqrt(preds.reduce((a, p) => a + (p[0] - mx) ** 2 + (p[1] - my) ** 2, 0) / preds.length);
@@ -116,11 +111,11 @@ t('aprendizaje implícito: buffer FIFO acotado', () => {
 t('las muestras implícitas corrigen un sesgo que la calibración no vio (p. ej. cambió la luz o los anteojos)', () => {
     // Nueva sesión: el detector ubica el iris corrido (+0.15) respecto de la calibración
     const BIAS = 0.15;
-    const test2 = Array.from({ length: 200 }, () => { const tx = (0.1 + 0.8 * rnd()) * W, ty = (0.1 + 0.8 * rnd()) * H; return { tx, ty, raw: observe(tx, ty, movingHead(), 1, BIAS) }; });
+    const test2 = Array.from({ length: 200 }, () => { const tx = (0.1 + 0.8 * rnd()) * W, ty = (0.1 + 0.8 * rnd()) * H; return { tx, ty, raw: observe(tx, ty, stillHead(), 1, BIAS) }; });
     const errOf = m => median(test2.map(s => { const [x, y] = predict(m, s.raw); return Math.hypot(x - s.tx, y - s.ty); }));
     const before = errOf(model);
     const implicit = [];
-    for (let i = 0; i < 40; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = movingHead(); for (let k = 0; k < 6; k++) implicit.push({ target: [tx, ty], raw: observe(tx, ty, h, 1, BIAS) }); }
+    for (let i = 0; i < 40; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = stillHead(); for (let k = 0; k < 6; k++) implicit.push({ target: [tx, ty], raw: observe(tx, ty, h, 1, BIAS) }); }
     const after = errOf(train(cal, 0.005, implicit).model);
     console.log(`    (simulador) con el sesgo nuevo: ${before.toFixed(0)} px → tras 40 selecciones confirmadas ${after.toFixed(0)} px · ¿la salvaguarda lo acepta? ${acceptRetrain(model, train(cal, 0.005, implicit).model, cal) ? 'sí' : 'no (conservador: pide recalibrar)'}`);
     assert(after <= before * 0.8, `no mejoró lo suficiente: ${before.toFixed(0)} → ${after.toFixed(0)}`);
@@ -128,7 +123,7 @@ t('las muestras implícitas corrigen un sesgo que la calibración no vio (p. ej.
 
 t('salvaguarda: si lo implícito aprendió de errores (etiquetas de la celda vecina), el modelo nuevo se rechaza', () => {
     const wrong = [];
-    for (let i = 0; i < 60; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = movingHead();
+    for (let i = 0; i < 60; i++) { const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H; const h = stillHead();
         for (let k = 0; k < 6; k++) wrong.push({ target: [tx + W / 3, ty], raw: observe(tx, ty, h) }); } // etiqueta corrida una celda
     const bad = train(cal, 0.005, wrong).model;
     assert(!acceptRetrain(model, bad, cal), 'debería rechazar el modelo sesgado');
@@ -137,7 +132,7 @@ t('salvaguarda: si lo implícito aprendió de errores (etiquetas de la celda vec
 
 t('lo implícito nunca supera el 30% de las filas (no desplaza a la calibración)', () => {
     const many = [];
-    for (let i = 0; i < 5000; i++) many.push({ target: [W / 2 + W / 3, H / 2], raw: observe(W / 2, H / 2, movingHead()) });
+    for (let i = 0; i < 5000; i++) many.push({ target: [W / 2 + W / 3, H / 2], raw: observe(W / 2, H / 2, stillHead()) });
     const m = train(cal, 0.005, many).model;
     const [x] = predict(m, observe(W / 2, H / 2, stillHead(), 0));
     assert(Math.abs(x - W / 2) < W / 3, `el centro se corrió a ${x.toFixed(0)} px (demasiado peso implícito)`);

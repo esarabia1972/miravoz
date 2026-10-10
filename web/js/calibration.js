@@ -74,9 +74,7 @@ async function saveProfile(mode, profile) {
 
 // --- Puntos de calibración (grilla 3x3 sobre el viewport) ---
 export let calibPoints = [];
-// Modo Iris híbrido: 5 puntos extra en los que se pide mover suavemente la cabeza mientras se mira
-// el punto. Así el modelo aprende a separar el movimiento de la cabeza del de los ojos.
-export let headMovePoints = [];
+
 
 export function updateCalibPoints() {
     const w = window.innerWidth;
@@ -89,13 +87,13 @@ export function updateCalibPoints() {
         [mx, cy], [cx, cy], [w - mx, cy],
         [mx, h - my], [cx, h - my], [w - mx, h - my]
     ];
-    headMovePoints = [[cx, cy], [cx, my], [mx, cy], [w - mx, cy], [cx, h - my]];
 }
 
 function pointsFor(mode) {
-    const still = calibPoints.map(p => ({ target: [...p], headMove: false }));
-    if (mode !== 'OJOS') return still;
-    return [...still, ...headMovePoints.map(p => ({ target: [...p], headMove: true }))];
+    // Modo Iris v3 ("cabeza quieta"): los mismos 9 puntos, sin los de mover la cabeza. El diagnóstico real
+    // mostró que la gente no mueve la cabeza lo suficiente al pedírselo y que compensar cabeza con webcam no
+    // alcanza; el modo vigila la pose en lugar de compensarla (gaze-model.js v3).
+    return calibPoints.map(p => ({ target: [...p], headMove: false }));
 }
 updateCalibPoints();
 window.addEventListener('resize', updateCalibPoints);
