@@ -893,7 +893,10 @@ button:focus-visible, .btn:focus-visible, .btn-icon:focus-visible, [role="button
 /* F4-4 — Tablet vinculada (modo dispositivo) */
 .link-code-input { font-family: monospace; font-size: 1.8rem; letter-spacing: 0.15em; text-align: center; text-transform: uppercase; }
 .link-error { color: #ff8a80; min-height: 1.2em; margin: 8px 0 0; font-size: 0.95rem; }
-.device-mode #top-bar, .device-mode #bottom-bar { display: none !important; }
+/* Tablet vinculada (vista de adulto): igual a la de profesionales, sin crear/importar/usuarios ni cuenta */
+.device-mode #btn-new-board, .device-mode #btn-open-import, .device-mode #btn-nav-users,
+.device-mode #btn-account, .device-mode .bottom-group .divider { display: none !important; }
+.device-mode #btn-unlink-device { display: inline-flex !important; align-items: center; }
 .device-mode #btn-edit-board { display: none; }
 .device-mode.copy-editable #btn-edit-board { display: flex; }
 .device-title { width: 100%; color: #fff; margin: 0 0 10px; font-size: 1.6rem; }
@@ -902,7 +905,6 @@ button:focus-visible, .btn:focus-visible, .btn-icon:focus-visible, [role="button
 .device-card h3 { font-size: 1.8rem; margin: 0; color: #fff; text-align: center; }
 /* Esquina para adultos: mantener apretado 3 s (invisible; fuera del alcance del barrido) */
 #device-corner { position: fixed; top: 0; right: 0; width: 32px; height: 32px; z-index: 30001; display: none; touch-action: none; -webkit-user-select: none; user-select: none; }
-.device-mode #device-corner { display: block; }
 
 /* F4-3 — Asignar copias (checkboxes) y fichas de "Mis usuarios" */
 .assign-content { max-width: 460px; }

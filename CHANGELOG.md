@@ -187,4 +187,11 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - La tablet la aplica al abrirse o conectarse, solo cuando la profesional la cambió, así no pisa un ajuste hecho en la tablet.
 - **Added**: menú para adultos en la tablet (mantener apretada 3 s la esquina superior derecha) con modo de acceso, recalibrar, tiempos y barrido, pantalla completa y desvincular. Antes solo permitía desvincular, así que no había forma de cambiar el modo.
 - **Added**: pantalla completa al primer toque donde el navegador lo permite, y app instalable con `manifest.webmanifest` (display fullscreen), meta tags de iOS e íconos nuevos. En iPad: Compartir → "Agregar a inicio".
+- **Changed (pedido de Esteban)**: la vista de inicio de la tablet vinculada ahora es como la de las profesionales.
+  - Arriba: logo, buscador, modo de acceso y recalibrar.
+  - Abajo: nombre del usuario, configuración (tiempos y barrido), "Desvincular tablet" y "Tablero de prueba".
+  - Sin "Nuevo tablero", "Importar", "Mis usuarios" ni "Cerrar sesión".
+  - Al abrir, va directo a la casita si hay una; el botón Inicio vuelve a esta vista.
+  - Se quitó el menú oculto de la esquina.
+  - En modo barrido, tocar la barra superior ya no activa el pulsador.
 

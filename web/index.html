@@ -17,7 +17,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=29">
+    <link rel="stylesheet" href="style.css?v=30">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -231,6 +231,7 @@
                 </button>
                 <span style="color: var(--text-muted);">|</span>
                 <button type="button" id="btn-account" class="btn-logout btn-account">Cerrar sesión</button>
+                <button type="button" id="btn-unlink-device" class="btn-logout btn-account" style="display: none;">Desvincular tablet</button>
             </div>
         </div>
         
@@ -384,6 +385,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=34"></script>
+    <script type="module" src="js/main.js?v=35"></script>
 </body>
 </html>

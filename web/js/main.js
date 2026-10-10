@@ -178,7 +178,7 @@ let lastSwitchActivation = 0;
 function onSwitchActivate(e) {
     if (S.trackingMode !== 'SCAN') return;
     if (S.state !== 'HOME' && S.state !== 'BOARD') return; // p. ej. con el login abierto
-    if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view, #device-corner')) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view, #top-bar')) return;
     const now = performance.now();
     if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
     lastSwitchActivation = now;
@@ -354,7 +354,7 @@ function applyMode(mode) {
 function goHome() {
     if (editor.isEditMode()) editor.exitEditMode();
     document.getElementById('copy-banner')?.remove();
-    if (deviceMod.isDeviceMode()) { openDeviceHome(); return; } // tablet: la casita es su tablero de inicio
+    if (deviceMod.isDeviceMode()) { openDeviceHome(); return; } // tablet: vista de inicio del adulto
     S.state = 'HOME';
     S.currentBundle = null;
     boards.loadSavedBoards(); // refresca las cards (nombres/contadores editados)
@@ -726,88 +726,24 @@ function requestFullscreenSafe() {
     if (fn) { try { const p = fn.call(el); if (p && p.catch) p.catch(() => {}); } catch { /* no soportado */ } }
 }
 
-// --- Menú para adultos en la tablet (mantener apretada la esquina superior derecha 3 s) ---
-function openAdultMenu() {
-    document.getElementById('adult-menu')?.remove();
-    const overlay = document.createElement('div');
-    overlay.id = 'adult-menu';
-    overlay.className = 'modal-overlay';
-    overlay.style.cssText = 'display:flex; z-index: 30010;';
-    const box = document.createElement('div');
-    box.className = 'modal-content glass-box adult-menu';
-    box.setAttribute('role', 'dialog');
-    box.setAttribute('aria-modal', 'true');
-    box.setAttribute('aria-labelledby', 'adult-menu-title');
-    const h = document.createElement('h3');
-    h.id = 'adult-menu-title';
-    h.textContent = `Opciones de la tablet de ${deviceMod.device?.displayName || 'este usuario'}`;
-    box.appendChild(h);
 
-    const label = document.createElement('label');
-    label.textContent = 'Modo de acceso';
-    label.htmlFor = 'adult-mode';
-    const sel = document.createElement('select');
-    sel.id = 'adult-mode';
-    sel.className = 'glass-select';
-    const modes = [['CLICKS', 'Manual (tocar)'], ['CARA', 'Rostro'], ['SCAN', 'Barrido (pulsador)']];
-    if (document.getElementById('opt-ojos')) modes.push(['OJOS', 'Iris (experimental)']);
-    for (const [v, t] of modes) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
-    sel.value = S.trackingMode;
-    sel.onchange = () => {
-        modeSelect.value = sel.value;
-        saveSettings({ accessMode: sel.value });
-        close();
-        applyMode(sel.value);
-    };
-    box.append(label, sel);
-
-    const mkBtn = (text, cls, fn) => {
-        const b = document.createElement('button');
-        b.className = `btn ${cls}`;
-        b.textContent = text;
-        b.onclick = fn;
-        box.appendChild(b);
-        return b;
-    };
-    if (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') {
-        mkBtn('Recalibrar', 'btn-secondary', () => { close(); btnRecalibrar.click(); });
+// Vista de inicio de la tablet (para el adulto): como la de profesionales —logo, buscador, modo de acceso,
+// recalibrar; abajo el nombre del usuario, configuración, desvincular y tablero de prueba— pero sin crear,
+// importar ni gestionar usuarios. Al abrir la app va directo a la casita (si hay); el botón Inicio vuelve acá.
+async function openDeviceHome({ casita = false } = {}) {
+    if (casita) {
+        const home = await deviceMod.getHomeCopy();
+        if (home) { boards.openBundle(home); return; }
     }
-    mkBtn('Tiempos y barrido…', 'btn-secondary', () => {
-        close();
-        syncSettingsControls();
-        document.getElementById('settings-modal').style.display = 'flex';
-    });
-    mkBtn('Pantalla completa', 'btn-secondary', () => { requestFullscreenSafe(); close(); });
-    mkBtn('Desvincular tablet', 'btn-danger', async () => {
-        close();
-        if (await deviceMod.confirmAndUnlink()) window.location.reload();
-    });
-    mkBtn('Cerrar', 'btn-primary', () => close());
-
-    function close() { overlay.remove(); }
-    overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) close(); });
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    sel.focus();
-}
-
-async function openDeviceHome() {
-    const home = await deviceMod.getHomeCopy();
-    if (home) { boards.openBundle(home); return; }
-
-    // Sin casita definida: índice de sus tableros, con tarjetas grandes (operable por dwell/barrido)
     S.state = 'HOME';
     S.currentBundle = null;
     boardView.style.display = 'none';
     homeView.style.display = 'flex';
-    topBar.style.display = 'none';
-    bottomBar.style.display = 'none';
+    topBar.style.display = 'flex';
+    bottomBar.style.display = 'flex';
+    updateDeviceAccountUI();
     const list = document.getElementById('board-list');
     list.innerHTML = '';
-    const title = document.createElement('h2');
-    title.className = 'device-title';
-    title.textContent = `Tableros de ${deviceMod.device?.displayName || ''}`.trim();
-    list.appendChild(title);
 
     const copies = await deviceMod.listCopies();
     const targets = [];
@@ -820,6 +756,7 @@ async function openDeviceHome() {
     for (const copy of copies) {
         const card = document.createElement('div');
         card.className = 'board-card glass-box device-card';
+        card.setAttribute('data-name', (copy.name || '').toLowerCase()); // para el buscador
         card.setAttribute('role', 'button');
         card.setAttribute('tabindex', '0');
         const h3 = document.createElement('h3');
@@ -837,14 +774,25 @@ async function openDeviceHome() {
     scan.setTargets(targets);
 }
 
+function updateDeviceAccountUI() {
+    const name = deviceMod.device?.displayName || '';
+    const nameEl = document.querySelector('.user-name');
+    const avatarEl = document.querySelector('.user-avatar');
+    if (nameEl) nameEl.textContent = name;
+    if (avatarEl) { avatarEl.style.display = name ? 'flex' : 'none'; avatarEl.textContent = name.substring(0, 2).toUpperCase(); }
+}
+
+document.getElementById('btn-unlink-device')?.addEventListener('click', async () => {
+    if (await deviceMod.confirmAndUnlink()) window.location.reload();
+});
+
 async function enterDeviceMode() {
     document.body.classList.add('device-mode');
     document.getElementById('auth-view').style.display = 'none';
     S.state = 'HOME';
-    deviceMod.wireAdultMenu({ onOpen: openAdultMenu });
     // Pantalla completa al primer toque (los navegadores solo la permiten tras un gesto del usuario)
     window.addEventListener('pointerdown', requestFullscreenSafe, { once: true });
-    await openDeviceHome();
+    await openDeviceHome({ casita: true });
     await applyDeviceSettings(deviceMod.device?.settings); // después de abrir: calibra una sola vez si hace falta
 
     // Refrescar desde la nube en segundo plano (la tablet ya es usable con lo local)

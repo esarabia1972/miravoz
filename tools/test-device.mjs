@@ -286,8 +286,10 @@ if (caseArg === 'arranque-sin-casita') {
     const cards = [...document.querySelectorAll('#board-list .device-card')];
     check('lista con 2 .device-card', cards.length === 2, `cards=${cards.length}`);
     check('títulos de las cards', cards.map(c => c.querySelector('h3').textContent).join(',') === 'Casita,Comida', cards.map(c => c.textContent).join(','));
-    check('título con el nombre del usuario', document.querySelector('#board-list .device-title')?.textContent === 'Tableros de Mateo', document.querySelector('#board-list .device-title')?.textContent);
-    check('body.device-mode y barras ocultas', document.body.classList.contains('device-mode') && !visible($('bottom-bar')) && !visible($('top-bar')), `${document.body.className} bottom=${$('bottom-bar').style.display}`);
+    // Vista de inicio del adulto (10/10/2026): como la de profesionales, con el nombre del usuario abajo
+    check('nombre del usuario en la barra inferior', document.querySelector('.user-name')?.textContent === 'Mateo', document.querySelector('.user-name')?.textContent);
+    check('body.device-mode con barras visibles (modo, recalibrar, configuración)', document.body.classList.contains('device-mode') && visible($('bottom-bar')) && visible($('top-bar')), `${document.body.className} bottom=${$('bottom-bar').style.display}`);
+    check('existe el botón "Desvincular tablet" (crear/importar/usuarios se ocultan por CSS en .device-mode)', !!$('btn-unlink-device'), 'falta #btn-unlink-device');
     check('ninguna llamada a "boards" de supabase', !sbCalls.some(c => c.table === 'boards'), JSON.stringify(sbCalls.map(c => c.table)));
     check("pullCopies usó rpc('device_fetch', {p_token})", rpcCalls.some(c => c.fn === 'device_fetch' && c.args?.p_token === TOKEN), JSON.stringify(rpcCalls));
     check('sin consultas directas a aac_users/assignments', !sbCalls.some(c => ['aac_users', 'assignments'].includes(c.table)), JSON.stringify([...new Set(sbCalls.map(c => c.table))]));

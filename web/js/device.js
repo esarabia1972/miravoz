@@ -375,27 +375,3 @@ export async function confirmAndUnlink() {
     await unlink();
     return true;
 }
-
-// --- Menú para adultos: mantener apretada la esquina superior derecha 3 segundos ---
-export function wireAdultMenu({ onOpen }) {
-    let corner = document.getElementById('device-corner');
-    if (!corner) {
-        corner = document.createElement('div');
-        corner.id = 'device-corner';
-        corner.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(corner);
-    }
-    let timer = null;
-    const start = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        clearTimeout(timer);
-        timer = setTimeout(() => onOpen(), 3000);
-    };
-    const cancel = () => clearTimeout(timer);
-    corner.addEventListener('pointerdown', start);
-    corner.addEventListener('pointerup', cancel);
-    corner.addEventListener('pointerleave', cancel);
-    corner.addEventListener('pointercancel', cancel);
-    corner.addEventListener('contextmenu', (e) => e.preventDefault());
-}
