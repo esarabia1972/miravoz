@@ -285,6 +285,46 @@ function renderCardTags(container, bundle) {
     container.setAttribute('aria-label', tags.length ? `Etiquetas: ${tags.join(', ')}` : '');
 }
 
+/** Miniatura del tablero principal: grilla chica con los colores y pictogramas de cada celda. */
+function buildBoardThumb(bundle) {
+    const grid = bundle.boards && bundle.boards[bundle.mainBoard];
+    const els = (grid && grid.gridElements || []).filter(e => !e.hidden);
+    if (!els.length) return null;
+    const rows = Math.max(1, grid.rowCount || 1);
+    const cols = Math.max(1, grid.minColumnCount || 1, ...els.map(e => (e.x || 0) + (e.width || 1)));
+    const box = document.createElement('div');
+    box.className = 'board-thumb';
+    box.setAttribute('aria-hidden', 'true');
+    box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    box.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    for (const el of els) {
+        if ((el.y || 0) >= rows || (el.x || 0) >= cols) continue;
+        const c = document.createElement('div');
+        c.className = 'board-thumb-cell';
+        c.style.gridColumn = `${(el.x || 0) + 1} / span ${el.width || 1}`;
+        c.style.gridRow = `${(el.y || 0) + 1} / span ${el.height || 1}`;
+        const color = getCellColor(el);
+        if (color) c.style.background = color;
+        let src = el.image ? (el.image.data || el.image.url) : null;
+        if (src && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('./')) {
+            src = 'data:' + (el.image.contentType || 'image/jpeg') + ';base64,' + src;
+        }
+        if (src) {
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.alt = '';
+            img.src = src;
+            c.appendChild(img);
+        } else {
+            const label = el.label ? (el.label.es || el.label.en || '') : '';
+            if (label) { const t = document.createElement('span'); t.textContent = label; c.appendChild(t); }
+        }
+        box.appendChild(c);
+    }
+    return box;
+}
+
 function buildBoardCard(bundle) {
     const card = document.createElement('div');
     card.className = 'board-card glass-box';
@@ -312,13 +352,13 @@ function buildBoardCard(bundle) {
     const tagsDiv = document.createElement('div');
     tagsDiv.className = 'board-card-tags';
     renderCardTags(tagsDiv, bundle);
-    const pType = document.createElement('p');
-    pType.className = 'board-card-meta';
-    pType.textContent = `Tipo: ${(bundle.type || '').toUpperCase()} | Opciones: ${optionsCount}`;
-    const pPrev = document.createElement('p');
-    pPrev.className = 'board-card-preview';
-    pPrev.textContent = previewText;
-    infoDiv.append(h3, tagsDiv, pType, pPrev);
+    // Vista previa: miniatura del tablero principal armada en el momento con los datos locales
+    // (no se guarda en la base). Si no hay celdas, se muestra el texto de siempre.
+    const thumb = buildBoardThumb(bundle);
+    const pMeta = document.createElement('p');
+    pMeta.className = 'board-card-meta';
+    pMeta.textContent = optionsCount ? `${optionsCount} celdas` : previewText;
+    infoDiv.append(h3, tagsDiv, ...(thumb ? [thumb] : []), pMeta);
 
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'board-card-actions';
@@ -356,6 +396,9 @@ function buildBoardCard(bundle) {
     });
 
     const deleteBtn = makeActionButton('remove', 'Eliminar tablero', async () => {
+        const assigned = assignCountByBoard.get(bundle.id) || 0;
+        const extra = assigned ? ` Las copias que ya tienen ${assigned === 1 ? 'tu usuario' : `tus ${assigned} usuarios`} no se borran.` : '';
+        if (!(await customConfirm(`¿Eliminar el tablero «${bundle.name}»?${extra}`))) return;
         await removeBundle(bundle);
         loadSavedBoards();
         showUndoToast(async () => {
@@ -861,6 +904,20 @@ const assignModal = document.getElementById('assign-modal');
 const assignUsersList = document.getElementById('assign-users-list');
 const assignSelectAll = document.getElementById('assign-select-all');
 const assignPermission = document.getElementById('assign-permission');
+// Permiso como dos botones (el <select> oculto sigue siendo la fuente de verdad)
+const PERM_HELP = {
+    read_only: 'La tablet del usuario puede usar el tablero pero no modificarlo.',
+    editable: 'En la tablet del usuario se puede editar su copia (por ejemplo, la familia).'
+};
+function syncPermissionButtons() {
+    const v = assignPermission ? assignPermission.value : 'read_only';
+    document.querySelectorAll('#assign-permission-seg button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.perm === v)));
+    const help = document.getElementById('assign-permission-help');
+    if (help) help.textContent = PERM_HELP[v] || '';
+}
+document.querySelectorAll('#assign-permission-seg button').forEach(b => {
+    b.addEventListener('click', () => { if (assignPermission) assignPermission.value = b.dataset.perm; syncPermissionButtons(); });
+});
 const assignBoardName = document.getElementById('assign-board-name');
 const btnCancelAssign = document.getElementById('btn-cancel-assign');
 const btnConfirmAssign = document.getElementById('btn-confirm-assign');
@@ -901,6 +958,7 @@ async function openAssignModal(bundle) {
     bundleToAssign = bundle;
     if (assignBoardName) assignBoardName.textContent = bundle.name ? `«${bundle.name}»` : '';
     if (assignPermission) assignPermission.value = 'read_only'; // default: Solo mirar
+    syncPermissionButtons();
     if (assignSelectAll) { assignSelectAll.checked = false; assignSelectAll.indeterminate = false; }
 
     assignUsersList.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="border-width:2px; width:20px; height:20px; border-top-color:var(--accent-text); margin:0 auto;"></div></div>';

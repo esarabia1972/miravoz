@@ -30,7 +30,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="style.css?v=34">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -136,13 +136,18 @@
             <div id="assign-users-list" role="group" aria-label="Usuarios" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
                 <!-- Opciones se inyectan acá -->
             </div>
-            <label class="assign-permission-row" for="assign-permission">
-                <span>Permiso para esta tanda:</span>
-                <select id="assign-permission" class="glass-select">
-                    <option value="read_only" selected>🔒 Solo mirar</option>
-                    <option value="editable">✏️ Puede editarse</option>
+            <div class="assign-permission-row">
+                <span id="assign-permission-label">Permiso:</span>
+                <div class="mode-segmented" id="assign-permission-seg" role="radiogroup" aria-labelledby="assign-permission-label">
+                    <button type="button" role="radio" data-perm="read_only" aria-checked="true">Solo mirar</button>
+                    <button type="button" role="radio" data-perm="editable" aria-checked="false">Puede editarse</button>
+                </div>
+                <select id="assign-permission" hidden aria-hidden="true" tabindex="-1">
+                    <option value="read_only" selected>Solo mirar</option>
+                    <option value="editable">Puede editarse</option>
                 </select>
-            </label>
+            </div>
+            <p class="assign-permission-help" id="assign-permission-help">La tablet del usuario puede usar el tablero pero no modificarlo.</p>
             <div class="modal-footer">
                 <button id="btn-cancel-assign" type="button" class="btn btn-secondary">Cancelar</button>
                 <button id="btn-confirm-assign" type="button" class="btn btn-primary" disabled>Elegí al menos un usuario</button>
@@ -446,6 +451,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=38"></script>
+    <script type="module" src="js/main.js?v=39"></script>
 </body>
 </html>

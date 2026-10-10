@@ -214,4 +214,10 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Confirmación antes de cerrar sesión.
   - **Etiquetas** por tablero, guardadas en el bundle y sincronizadas: editor con sugerencias, chips en la tarjeta y filtros en el home por etiquetas (acumulativos) y por usuario, combinables con el buscador.
   - Dwell y barrido usan solo las tarjetas visibles.
+- **Ajustes (10/10/2026)**:
+  - Eliminar un tablero pide confirmación; si tiene copias asignadas, avisa que esas copias no se borran.
+  - El permiso al dar copia pasa a dos botones, "Solo mirar" y "Puede editarse", con una explicación. Antes era un select con emojis.
+  - Todos los select usan la misma flecha y foco.
+  - La tarjeta muestra una **miniatura** del tablero principal, armada en el momento con los datos locales (no se guarda en la base), en lugar de "Tipo".
+  - Las acciones de la tarjeta quedan en una sola fila.
 
