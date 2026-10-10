@@ -312,7 +312,7 @@ function renderModeSegmented() {
     if (!box) return;
     box.innerHTML = '';
     const available = [...modeSelect.options].map(o => o.value);
-    for (const v of ['CLICKS', 'CARA', 'SCAN', 'OJOS'].filter(m => available.includes(m))) {
+    for (const v of ['CLICKS', 'SCAN', 'CARA', 'OJOS'].filter(m => available.includes(m))) {
         const b = document.createElement('button');
         b.type = 'button';
         b.setAttribute('role', 'radio');
@@ -329,6 +329,13 @@ function renderModeSegmented() {
 }
 function updateModeSegmented() {
     document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === S.trackingMode)));
+    // Recalibrar solo tiene sentido con cámara (Rostro; Iris experimental): en Manual y Barrido, grisado
+    const usesCamera = S.trackingMode === 'CARA' || S.trackingMode === 'OJOS';
+    if (btnRecalibrar) {
+        btnRecalibrar.disabled = !usesCamera;
+        btnRecalibrar.title = usesCamera ? 'Volver a calibrar la cámara' : 'Recalibrar solo se usa en modo Rostro';
+        btnRecalibrar.setAttribute('aria-disabled', String(!usesCamera));
+    }
 }
 
 function applyMode(mode) {

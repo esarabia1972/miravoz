@@ -15,8 +15,8 @@ const settingsDrafts = new Map();    // cambios sin guardar por usuario (no se p
 const SETTINGS_DEFAULTS = { accessMode: 'CLICKS', dwellMs: 1200, scan: { pattern: 'ROW_COLUMN', intervalMs: 1200, audio: 'none' } };
 const ACCESS_MODES = [
     { value: 'CLICKS', label: 'Manual (tocar o hacer clic)' },
-    { value: 'CARA', label: 'Rostro' },
-    { value: 'SCAN', label: 'Barrido' }
+    { value: 'SCAN', label: 'Barrido' },
+    { value: 'CARA', label: 'Rostro' }
 ];
 const ACCESS_MODE_NAMES = { CLICKS: 'Manual', CARA: 'Rostro', SCAN: 'Barrido' };
 const DWELL_OPTIONS = [800, 1200, 2000, 3000, 5000];

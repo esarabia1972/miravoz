@@ -1301,3 +1301,6 @@ body.test-board #btn-edit-board { display: none !important; }
 .board-card { justify-content: flex-start; }
 .board-card > * { flex-shrink: 0; }
 .board-card .board-card-info { flex: 1 0 auto; } /* acciones y pie quedan alineados abajo en toda la fila */
+
+/* Recalibrar grisado fuera de Rostro */
+#btn-recalibrar:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
