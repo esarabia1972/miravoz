@@ -245,3 +245,14 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Las tarjetas quedaban cortadas abajo: las filas de la grilla se achicaban a la altura mínima por `overflow:hidden`. Ahora la grilla usa `grid-auto-rows: max-content` y la tarjeta no achica sus partes.
   - La tablet tiene las mismas opciones (etiquetas con contadores, buscador, orden y agrupar), sin usuarios ni acciones. Hay un único render, `renderHome(bundles, {readOnly})`.
 
+
+### Tableros con varias páginas (10/10/2026, a partir de un respaldo de Asterics)
+Un respaldo de Asterics traía 5 tableros encadenados (preguntas "¿Cuál…?"). MiraVoz los importaba como un tablero con 5 páginas, pero solo se veía y se podía editar la primera.
+- **Added**: franja de **páginas** en el editor, con miniaturas. Tocar una página la abre para editarla. "+ Página" agrega una página vacía. En "Esta página" se renombra, se marca "Usar como inicio" o se borra; al borrar pide confirmación, avisa cuántas celdas navegaban a esa página y quedan sin ese vínculo, y se puede deshacer.
+- **Added**: al importar un archivo con varios tableros se pregunta si va como **un tablero con N páginas** (se mantienen los vínculos) o como **N tableros separados** (los vínculos se pierden).
+- **Added**: los pictogramas de ARASAAC que vienen **sin texto** toman la palabra desde la API de ARASAAC (`el.autoLabel`), con preferencia por la forma rioplatense (por ejemplo, "auto" en lugar de "coche"). Esa palabra se dice en voz alta y va a la frase. En la celda se ve solo si se activa "Mostrar texto de los pictogramas" en el editor. Se completa en segundo plano: la importación no espera a la red. Los tableros que ya estaban importados se completan al abrirlos, y si no hay red se reintenta la próxima vez.
+- **Changed**: tocar una celda que navega **dice su texto** antes de pasar de página. En tableros importados, siempre. En tableros editados, si la celda tiene acción de voz.
+- **Fixed**: al editar por primera vez un tablero importado, las celdas con texto y sin acción de voz se quedaban mudas (cambio de semántica de F3-3b). Ahora reciben la acción de voz al entrar a editar, antes de cualquier "deshacer", así se sigue diciendo lo mismo que antes de editar.
+- **Changed**: la tarjeta del home dice "N celdas · N páginas". Los respaldos de Asterics (`…_asterics-aac-custom-backup`) toman el nombre de su página de inicio y se les quita "(Copy)". El nombre del tablero ya no renombra la página actual cuando hay varias.
+- **Fixed**: se tolera el BOM al principio de los `.grd` de Asterics.
+- Tests: `tools/test-pages.mjs` (22) y el caso `paginas` en `test-boot.mjs` (21 verificaciones). El total de test-boot es 85. Revisión: deshacer ya no deja mudas las celdas, hay una carrera con la sincronización resuelta al releer antes de guardar, la importación ya no queda bloqueada por la red y las miniaturas usan una clave por tablero.

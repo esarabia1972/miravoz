@@ -1304,3 +1304,35 @@ body.test-board #btn-edit-board { display: none !important; }
 
 /* Recalibrar grisado fuera de Rostro */
 #btn-recalibrar:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+
+/* --- Páginas del tablero en el editor (10/10/2026) --- */
+#editor-pages {
+    flex: 0 0 auto; width: 100%; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 8px;
+    margin: -4px 0 12px; padding: 10px 16px;
+    background: var(--editor-bar-bg); border: 1px solid var(--editor-bar-border); border-radius: 12px;
+}
+#editor-pages .ep-list { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+#editor-pages .ep-page, #editor-pages .ep-add {
+    position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    width: 116px; padding: 6px; border-radius: 10px; cursor: pointer;
+    background: var(--surface-1); border: 1px solid var(--surface-1-border); color: var(--text-main);
+    font: 600 0.78rem 'Inter', sans-serif; text-align: left;
+}
+#editor-pages .ep-page:hover, #editor-pages .ep-add:hover { border-color: var(--surface-hover-border); }
+#editor-pages .ep-page.is-active { border: 2px solid var(--accent-text); padding: 5px; box-shadow: 0 0 0 3px var(--accent-soft); }
+#editor-pages .ep-page:focus-visible, #editor-pages .ep-add:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
+#editor-pages .ep-thumb { display: block; height: 64px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+#editor-pages .ep-thumb .board-thumb { height: 64px; margin: 0; padding: 2px; gap: 1px; border-radius: 6px; }
+#editor-pages .ep-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#editor-pages .ep-start {
+    position: absolute; top: 4px; left: 4px; padding: 1px 6px; border-radius: 999px;
+    background: var(--accent-text); color: var(--bg-color, #fff); font-size: 0.65rem; font-weight: 700;
+}
+#editor-pages .ep-add { justify-content: center; align-items: center; border-style: dashed; color: var(--text-muted); min-height: 88px; }
+#editor-pages .ep-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#editor-pages .ep-rename { width: 220px; border-radius: 8px; padding: 7px 10px; font: 600 0.9rem 'Inter', sans-serif; }
+#editor-pages .btn:disabled { opacity: 0.45; cursor: default; }
+#editor-pages .ep-autolabels { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-main); cursor: pointer; }
+#editor-pages .et-dark { background: var(--field-bg) !important; color: var(--text-main) !important; border: 1px solid var(--field-border) !important; }
+#dialog-message { white-space: pre-line; }

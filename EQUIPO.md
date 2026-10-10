@@ -68,4 +68,5 @@
 | `tools/test-device.mjs` | Tablet vinculada (F4-4) y profesional editando copias (F4-3): vincular con código (válido/inválido), arranque con y sin casita, desvinculación remota, guardado de copia editable vs solo lectura, edición de copia por la profesional con concurrencia optimista |
 | `tools/test-headpose.mjs` | Matemática del motor FaceLandmarker: pose de la cabeza desde la matriz (yaw/pitch/roll/traslación), blendshapes de mirada, iris normalizado por ojo |
 | `tools/test-gaze.mjs` | Modelo híbrido del modo Iris con simulador geométrico (test de humo, NO evidencia de precisión real): híbrido vs solo-iris con movimiento de cabeza, aprendizaje implícito, salvaguardas (rechazo de modelos sesgados, tope 30% implícito, parpadeo, selección confiable) |
+| `tools/test-pages.mjs` | Tableros de varias páginas: orden de páginas, agregar/borrar/inicio, separar al importar, nombre de respaldos de Asterics, textos de ARASAAC (con fallas de red), qué se dice al navegar, migración a voz por acciones |
 | `tools/test-calibration.mjs` | Calibración real (CARA 9 puntos y OJOS 9+5) con stubs mínimos: perfiles, abortos sin rostro, aprendizaje implícito y persistencia |

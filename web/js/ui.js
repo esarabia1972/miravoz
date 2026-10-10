@@ -16,6 +16,19 @@ function queued(fn) {
 export function customAlert(message) { return queued(() => showAlert(message)); }
 export function customConfirm(message) { return queued(() => showConfirm(message)); }
 
+/** Diálogo con dos opciones con nombre propio. Devuelve true (primera opción) o false (segunda). */
+export function customChoice(message, firstLabel, secondLabel) {
+    return queued(async () => {
+        const ok = document.getElementById('btn-dialog-ok');
+        const cancel = document.getElementById('btn-dialog-cancel');
+        const prev = [ok.textContent, cancel.textContent];
+        ok.textContent = firstLabel;
+        cancel.textContent = secondLabel;
+        try { return await showConfirm(message); }
+        finally { ok.textContent = prev[0]; cancel.textContent = prev[1]; }
+    });
+}
+
 function showAlert(message) {
     const dialog = document.getElementById('custom-dialog');
     const msg = document.getElementById('dialog-message');

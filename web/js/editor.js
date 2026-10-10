@@ -6,6 +6,7 @@ import { S } from './state.js';
 import * as boards from './boards.js';
 import { customAlert, customConfirm, showUndoToast } from './ui.js';
 import { saveBundle } from './sync.js';
+import { pageOrder, pageCount, gridName, nextPageName, removePage, linksTo, migrateToActionSpeech } from './pages.js';
 
 let editMode = false;
 let editingCell = null; // { gridId, elData | null, x, y }
@@ -17,7 +18,7 @@ export function isEditMode() { return editMode; }
 async function persistBundle() {
     const b = S.currentBundle;
     if (!b) return;
-    b.speechModel = 'actions'; // F3-3b: los tableros editados usan semántica de acciones
+    migrateToActionSpeech(b); // F3-3b: los tableros editados usan semántica de acciones (sin cambiar lo que se dice)
     const grid = b.boards[S.currentGridId];
     if (grid) grid.lastUpdateTime = Date.now();
     await saveBundle(b); // local + nube (antes solo local: se perdía al recargar con sesión)
@@ -59,6 +60,8 @@ export function enterEditMode() {
     // Tablet vinculada: una copia de solo lectura no se edita (el lápiz ya está oculto; esto lo garantiza)
     if (S.currentBundle.assignmentId && !S.currentBundle.profEdit && S.currentBundle.permission !== 'editable') return;
     if (S.currentBundle.type === 'test') return; // el tablero de prueba es fijo
+    // Se pasa a voz por acciones ANTES de cualquier respaldo de "deshacer": así deshacer no deja celdas mudas
+    migrateToActionSpeech(S.currentBundle);
     editMode = true;
     document.body.classList.add('edit-mode');
     buildToolbar();
@@ -70,7 +73,194 @@ export function exitEditMode() {
     document.body.classList.remove('edit-mode');
     const tb = document.getElementById('editor-toolbar');
     if (tb) tb.remove();
+    const pages = document.getElementById('editor-pages');
+    if (pages) pages.remove();
     boards.renderGrid(S.currentGridId);
+}
+
+/** Muestra una página existente (después de un deshacer, la actual puede no existir más). */
+function renderSafe(gridId) {
+    const b = S.currentBundle;
+    if (!b) return;
+    boards.renderGrid(b.boards[gridId] ? gridId : b.mainBoard);
+}
+
+// --- Páginas del tablero (10/10/2026) ---
+// Un tablero importado de Asterics puede traer varias páginas vinculadas. En el editor se ven todas en
+// una franja: tocar una la abre para editarla; además se agregan, renombran, borran y se elige la de inicio.
+const thumbCache = new Map(); // `${gridId}:${lastUpdateTime}` -> nodo de miniatura
+
+function pageThumb(grid) {
+    const key = `${S.currentBundle.id}:${grid.id}:${grid.lastUpdateTime || 0}:${S.currentBundle.showAutoLabels ? 1 : 0}`;
+    if (!thumbCache.has(key)) {
+        if (thumbCache.size > 200) thumbCache.clear();
+        thumbCache.set(key, boards.buildGridThumb(grid, S.currentBundle));
+    }
+    const node = thumbCache.get(key);
+    return node ? node.cloneNode(true) : null;
+}
+
+async function goToPage(gridId) {
+    S.navigationHistory = [];
+    boards.renderGrid(gridId);
+}
+
+async function addPage() {
+    const b = S.currentBundle;
+    const cur = b.boards[S.currentGridId];
+    const backupBundle = JSON.parse(JSON.stringify(b));
+    const g = newGridData(nextPageName(b), cur?.rowCount || 3, cur?.minColumnCount || 4);
+    b.boards[g.id] = g;
+    await persistBundle();
+    boards.renderGrid(g.id);
+    showUndoToast(async () => {
+        Object.assign(S.currentBundle, backupBundle);
+        await persistBundle();
+        renderSafe(S.currentGridId);
+    });
+}
+
+async function deletePage(gridId) {
+    const b = S.currentBundle;
+    if (pageCount(b) <= 1) return;
+    const name = gridName(b.boards[gridId]) || 'esta página';
+    const links = linksTo(b, gridId);
+    const extra = links ? ` ${links === 1 ? 'Una celda navega' : `${links} celdas navegan`} a esta página: ${links === 1 ? 'queda' : 'quedan'} sin ese vínculo.` : '';
+    if (!(await customConfirm(`¿Borrar la página «${name}»?${extra}`))) return;
+    const backupBundle = JSON.parse(JSON.stringify(b));
+    removePage(b, gridId);
+    await persistBundle();
+    S.navigationHistory = [];
+    boards.renderGrid(b.mainBoard);
+    showUndoToast(async () => {
+        Object.assign(S.currentBundle, backupBundle);
+        await persistBundle();
+        renderSafe(gridId);
+    });
+}
+
+async function setStartPage(gridId) {
+    const b = S.currentBundle;
+    if (b.mainBoard === gridId) return;
+    const prev = b.mainBoard;
+    b.mainBoard = gridId;
+    await persistBundle();
+    renderPagesStrip();
+    showUndoToast(async () => {
+        S.currentBundle.mainBoard = prev;
+        await persistBundle();
+        renderPagesStrip();
+    });
+}
+
+function hasAutoLabels(b) {
+    return Object.values(b.boards || {}).some(g => (g.gridElements || []).some(el => el.autoLabel && el.autoLabel.es));
+}
+
+export function renderPagesStrip() {
+    const b = S.currentBundle;
+    const view = document.getElementById('board-view');
+    let bar = document.getElementById('editor-pages');
+    if (!editMode || !b) { if (bar) bar.remove(); return; }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'editor-pages';
+        const tb = document.getElementById('editor-toolbar');
+        if (tb) tb.after(bar); else view.prepend(bar);
+    }
+    bar.replaceChildren();
+
+    const list = document.createElement('div');
+    list.className = 'ep-list';
+    list.setAttribute('role', 'tablist');
+    list.setAttribute('aria-label', 'Páginas del tablero');
+    pageOrder(b).forEach((id, i) => {
+        const g = b.boards[id];
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ep-page' + (id === S.currentGridId ? ' is-active' : '');
+        chip.setAttribute('role', 'tab');
+        chip.setAttribute('aria-selected', id === S.currentGridId ? 'true' : 'false');
+        const name = gridName(g) || `Página ${i + 1}`;
+        chip.title = name;
+        const thumb = pageThumb(g);
+        const box = document.createElement('span');
+        box.className = 'ep-thumb';
+        if (thumb) box.appendChild(thumb);
+        const label = document.createElement('span');
+        label.className = 'ep-name';
+        label.textContent = name; // lo escribe la profesional: textContent
+        chip.append(box, label);
+        if (id === b.mainBoard) {
+            const start = document.createElement('span');
+            start.className = 'ep-start';
+            start.textContent = 'Inicio';
+            chip.appendChild(start);
+        }
+        chip.onclick = () => { if (id !== S.currentGridId) goToPage(id); };
+        list.appendChild(chip);
+    });
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'ep-add';
+    add.textContent = '+ Página';
+    add.title = 'Agregar una página vacía a este tablero';
+    add.onclick = addPage;
+    list.appendChild(add);
+
+    // Acciones de la página que se está editando
+    const cur = b.boards[S.currentGridId];
+    const tools = document.createElement('div');
+    tools.className = 'ep-tools';
+    const lbl = document.createElement('span');
+    lbl.className = 'et-label';
+    lbl.textContent = 'Esta página';
+    const nameIn = document.createElement('input');
+    nameIn.className = 'glass-input et-dark ep-rename';
+    nameIn.value = gridName(cur);
+    nameIn.setAttribute('aria-label', 'Nombre de esta página');
+    nameIn.onchange = async () => {
+        const v = nameIn.value.trim();
+        if (!v || !cur) { nameIn.value = gridName(cur); return; }
+        cur.label = { ...(cur.label || {}), es: v };
+        if (pageCount(b) === 1) b.name = v; // con una sola página, página y tablero se llaman igual
+        await persistBundle();
+        renderPagesStrip();
+    };
+    const startBtn = document.createElement('button');
+    startBtn.className = 'btn btn-secondary';
+    startBtn.textContent = b.mainBoard === S.currentGridId ? 'Es la de inicio' : 'Usar como inicio';
+    startBtn.disabled = b.mainBoard === S.currentGridId;
+    startBtn.title = 'La página con la que se abre el tablero';
+    startBtn.onclick = () => setStartPage(S.currentGridId);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-secondary ep-delete';
+    delBtn.textContent = 'Borrar página';
+    delBtn.disabled = pageCount(b) <= 1;
+    delBtn.title = pageCount(b) <= 1 ? 'Un tablero necesita al menos una página' : 'Borrar esta página';
+    delBtn.onclick = () => deletePage(S.currentGridId);
+    tools.append(lbl, nameIn, startBtn, delBtn);
+
+    // Textos que MiraVoz completó desde ARASAAC: se dicen siempre; mostrarlos en la celda es opcional
+    if (hasAutoLabels(b)) {
+        const wrap = document.createElement('label');
+        wrap.className = 'ep-autolabels';
+        wrap.title = 'Los pictogramas que venían sin texto usan la palabra de ARASAAC para la voz. Esto decide si además se ve en la celda.';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!b.showAutoLabels;
+        cb.onchange = async () => {
+            b.showAutoLabels = cb.checked;
+            await persistBundle();
+            boards.renderGrid(S.currentGridId);
+        };
+        wrap.append(cb, document.createTextNode(' Mostrar texto de los pictogramas'));
+        tools.appendChild(wrap);
+    }
+
+    bar.append(list, tools);
+    const active = list.querySelector('.is-active');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function buildToolbar() {
@@ -99,17 +289,19 @@ function buildToolbar() {
         return l;
     };
 
-    // Nombre del tablero (rename, F3-1)
-    tb.appendChild(mkLabel('Nombre'));
+    // Nombre del tablero (rename, F3-1). Con varias páginas, cada página se renombra en la franja de páginas.
+    tb.appendChild(mkLabel('Tablero'));
     const nameInput = document.createElement('input');
     nameInput.className = 'glass-input et-dark';
     nameInput.style.width = '160px';
     nameInput.value = b.name;
     nameInput.onchange = async () => {
         b.name = nameInput.value.trim() || b.name;
+        nameInput.value = b.name;
         const g = grid();
-        if (g) g.label = { ...(g.label || {}), es: b.name };
+        if (g && pageCount(b) === 1) g.label = { ...(g.label || {}), es: b.name };
         await persistBundle();
+        renderPagesStrip();
     };
     tb.appendChild(nameInput);
     
@@ -153,7 +345,7 @@ function buildToolbar() {
         showUndoToast(async () => {
             Object.assign(S.currentBundle, backupBundle);
             await persistBundle();
-            boards.renderGrid(S.currentGridId);
+            renderSafe(S.currentGridId);
         });
     };
     
@@ -193,6 +385,8 @@ export function openCellEditor(gridId, elData, x, y) {
 
     const get = id => document.getElementById(id);
     get('ce-label').value = elData?.label ? (elData.label.es || elData.label.en || '') : '';
+    // Texto completado desde ARASAAC: se sugiere como placeholder (escribir un texto lo reemplaza)
+    get('ce-label').placeholder = elData?.autoLabel?.es ? `${elData.autoLabel.es} (de ARASAAC)` : '';
 
     // Modo de habla: deducir de las acciones existentes
     let speakMode = 'label', customText = '';
@@ -211,7 +405,7 @@ export function openCellEditor(gridId, elData, x, y) {
 
     // Navegación: poblar tableros del bundle
     const navSel = get('ce-nav');
-    navSel.innerHTML = '<option value="">No navega</option><option value="__new__">Crear tablero nuevo…</option>';
+    navSel.innerHTML = '<option value="">No navega</option><option value="__new__">Crear página nueva…</option>';
     Object.values(S.currentBundle.boards).forEach(g => {
         if (g.id === gridId) return;
         const opt = document.createElement('option');
@@ -318,7 +512,7 @@ async function saveCell() {
 
     let navTo = get('ce-nav').value;
     if (navTo === '__new__') {
-        const g = newGridData(labelText || 'Nuevo tablero');
+        const g = newGridData(labelText || nextPageName(S.currentBundle));
         S.currentBundle.boards[g.id] = g;
         navTo = g.id;
     }
@@ -345,7 +539,7 @@ async function saveCell() {
     showUndoToast(async () => {
         Object.assign(S.currentBundle, backupBundle);
         await persistBundle();
-        boards.renderGrid(gridId);
+        renderSafe(gridId);
     });
 }
 
@@ -365,7 +559,7 @@ async function deleteCell() {
     showUndoToast(async () => {
         Object.assign(S.currentBundle, backupBundle);
         await persistBundle();
-        boards.renderGrid(gridId);
+        renderSafe(gridId);
     });
 }
 
@@ -420,8 +614,9 @@ export function initEditor() {
         showUndoToast(async () => {
             Object.assign(S.currentBundle, backupBundle);
             await persistBundle();
-            boards.renderGrid(S.currentGridId);
+            renderSafe(S.currentGridId);
         });
     };
     boards.hooks.isEditMode = () => editMode;
+    boards.hooks.onPageRendered = () => { if (editMode) renderPagesStrip(); };
 }

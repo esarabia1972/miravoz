@@ -5,7 +5,7 @@ import { CONFIG, settings, initSettings, saveSettings } from './config.js';
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
-import { customAlert, customConfirm, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
+import { customAlert, customConfirm, customChoice, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
 import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
@@ -440,10 +440,16 @@ fileImport.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-        const bundle = await boards.importFile(file);
-        await boards.loadSavedBoards();
         importModal.style.display = 'none';
-        customAlert(`¡Tablero .${bundle.type} importado exitosamente!`);
+        const list = await boards.importFile(file, {
+            chooseSplit: async (n) => !(await customChoice(
+                `Este archivo trae ${n} tableros vinculados entre sí. ¿Cómo querés importarlos?\n\n` +
+                `Como un tablero con ${n} páginas: se mantienen los vínculos para pasar de uno a otro.\n` +
+                `Como ${n} tableros separados: cada uno queda suelto y los vínculos se pierden.`,
+                `Un tablero con ${n} páginas`, `${n} tableros separados`))
+        });
+        await boards.loadSavedBoards();
+        customAlert(list.length > 1 ? `Se importaron ${list.length} tableros.` : `Se importó «${list[0].name}».`);
     } catch (err) {
         console.error('Error importando:', err);
         customAlert('Hubo un error importando el archivo: ' + err.message);

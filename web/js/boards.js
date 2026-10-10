@@ -6,6 +6,7 @@ import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
 import { bundleTime } from './sync-plan.js';
+import { importedName, splitBundle, fetchArasaacWords, applyAutoLabels, missingLabelIds, visibleLabel, cellText, speechOnNavigate, pageCount } from './pages.js';
 
 export const IMPORTER_VERSION = 1;
 
@@ -18,7 +19,8 @@ export const hooks = {
     emptyCellClick: () => {},     // editor (F3): click en celda vacía
     isEditMode: () => false,      // editor (F3)
     onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
-    onCellDropped: () => {}       // editor (F3)
+    onCellDropped: () => {},      // editor (F3)
+    onPageRendered: () => {}      // editor: actualiza la franja de páginas
 };
 
 const gridContainer = document.getElementById('grid-container');
@@ -63,8 +65,9 @@ function inferMainBoard(bundle) {
 
 // --- Import .grd ---
 async function importGrd(file) {
-    const text = await file.text();
+    const text = (await file.text()).replace(/^\uFEFF/, ''); // los respaldos de Asterics traen BOM
     const json = JSON.parse(text);
+    if (!json || !Array.isArray(json.grids) || !json.grids.length) throw new Error('El archivo .grd no tiene tableros.');
     const bundle = {
         id: 'bundle_' + Date.now(),
         name: file.name.replace('.grd', ''),
@@ -75,6 +78,7 @@ async function importGrd(file) {
     };
     json.grids.forEach(g => { bundle.boards[g.id] = g; });
     inferMainBoard(bundle);
+    bundle.name = importedName(file.name, bundle);
     return bundle;
 }
 
@@ -189,15 +193,26 @@ async function importObz(file) {
     return bundle;
 }
 
-export async function importFile(file) {
+/**
+ * Importa un .grd/.obz. Si trae varias páginas, chooseSplit(n) decide (true = tableros separados).
+ * Completa desde ARASAAC el texto de los pictogramas que vienen sin texto. Devuelve los bundles creados.
+ */
+export async function importFile(file, { chooseSplit = async () => false } = {}) {
     const ext = file.name.split('.').pop().toLowerCase();
     let bundle = null;
     if (ext === 'grd') bundle = await importGrd(file);
     else if (ext === 'obz') bundle = await importObz(file);
     else throw new Error('Formato no soportado: ' + ext);
 
-    await saveBundle(bundle, { isNew: true }); // local + nube (si hay sesión, nace en la cuenta)
-    return bundle;
+    const n = pageCount(bundle);
+    const stamp = Date.now();
+    const list = (n > 1 && await chooseSplit(n))
+        ? splitBundle(bundle, i => `bundle_${stamp + i}_${Math.random().toString(36).slice(2, 7)}`)
+        : [bundle];
+    for (const b of list) await saveBundle(b, { isNew: true }); // local + nube (si hay sesión, nace en la cuenta)
+    // Textos de ARASAAC en segundo plano: la importación no espera a la red
+    list.forEach(b => completeMissingTexts(b.id));
+    return list;
 }
 
 // --- Home: listado de tableros guardados ---
@@ -375,7 +390,11 @@ function renderCardTags(container, bundle) {
 
 /** Miniatura del tablero principal: grilla chica con los colores y pictogramas de cada celda. */
 export function buildBoardThumb(bundle) {
-    const grid = bundle.boards && bundle.boards[bundle.mainBoard];
+    return buildGridThumb(bundle.boards && bundle.boards[bundle.mainBoard], bundle);
+}
+
+/** Miniatura de una página (también la usa la franja de páginas del editor). */
+export function buildGridThumb(grid, bundle) {
     const els = (grid && grid.gridElements || []).filter(e => !e.hidden);
     if (!els.length) return null;
     const rows = Math.max(1, grid.rowCount || 1);
@@ -405,7 +424,7 @@ export function buildBoardThumb(bundle) {
             img.src = src;
             c.appendChild(img);
         } else {
-            const label = el.label ? (el.label.es || el.label.en || '') : '';
+            const label = visibleLabel(el, bundle);
             if (label) { const t = document.createElement('span'); t.textContent = label; c.appendChild(t); }
         }
         box.appendChild(c);
@@ -443,7 +462,8 @@ function buildBoardCard(bundle, { readOnly = false } = {}) {
     const thumb = buildBoardThumb(bundle);
     const pMeta = document.createElement('p');
     pMeta.className = 'board-card-meta';
-    pMeta.textContent = optionsCount ? `${optionsCount} celdas` : previewText;
+    const pages = pageCount(bundle);
+    pMeta.textContent = (optionsCount ? `${optionsCount} celdas` : previewText) + (pages > 1 ? ` · ${pages} páginas` : '');
     infoDiv.append(h3, ...(thumb ? [thumb] : []), pMeta);
 
     // Tablet (solo lectura): sin acciones ni badge; la tarjeta entera abre la copia
@@ -939,10 +959,39 @@ export function openBundle(bundle) {
 
         renderGrid(bundle.mainBoard);
         hooks.onBundleOpened();
+        if (!bundle.assignmentId && bundle.type !== 'test' && !bundle.autoLabelsChecked) completeMissingTexts(bundle.id);
     } catch (err) {
         console.error('Error en openBundle:', err);
         customAlert('Error al intentar abrir el tablero: ' + err.message);
     }
+}
+
+/**
+ * Tableros importados antes de que existiera el texto automático: se completa una vez, en segundo plano,
+ * solo en tableros propios (las copias de la tablet las completa la profesional desde su tablero).
+ */
+const textsInFlight = new Set();
+export async function completeMissingTexts(bundleId) {
+    if (!bundleId || textsInFlight.has(bundleId)) return;
+    textsInFlight.add(bundleId);
+    try {
+        const stored = await localforage.getItem(bundleId);
+        if (!stored || stored.autoLabelsChecked || stored.type === 'test' || stored.assignmentId) return;
+        const ids = missingLabelIds(stored);
+        if (!ids.size) return;
+        const words = await fetchArasaacWords(ids);
+        if (!words.size) return; // sin red: se reintenta la próxima vez que se abra
+        // Después de esperar a la red se aplica sobre la versión MÁS NUEVA (pudo editarse o sincronizarse)
+        const live = S.currentBundle && S.currentBundle.id === bundleId && !S.currentBundle.assignmentId ? S.currentBundle : null;
+        const target = live || await localforage.getItem(bundleId);
+        if (!target) return;
+        const changed = applyAutoLabels(target, words);
+        if (missingLabelIds(target).size === 0) target.autoLabelsChecked = 1;
+        if (!changed) return;
+        await saveBundle(target);
+        if (live && S.currentBundle === live && document.getElementById('board-view').style.display !== 'none') renderGrid(S.currentGridId);
+    } catch (e) { console.warn('Textos de ARASAAC:', e); }
+    finally { textsInFlight.delete(bundleId); }
 }
 
 let lastCellClickTime = 0;
@@ -960,21 +1009,17 @@ export function handleCellClick(cellElement, elementData) {
     cellElement.style.transform = 'scale(0.95)';
     setTimeout(() => (cellElement.style.transform = ''), 150);
 
-    let hasNavigation = false;
-    if (elementData.actions) {
-        for (const action of elementData.actions) {
-            if (isNavigateAction(action)) {
-                hasNavigation = true;
-                setTimeout(() => {
-                    S.navigationHistory.push(S.currentGridId);
-                    renderGrid(action.toGridId);
-                }, 100);
-            }
-        }
-    }
-
-    if (!hasNavigation) {
-        const labelText = elementData.label ? (elementData.label.es || elementData.label.en) : '';
+    const navAction = (elementData.actions || []).find(isNavigateAction);
+    if (navAction) {
+        // Se dice el texto antes de pasar de página (p. ej. la pregunta de una secuencia importada)
+        const say = speechOnNavigate(elementData, S.currentBundle && S.currentBundle.speechModel);
+        if (say) speak(say);
+        setTimeout(() => {
+            S.navigationHistory.push(S.currentGridId);
+            renderGrid(navAction.toGridId);
+        }, 100);
+    } else {
+        const labelText = cellText(elementData); // propio o, si falta, el de ARASAAC
         // F3-3b: semántica de habla por acciones para bundles editados en MiraVoz;
         // comportamiento legacy (hablar el label) para bundles importados sin editar.
         let toSpeak = labelText;
@@ -1105,15 +1150,16 @@ export function renderGrid(gridId) {
                     }
                     if (imgSrc) {
                         img.src = imgSrc;
-                        img.alt = elData.label ? (elData.label.es || '') : '';
+                        img.alt = cellText(elData);
                         cell.appendChild(img);
                     }
                 }
 
-                if (elData.label) {
+                const shown = visibleLabel(elData, S.currentBundle);
+                if (shown) {
                     const label = document.createElement('div');
                     label.className = 'picto-label';
-                    label.innerText = elData.label.es || elData.label.en || '';
+                    label.innerText = shown;
                     if (elData.textColor) label.style.color = elData.textColor;
                     cell.appendChild(label);
                 }
@@ -1125,7 +1171,7 @@ export function renderGrid(gridId) {
                 // F2-6: accesibilidad estructural (base para barrido y lectores de pantalla)
                 cell.setAttribute('role', 'button');
                 cell.setAttribute('tabindex', '0');
-                const ariaLabel = elData.label ? (elData.label.es || elData.label.en || '') : '';
+                const ariaLabel = cellText(elData);
                 if (ariaLabel) cell.setAttribute('aria-label', ariaLabel);
                 cell.addEventListener('keydown', (e) => {
                     // Solo en modo Manual: en Barrido, Espacio/Enter son la activación del switch
@@ -1173,6 +1219,7 @@ export function renderGrid(gridId) {
     });
 
     hooks.onGridRendered(activeGridElements);
+    hooks.onPageRendered(gridId);
 }
 
 // Tablero de prueba 3x3 (números 1-9)

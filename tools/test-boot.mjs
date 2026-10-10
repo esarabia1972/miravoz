@@ -18,7 +18,7 @@ const WEB = path.resolve(HERE, '../web');
 // Acceso (EQUIPO.md regla 2, 10/10/2026): sin modo sin cuenta; profesionales solo con Google.
 // 'editor-local' se eliminó: sin sesión el home no es alcanzable, así que el editor siempre corre con sesión
 // (lo cubre 'editor-sesion').
-const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'xss'];
+const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'xss'];
 
 // ---------------------------------------------------------------- orquestador
 const caseArg = process.argv.find(a => a.startsWith('--case='))?.slice(7);
@@ -76,17 +76,26 @@ for (const key of ['window', 'document', 'navigator', 'localStorage', 'location'
     'HTMLElement', 'Node', 'FileReader', 'Blob', 'DOMParser']) {
     Object.defineProperty(globalThis, key, { value: key === 'window' ? win : win[key], configurable: true, writable: true });
 }
+// jsdom no implementa innerText: se emula con textContent (para poder leer los diálogos)
+Object.defineProperty(win.HTMLElement.prototype, 'innerText', { get() { return this.textContent; }, set(v) { this.textContent = v; }, configurable: true });
 win.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
 let rafCount = 0;
 globalThis.requestAnimationFrame = win.requestAnimationFrame = (fn) => (++rafCount < 5 ? setTimeout(() => fn(performance.now()), 16) : 0);
 globalThis.cancelAnimationFrame = win.cancelAnimationFrame = () => {};
-const synth = { getVoices: () => [], speak: () => {}, cancel: () => {}, onvoiceschanged: null };
+const spoken = [];
+const synth = { getVoices: () => [], speak: (u) => spoken.push(u.text), cancel: () => {}, onvoiceschanged: null };
 globalThis.speechSynthesis = win.speechSynthesis = synth;
 globalThis.SpeechSynthesisUtterance = win.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
 globalThis.FaceMesh = win.FaceMesh = class { setOptions() {} onResults() {} send() {} };
 globalThis.Camera = win.Camera = class { start() {} stop() {} };
 globalThis.JSZip = win.JSZip = class {};
-globalThis.fetch = win.fetch = async () => { throw new Error('sin red en test'); };
+globalThis.fetch = win.fetch = async (url) => {
+    // Caso 'paginas': ARASAAC responde la palabra de cada pictograma
+    if (caseArg === 'paginas' && String(url).startsWith('https://api.arasaac.org/api/pictograms/es/')) {
+        return { ok: true, json: async () => ({ keywords: [{ keyword: 'coche' }, { keyword: 'auto' }] }) };
+    }
+    throw new Error('sin red en test');
+};
 
 const origError = console.error;
 console.error = (...a) => { errors.push(a.map(x => (x && x.message) || String(x)).join(' ')); };
@@ -109,7 +118,8 @@ const BUNDLE = { id: 'bundle_1', name: 'Prueba', type: 'grd', mainBoard: 'g1', b
 const CLOUD = { id: 'bundle_cloud', name: 'Nube', type: 'grd', mainBoard: 'gc', updatedAt: 1000, boards: { gc: { id: 'gc', label: { es: 'Nube' }, rowCount: 1, minColumnCount: 1, gridElements: [] } } };
 // En editor-sesion el tablero ya es de la cuenta y está sincronizado (en local y en la nube)
 const OWNED = { ...clone(BUNDLE), ownerId: 'u1', updatedAt: 500, syncedAt: 500 };
-store.set('bundle_1', caseArg === 'editor-sesion' ? clone(OWNED) : clone(BUNDLE));
+const ownedCase = caseArg === 'editor-sesion' || caseArg === 'paginas';
+store.set('bundle_1', ownedCase ? clone(OWNED) : clone(BUNDLE));
 
 // Stub de supabase-js
 const sbCalls = [];
@@ -148,13 +158,13 @@ function makeSupabase({ user = null, tables = {} } = {}) {
 
 const USER = { id: 'u1', email: 'a@b.c' };
 const XSS = '<img src=x onerror=alert(1)>';
-const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'xss'].includes(caseArg);
+const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'xss'].includes(caseArg);
 if (caseArg !== 'sin-cdn') {
     win.supabase = makeSupabase(withSession ? {
         user: USER,
         tables: {
             boards: [{ id: CLOUD.id, bundle: CLOUD, updated_at: new Date(1000).toISOString() },
-                     ...(caseArg === 'editor-sesion' ? [{ id: 'bundle_1', bundle: clone(OWNED), updated_at: new Date(500).toISOString() }] : [])],
+                     ...(ownedCase ? [{ id: 'bundle_1', bundle: clone(OWNED), updated_at: new Date(500).toISOString() }] : [])],
             aac_users: caseArg === 'xss' ? [{ id: 'au1', display_name: XSS, professional_id: 'u1' }] : [],
             access_codes: [{ code: '123-456', aac_user_id: 'au1' }]
         }
@@ -261,6 +271,89 @@ if (caseArg === 'editor-sesion') {
     check('label del grid principal renombrado', saved?.boards?.g1?.label?.es === 'Renombrado', JSON.stringify(saved?.boards?.g1?.label));
     const after = upserts().slice(before);
     check('con sesión se llamó a upsert con el nombre nuevo', after.some(u => u.id === 'bundle_1' && u.name === 'Renombrado'), JSON.stringify(after.map(u => u.name)));
+}
+
+if (caseArg === 'paginas') {
+    const boards = await import(pathToFileURL(path.join(WEB, 'js/boards.js')).href);
+    const editor = await import(pathToFileURL(path.join(WEB, 'js/editor.js')).href);
+    const { S } = await import(pathToFileURL(path.join(WEB, 'js/state.js')).href);
+    // Respaldo de Asterics sintético: 3 preguntas encadenadas por la celda del título, con BOM
+    const q = (id, title, next) => ({ id, label: { es: title }, rowCount: 3, minColumnCount: 3, gridElements: [
+        { id: id + 't', x: 0, y: 0, width: 3, height: 1, label: { es: title }, actions: next ? [{ modelName: 'GridActionNavigate', navType: 'navigateToGrid', toGridId: next }] : [] },
+        { id: id + 'p', x: 0, y: 2, width: 1, height: 1, label: {}, actions: [{ modelName: 'GridActionSpeak' }], image: { url: 'https://api.arasaac.org/api/pictograms/6981?download=false' } }] });
+    const grd = '﻿' + JSON.stringify({ grids: [q('q2', '¿Cuál ladra?', 'q3'), q('q1', '¿Cuál tiene ruedas?', 'q2'), q('q3', '¿Cuál vuela?', null)] });
+    const file = { name: 'ana_2026-10-10_14-08_asterics-aac-custom-backup.grd', text: async () => grd };
+    let asked = 0;
+    const list = await boards.importFile(file, { chooseSplit: async (n) => { asked = n; return false; } });
+    const b = list[0];
+    check('importar pregunta con la cantidad de páginas', asked === 3, `asked=${asked}`);
+    check('un tablero con 3 páginas, inicio = la no referenciada', list.length === 1 && Object.keys(b.boards).length === 3 && b.mainBoard === 'q1', JSON.stringify({ n: list.length, main: b.mainBoard }));
+    check('nombre legible desde la página de inicio', b.name === '¿Cuál tiene ruedas?', b.name);
+    await sleep(150); // los textos de ARASAAC se completan en segundo plano
+    check('texto de ARASAAC completado en segundo plano (forma rioplatense)', store.get(b.id)?.boards.q1.gridElements[1].autoLabel?.es === 'auto', JSON.stringify(store.get(b.id)?.boards.q1.gridElements[1].autoLabel));
+    check('guardado en localforage', !!store.get(b.id), 'no está');
+
+    const split = await boards.importFile(file, { chooseSplit: async () => true });
+    check('importar separados crea 3 tableros sin vínculos', split.length === 3 && split.every(x => Object.keys(x.boards).length === 1)
+        && !split[0].boards.q1.gridElements[0].actions.length, JSON.stringify(split.map(x => x.name)));
+
+    await boards.loadSavedBoards();
+    await sleep(100);
+    const card = [...document.querySelectorAll('#board-list .board-card')].find(c => c.querySelector('h3')?.textContent === '¿Cuál tiene ruedas?' && /páginas/.test(c.textContent));
+    check('la tarjeta dice "3 páginas"', card && /3 páginas/.test(card.querySelector('.board-card-meta').textContent), card?.querySelector('.board-card-meta')?.textContent);
+
+    // Uso: el pictograma sin texto no muestra texto pero se dice; la pregunta se dice antes de navegar
+    boards.openBundle(await localforage.getItem(b.id));
+    await sleep(50);
+    check('el texto automático no se ve en la celda', !document.querySelector('#grid-container .picto-label') || ![...document.querySelectorAll('#grid-container .picto-label')].some(l => l.textContent === 'auto'), 'se ve "auto"');
+    const titleCell = document.getElementById('cell-0-0');
+    spoken.length = 0;
+    titleCell.click();
+    await sleep(200);
+    check('tocar la pregunta la dice y pasa a la siguiente', spoken.includes('¿Cuál tiene ruedas?') && S.currentGridId === 'q2', JSON.stringify({ spoken, cur: S.currentGridId }));
+    await sleep(600);
+    spoken.length = 0;
+    document.getElementById('cell-0-2').click();
+    await sleep(50);
+    check('el pictograma sin texto dice la palabra de ARASAAC', spoken.includes('auto'), JSON.stringify(spoken));
+
+    // Editor: franja de páginas
+    editor.enterEditMode();
+    const chips = () => [...document.querySelectorAll('#editor-pages .ep-page')];
+    check('la franja muestra las 3 páginas en orden', chips().length === 3 && chips().map(c => c.title).join('|') === '¿Cuál tiene ruedas?|¿Cuál ladra?|¿Cuál vuela?', chips().map(c => c.title).join('|'));
+    check('la de inicio está marcada', chips()[0].querySelector('.ep-start'), 'sin marca');
+    chips()[2].click();
+    await sleep(20);
+    check('tocar una página la abre para editar', S.currentGridId === 'q3' && chips()[2].classList.contains('is-active') && editor.isEditMode(), S.currentGridId);
+    document.querySelector('#editor-pages .ep-add').click();
+    await sleep(100);
+    check('"+ Página" agrega y abre una página nueva', chips().length === 4 && S.currentGridId !== 'q3' && /Página 4/.test(document.querySelector('#editor-pages .is-active').title), chips().map(c => c.title).join('|'));
+    const startBtn = [...document.querySelectorAll('#editor-pages .ep-tools button')].find(x => /inicio/.test(x.textContent));
+    startBtn.click();
+    await sleep(100);
+    check('"Usar como inicio" cambia la página de inicio', S.currentBundle.mainBoard === S.currentGridId && store.get(b.id).mainBoard === S.currentGridId, S.currentBundle.mainBoard);
+    const delBtn = document.querySelector('#editor-pages .ep-delete');
+    delBtn.click();
+    await sleep(50);
+    check('pide confirmación antes de borrar la página', /Borrar la página/.test($('dialog-message').textContent), $('dialog-message').textContent);
+    document.getElementById('btn-dialog-ok').click();
+    await sleep(150);
+    check('"Borrar página" la borra (con confirmación) y la de inicio pasa a otra', Object.keys(store.get(b.id).boards).length === 3 && store.get(b.id).boards[store.get(b.id).mainBoard], JSON.stringify(Object.keys(store.get(b.id).boards)));
+    const toggle = document.querySelector('#editor-pages .ep-autolabels input');
+    check('aparece "Mostrar texto de los pictogramas"', !!toggle, 'no aparece');
+    chips().find(c => c.title === '¿Cuál ladra?').click();
+    toggle && (toggle.checked = true, toggle.dispatchEvent(new win.Event('change')));
+    await sleep(100);
+    check('al activarlo el texto se ve en la celda', [...document.querySelectorAll('#grid-container .picto-label')].some(l => l.textContent === 'auto'), document.getElementById('grid-container').textContent.slice(0, 100));
+    // Deshacer después de la primera edición no deja mudas las celdas (la migración corre al entrar a editar)
+    document.querySelector('#editor-pages .ep-add').click();
+    await sleep(100);
+    document.getElementById('undo-btn').click();
+    await sleep(100);
+    const titleEl = Object.values(S.currentBundle.boards).flatMap(g => g.gridElements).find(e => e.id === 'q1t');
+    check('deshacer no deja muda la celda de la pregunta', S.currentBundle.speechModel === 'actions' && titleEl.actions.some(a => a.modelName === 'GridActionSpeak'), JSON.stringify(titleEl?.actions));
+    editor.exitEditMode();
+    check('al salir de edición se quita la franja', !document.getElementById('editor-pages'), 'sigue');
 }
 
 if (caseArg === 'xss') {
