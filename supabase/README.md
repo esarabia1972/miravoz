@@ -9,7 +9,9 @@ La anon key de MiraVoz es pública (va en el cliente). Por eso la seguridad depe
 - Triggers en auth.users: `on_auth_user_created → handle_new_user` (legado) y `on_auth_user_created_professional → ensure_professional`.
 - ✅ `02_f4-4_vinculacion.sql` aplicado (funciones_ok, device_links_rls, codigos_solo_por_servidor = true; profesionales_anonimos = 0). Anonymous sign-ins activado.
 - ✅ Bucket legado `boards` eliminado de Storage (no quedan buckets).
-- Pendiente: probar RLS con la sesión de OTRA cuenta (criterio 7 de F4).
+- ✅ `05_limpiar_cuentas_de_prueba.sql` corrido (10/10): queda solo esteban.sarabia@gmail.com con 3 tableros.
+- ✅ `03_tokens_de_tablet.sql` aplicado (10/10): todas las verificaciones en true y 0 usuarios anónimos. Comprobado desde el navegador con la anon key: `device_fetch` con un token falso da `{ok:false, unlinked:true}`; `device_tokens` da 401; `_device_token_hash` da 401; la RPC vieja da 404.
+- Pendiente: Google OAuth (Google Cloud + proveedor en Supabase), desactivar los anonymous sign-ins, publicar el commit del acceso nuevo, probar RLS con dos cuentas de Google.
 
 ### Estado inicial
 
