@@ -33,6 +33,11 @@ export async function getUser() {
 // Una sesión ANÓNIMA es la de una tablet vinculada (F4-4), nunca una profesional.
 const asProfessional = (u) => (u && !u.is_anonymous ? u : null);
 
+/** Usuario profesional logueado (null si no hay sesión o si es la sesión anónima de una tablet). */
+export async function getProfessional() {
+    return asProfessional(await getUser());
+}
+
 export function initAuth({ onReady, onSignedIn, onSignedOut }) {
     let ready = false;
     const fireReady = (user) => {

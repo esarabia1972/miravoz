@@ -9,6 +9,7 @@ import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, r
 import { initAuth, signOut } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
+import * as deviceMod from './device.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
@@ -48,11 +49,13 @@ async function onProfessionalSession(user) {
     setProfessionalId(user.id);
     fetchUsers();
     await syncAll();
+    deviceMod.flushProfessionalCopies(); // copias de usuarios editadas sin conexión
 }
 
 document.getElementById('btn-account')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (S.currentUser) {
+        await deviceMod.clearProfessionalCopies(); // no dejar copias de los chicos en este navegador
         await signOut();
         window.location.reload(); // estado limpio; los tableros locales NO se borran (F0-4)
     } else {
@@ -133,7 +136,7 @@ let lastSwitchActivation = 0;
 function onSwitchActivate(e) {
     if (S.trackingMode !== 'SCAN') return;
     if (S.state !== 'HOME' && S.state !== 'BOARD') return; // p. ej. con el login abierto
-    if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view')) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view, #device-corner')) return;
     const now = performance.now();
     if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
     lastSwitchActivation = now;
@@ -168,6 +171,10 @@ boards.hooks.onHomeRendered = (targets) => {
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
     clearSentence();
+    // Tablet vinculada: el lápiz de edición solo aparece en copias editables
+    document.body.classList.toggle('copy-editable', S.currentBundle?.permission === 'editable');
+    // Profesional editando la copia de un usuario: aviso fijo arriba
+    updateCopyBanner();
     // Solo los modos de puntero (Rostro/Iris) requieren calibración; Barrido y Manual no.
     if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
         startCalibration();
@@ -295,6 +302,8 @@ function applyMode(mode) {
 // --- Navegación Home/Board ---
 function goHome() {
     if (editor.isEditMode()) editor.exitEditMode();
+    document.getElementById('copy-banner')?.remove();
+    if (deviceMod.isDeviceMode()) { openDeviceHome(); return; } // tablet: la casita es su tablero de inicio
     S.state = 'HOME';
     S.currentBundle = null;
     boards.loadSavedBoards(); // refresca las cards (nombres/contadores editados)
@@ -508,6 +517,9 @@ window.addEventListener('miravoz:bundles-changed', async (e) => {
         const cellModal = document.getElementById('cell-editor-modal');
         if (cellModal) cellModal.style.display = 'none';
         const fresh = await localforage.getItem(open.id);
+        // Tablet: si la copia pasó a solo lectura mientras se editaba, salir de edición
+        if (fresh && deviceMod.isDeviceMode() && fresh.permission !== 'editable' && editor.isEditMode()) editor.exitEditMode();
+        if (fresh) document.body.classList.toggle('copy-editable', fresh.permission === 'editable');
         if (fresh) {
             S.currentBundle = fresh;
             const gridId = fresh.boards && fresh.boards[S.currentGridId] ? S.currentGridId : fresh.mainBoard;
@@ -516,7 +528,125 @@ window.addEventListener('miravoz:bundles-changed', async (e) => {
             else boards.renderGrid(gridId);
         }
     }
-    if (S.state === 'HOME') boards.loadSavedBoards();
+    if (S.state === 'HOME') {
+        if (deviceMod.isDeviceMode()) openDeviceHome();
+        else boards.loadSavedBoards();
+    }
+});
+
+// --- La profesional edita la copia de un usuario (F4-3) ---
+function updateCopyBanner() {
+    let banner = document.getElementById('copy-banner');
+    const b = S.currentBundle;
+    if (!b || !b.profEdit) { if (banner) banner.remove(); return; }
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'copy-banner';
+        banner.setAttribute('role', 'status');
+        boardView.prepend(banner);
+    }
+    banner.textContent = `Estás editando la copia de ${b.ownerLabel}. Tu original no cambia.`;
+}
+
+window.addEventListener('miravoz:edit-copy', async (e) => {
+    const assignmentId = e.detail?.assignmentId;
+    if (!assignmentId || !S.currentUser) return;
+    const copy = await deviceMod.loadCopyForProfessional(assignmentId);
+    if (!copy) { customAlert('No se pudo abrir la copia. Revisá la conexión e intentá de nuevo.'); return; }
+    document.getElementById('users-view').style.display = 'none';
+    boards.openBundle(copy);
+    if (S.state === 'BOARD') editor.enterEditMode();
+});
+
+// --- Tablet vinculada a un usuario (F4-4) ---
+const ACCESS_MODE_MAP = { MANUAL: 'CLICKS', CLICKS: 'CLICKS', FACE: 'CARA', CARA: 'CARA', SCAN: 'SCAN' }; // OJOS (experimental) no se aplica desde el servidor
+
+async function applyDeviceSettings(s = {}) {
+    const patch = {};
+    const mode = ACCESS_MODE_MAP[s.accessMode];
+    if (mode) patch.accessMode = mode;
+    if (Number.isFinite(s.dwellMs)) patch.dwellMs = s.dwellMs;
+    if (s.scan && typeof s.scan === 'object') patch.scan = { ...settings.scan, ...s.scan };
+    if (Object.keys(patch).length) await saveSettings(patch);
+    const target = settings.accessMode || 'CLICKS';
+    if (target !== S.trackingMode) { modeSelect.value = target; applyMode(target); }
+}
+
+async function openDeviceHome() {
+    const home = await deviceMod.getHomeCopy();
+    if (home) { boards.openBundle(home); return; }
+
+    // Sin casita definida: índice de sus tableros, con tarjetas grandes (operable por dwell/barrido)
+    S.state = 'HOME';
+    S.currentBundle = null;
+    boardView.style.display = 'none';
+    homeView.style.display = 'flex';
+    topBar.style.display = 'none';
+    bottomBar.style.display = 'none';
+    const list = document.getElementById('board-list');
+    list.innerHTML = '';
+    const title = document.createElement('h2');
+    title.className = 'device-title';
+    title.textContent = `Tableros de ${deviceMod.device?.displayName || ''}`.trim();
+    list.appendChild(title);
+
+    const copies = await deviceMod.listCopies();
+    const targets = [];
+    if (!copies.length) {
+        const p = document.createElement('p');
+        p.className = 'device-empty';
+        p.textContent = 'Todavía no hay tableros en esta tablet. La profesional tiene que asignarle uno a este usuario.';
+        list.appendChild(p);
+    }
+    for (const copy of copies) {
+        const card = document.createElement('div');
+        card.className = 'board-card glass-box device-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        const h3 = document.createElement('h3');
+        h3.textContent = copy.name || 'Tablero';
+        const progress = document.createElement('div');
+        progress.className = 'progress-bar';
+        progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
+        card.append(h3, progress);
+        card.onclick = () => boards.openBundle(copy);
+        card.onkeydown = (e) => { if (e.key === 'Enter') boards.openBundle(copy); };
+        list.appendChild(card);
+        targets.push({ element: card, data: copy, isBoardCard: true });
+    }
+    dwell.setTargets(targets);
+    scan.setTargets(targets);
+}
+
+async function enterDeviceMode() {
+    document.body.classList.add('device-mode');
+    document.getElementById('auth-view').style.display = 'none';
+    S.state = 'HOME';
+    deviceMod.wireAdultExit({ onUnlinked: () => window.location.reload() });
+    await openDeviceHome();
+    await applyDeviceSettings(deviceMod.device?.settings); // después de abrir: calibra una sola vez si hace falta
+
+    // Refrescar desde la nube en segundo plano (la tablet ya es usable con lo local)
+    const res = await deviceMod.pullCopies();
+    if (res === 'unlinked') {
+        await deviceMod.unlink();
+        await customAlert('Esta tablet fue desvinculada por la profesional.');
+        window.location.reload();
+        return;
+    }
+    if (res === 'nosession') {
+        showInfoToast('Esta tablet perdió la conexión con la cuenta. Sigue funcionando, pero los cambios no se guardan en la nube: pedile a la profesional un código nuevo (esquina superior derecha, mantener apretado).', 12000);
+    }
+    if (res === 'ok') {
+        await applyDeviceSettings(deviceMod.device?.settings);
+        if (S.state === 'HOME') openDeviceHome();
+    }
+}
+
+window.addEventListener('miravoz:device-unlinked', async () => {
+    await deviceMod.unlink();
+    await customAlert('Esta tablet fue desvinculada por la profesional.');
+    window.location.reload();
 });
 
 // --- Arranque ---
@@ -529,6 +659,15 @@ window.addEventListener('miravoz:bundles-changed', async (e) => {
     editor.initEditor();
     initUsers();
     renderSentence();
+
+    // Tablet vinculada a un usuario: modo dispositivo (sin gestión ni cuenta de profesional)
+    if (await deviceMod.loadDevice()) {
+        await calibration.loadProfiles();
+        await enterDeviceMode();
+        requestAnimationFrame(appLoop);
+        return;
+    }
+    deviceMod.wireLinkForm({ onLinked: () => enterDeviceMode() });
 
     // Mostrar lo local de inmediato: la app nunca espera a la red ni a la sesión
     showAuthView(false);

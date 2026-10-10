@@ -62,3 +62,4 @@
 |---|---|
 | `tools/test-sync.mjs` | Fusión local↔nube: adopción, last-write-wins, conflictos, borrados pendientes, migración de bundles viejos, reloj desfasado, idempotencia |
 | `tools/test-boot.mjs` | Arranque real de la app en jsdom con stubs de CDN: modo sin cuenta, sin CDN, con sesión (pregunta antes de adoptar), editor persiste y sube, XSS. Requiere `npm install --prefix /tmp/qa jsdom` |
+| `tools/test-device.mjs` | Tablet vinculada (F4-4) y profesional editando copias (F4-3): vincular con código (válido/inválido), arranque con y sin casita, desvinculación remota, guardado de copia editable vs solo lectura, edición de copia por la profesional con concurrencia optimista |

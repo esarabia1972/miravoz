@@ -7,7 +7,7 @@
 // Cuando un bundle cambia en disco por la sync, se emite 'miravoz:bundles-changed' {ids, removed}.
 
 import { S } from './state.js';
-import { supabaseClient, getUser } from './auth.js';
+import { supabaseClient, getProfessional as getUser } from './auth.js'; // nunca sincronizar con la sesión anónima de una tablet
 import { showSyncToast, hideSyncToast, showInfoToast, customConfirm } from './ui.js';
 import { planSync, pushDecision, bundleTime, isVisibleTo, normTombstone } from './sync-plan.js';
 
@@ -71,7 +71,12 @@ const isSyncable = b => b && b.type !== 'test';
  * @param {{isNew?: boolean}} opts  isNew: tablero creado/importado/duplicado AHORA.
  *        Si hay sesión, nace en la cuenta. Editar un tablero local "de nadie" no lo sube.
  */
+// Copias asignadas en una tablet vinculada (F4-4): las guarda device.js por otra vía
+let copySaver = null;
+export function setCopySaver(fn) { copySaver = fn; }
+
 export async function saveBundle(bundle, { isNew = false } = {}) {
+    if (bundle.assignmentId && copySaver) return copySaver(bundle);
     bundle.updatedAt = Date.now();
     if (isNew && S.currentUser && !bundle.ownerId && isSyncable(bundle)) bundle.ownerId = S.currentUser.id;
     await localforage.setItem(bundle.id, bundle);

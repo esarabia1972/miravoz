@@ -626,123 +626,181 @@ export function buildTestBundle() {
     };
 }
 // --- Lógica de Asignación (Fase 4.2) ---
-import { users } from './users.js';
+// F4-3: asignar = copiar. Se elige una tanda de usuarios (checkboxes) y un permiso para todos.
+import { users, fetchUsers } from './users.js';
 import { supabaseClient } from './auth.js';
 
 let bundleToAssign = null;
-let selectedUserId = null;
 
 const assignModal = document.getElementById('assign-modal');
 const assignUsersList = document.getElementById('assign-users-list');
+const assignSelectAll = document.getElementById('assign-select-all');
+const assignPermission = document.getElementById('assign-permission');
+const assignBoardName = document.getElementById('assign-board-name');
 const btnCancelAssign = document.getElementById('btn-cancel-assign');
 const btnConfirmAssign = document.getElementById('btn-confirm-assign');
 const btnCloseAssign = document.getElementById('btn-close-assign');
 
+const assignCheckboxes = () => assignUsersList
+    ? [...assignUsersList.querySelectorAll('input[type="checkbox"][data-user-id]:not(:disabled)')]
+    : [];
+const selectedAssignIds = () => assignCheckboxes().filter(c => c.checked).map(c => c.dataset.userId);
+
+/** "Mateo", "Mateo y Bruno", "Mateo, Bruno y Sofi" */
+function joinNames(names) {
+    if (names.length <= 1) return names.join('');
+    return `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+}
+
+function updateAssignButton() {
+    const n = selectedAssignIds().length;
+    btnConfirmAssign.disabled = n === 0;
+    btnConfirmAssign.textContent = n === 0 ? 'Elegí al menos un usuario'
+        : `Dar copia a ${n} ${n === 1 ? 'usuario' : 'usuarios'}`;
+    if (assignSelectAll) {
+        const all = assignCheckboxes();
+        assignSelectAll.disabled = all.length === 0;
+        assignSelectAll.checked = all.length > 0 && n === all.length;
+        assignSelectAll.indeterminate = n > 0 && n < all.length;
+    }
+}
+
+function assignMessage(text) {
+    const p = document.createElement('p');
+    p.className = 'assign-note';
+    p.textContent = text;
+    assignUsersList.replaceChildren(p);
+}
+
 async function openAssignModal(bundle) {
     bundleToAssign = bundle;
-    selectedUserId = null;
-    btnConfirmAssign.disabled = true;
-    btnConfirmAssign.innerText = 'Asignar Copia';
-    
+    if (assignBoardName) assignBoardName.textContent = bundle.name ? `«${bundle.name}»` : '';
+    if (assignPermission) assignPermission.value = 'read_only'; // default: Solo mirar
+    if (assignSelectAll) { assignSelectAll.checked = false; assignSelectAll.indeterminate = false; }
+
     assignUsersList.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="border-width:2px; width:20px; height:20px; border-top-color:#00ff88; margin:0 auto;"></div></div>';
     assignModal.style.display = 'flex';
-    
+    updateAssignButton();
+
     if (users.length === 0) {
-        assignUsersList.innerHTML = '<p style="color:var(--text-muted);">Todavía no tenés usuarios. Creálos en "Mis usuarios".</p>';
+        assignMessage('Todavía no tenés usuarios. Crealos en "Mis usuarios".');
+        updateAssignButton();
         return;
     }
 
-    // Fetch existing assignments for this board
+    // Quiénes ya tienen su copia de este tablero
     const { data: assignments, error } = await supabaseClient
         .from('assignments')
         .select('aac_user_id')
         .eq('board_id', bundle.id);
+    if (bundleToAssign !== bundle) return; // se cerró o se abrió otro mientras tanto
+    if (error) console.error('Error leyendo asignaciones:', error);
 
-    const assignedUserIds = new Set((assignments || []).map(a => a.aac_user_id));
+    const assignedUserIds = new Set((Array.isArray(assignments) ? assignments : []).map(a => a.aac_user_id));
 
-    assignUsersList.innerHTML = '';
+    assignUsersList.replaceChildren();
+    if (error) {
+        const warn = document.createElement('p');
+        warn.className = 'assign-note';
+        warn.textContent = 'No pudimos ver quiénes ya tienen su copia. Si elegís a alguien que ya la tiene, te avisamos.';
+        assignUsersList.appendChild(warn);
+    }
 
     users.forEach(user => {
         const isAssigned = assignedUserIds.has(user.id);
         const label = document.createElement('label');
-        label.style.cssText = `display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.05); border-radius:5px; cursor:${isAssigned ? 'default' : 'pointer'}; opacity: ${isAssigned ? '0.6' : '1'};`;
-        
-        // display_name lo escribe el profesional: siempre como texto (nunca innerHTML)
+        label.className = 'assign-option' + (isAssigned ? ' is-assigned' : '');
+
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.dataset.userId = user.id;
+        if (isAssigned) {
+            box.checked = true;
+            box.disabled = true;
+        } else {
+            box.addEventListener('change', updateAssignButton);
+        }
+
+        // display_name lo escribe la profesional: siempre como texto (nunca innerHTML)
         const nameSpan = document.createElement('span');
         nameSpan.textContent = user.display_name;
+        label.append(box, nameSpan);
         if (isAssigned) {
-            label.innerHTML = `
-                <div style="width:16px; height:16px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </div>`;
             const tag = document.createElement('span');
-            tag.style.cssText = 'font-size:0.8em; color:var(--accent); margin-left:5px;';
-            tag.textContent = '(Asignado)';
-            nameSpan.appendChild(tag);
-            label.appendChild(nameSpan);
-        } else {
-            const radio = document.createElement('input');
-            radio.type = 'radio';
-            radio.name = 'assign-user';
-            radio.value = user.id;
-            label.append(radio, nameSpan);
-            radio.addEventListener('change', (e) => {
-                selectedUserId = e.target.value;
-                btnConfirmAssign.disabled = false;
-            });
+            tag.className = 'assign-tag';
+            tag.textContent = '(ya tiene su copia)';
+            label.appendChild(tag);
         }
         assignUsersList.appendChild(label);
     });
+    updateAssignButton();
 }
 
 function closeAssignModal() {
     assignModal.style.display = 'none';
     bundleToAssign = null;
-    selectedUserId = null;
 }
 
 if (btnCancelAssign) btnCancelAssign.addEventListener('click', closeAssignModal);
 if (btnCloseAssign) btnCloseAssign.addEventListener('click', closeAssignModal);
+if (assignSelectAll) {
+    assignSelectAll.addEventListener('change', () => {
+        assignCheckboxes().forEach(c => { c.checked = assignSelectAll.checked; });
+        updateAssignButton();
+    });
+}
 
 if (btnConfirmAssign) {
     btnConfirmAssign.addEventListener('click', async () => {
-        if (!bundleToAssign || !selectedUserId) return;
-        
+        const selectedIds = selectedAssignIds();
+        if (!bundleToAssign || selectedIds.length === 0) return;
+        const permission = assignPermission && assignPermission.value === 'editable' ? 'editable' : 'read_only';
+
         btnConfirmAssign.disabled = true;
-        btnConfirmAssign.innerText = 'Asignando...';
-        
+        btnConfirmAssign.textContent = 'Dando copias...';
+
         // La asignación referencia el tablero en la nube (FK board_id): asegurar que esté subido.
         // Si es un tablero local "de nadie", pedir permiso para guardarlo en la cuenta.
+        // Releer del disco: la tarjeta puede tener una versión vieja (p. ej. recién adoptada por la sync)
+        bundleToAssign = (await localforage.getItem(bundleToAssign.id)) || bundleToAssign;
         const adopt = !bundleToAssign.ownerId;
         if (adopt && !(await customConfirm('Para asignarlo, este tablero se va a guardar en tu cuenta (después se ve solo cuando ingresás). ¿Seguir?'))) {
-            btnConfirmAssign.disabled = false;
-            btnConfirmAssign.innerText = 'Asignar Copia';
+            updateAssignButton();
             return;
         }
         if (!(await pushBundle(bundleToAssign, { adopt }))) {
             customAlert('No se pudo subir el tablero a la nube. Revisá la conexión e intentá de nuevo.');
-            btnConfirmAssign.disabled = false;
-            btnConfirmAssign.innerText = 'Asignar Copia';
+            updateAssignButton();
             return;
         }
         const clone = JSON.parse(JSON.stringify(bundleToAssign));
         delete clone.ownerId; delete clone.syncedAt; // la copia es del usuario, no del tablero original
-        
-        const { error } = await supabaseClient
-            .from('assignments')
-            .insert([{
-                board_id: bundleToAssign.id,
-                aac_user_id: selectedUserId,
-                copy_bundle: clone,
-                permission: 'editable'
-            }]);
-            
+
+        // Una sola inserción para toda la tanda (si falla, no queda ninguna a medias)
+        const rows = selectedIds.map(aacUserId => ({
+            board_id: bundleToAssign.id,
+            aac_user_id: aacUserId,
+            copy_bundle: clone,
+            permission
+        }));
+        const { error } = await supabaseClient.from('assignments').insert(rows);
+
+        const boardName = bundleToAssign.name || 'este tablero';
         if (error) {
-            console.error("Error asignando tablero:", error);
-            customAlert("No se pudo asignar el tablero. Revisá la conexión e intentá de nuevo.");
-        } else {
-            customAlert("Tablero asignado correctamente a " + users.find(u => u.id === selectedUserId).display_name);
-            closeAssignModal();
+            console.error('Error asignando tablero:', error);
+            if (error.code === '23505') {
+                customAlert(`Alguno de esos usuarios ya tenía su copia de «${boardName}», así que no se dio ninguna. Actualizamos la lista: volvé a elegir.`);
+                openAssignModal(bundleToAssign);
+            } else {
+                customAlert('No se pudo dar la copia. Revisá la conexión e intentá de nuevo.');
+                updateAssignButton();
+            }
+            return;
         }
+
+        const names = selectedIds.map(id => users.find(u => u.id === id)?.display_name).filter(Boolean);
+        customAlert(`Listo: ${joinNames(names)} ${names.length === 1 ? 'ya tiene' : 'ya tienen'} su copia de «${boardName}».`);
+        closeAssignModal();
+        fetchUsers(); // refresca "Mis usuarios" con las copias nuevas
     });
 }

@@ -889,3 +889,49 @@ body.edit-mode .btn-edit-toggle {
 .btn-account:hover { background: rgba(255,255,255,0.06); }
 #btn-settings { min-width: 44px; min-height: 44px; }
 button:focus-visible, .btn:focus-visible, .btn-icon:focus-visible, [role="button"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* F4-4 — Tablet vinculada (modo dispositivo) */
+.link-code-input { font-family: monospace; font-size: 1.8rem; letter-spacing: 0.15em; text-align: center; text-transform: uppercase; }
+.link-error { color: #ff8a80; min-height: 1.2em; margin: 8px 0 0; font-size: 0.95rem; }
+.device-mode #top-bar, .device-mode #bottom-bar { display: none !important; }
+.device-mode #btn-edit-board { display: none; }
+.device-mode.copy-editable #btn-edit-board { display: flex; }
+.device-title { width: 100%; color: #fff; margin: 0 0 10px; font-size: 1.6rem; }
+.device-empty { color: #ccc; font-size: 1.2rem; }
+.device-card { min-height: 160px; justify-content: center; align-items: center; position: relative; overflow: hidden; }
+.device-card h3 { font-size: 1.8rem; margin: 0; color: #fff; text-align: center; }
+/* Esquina para adultos: mantener apretado 3 s (invisible; fuera del alcance del barrido) */
+#device-corner { position: fixed; top: 0; right: 0; width: 32px; height: 32px; z-index: 30001; display: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+.device-mode #device-corner { display: block; }
+
+/* F4-3 — Asignar copias (checkboxes) y fichas de "Mis usuarios" */
+.assign-content { max-width: 460px; }
+.assign-note { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 12px; }
+.assign-option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 6px; cursor: pointer; }
+.assign-option input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); flex-shrink: 0; }
+.assign-option.is-assigned { cursor: default; opacity: 0.65; }
+.assign-all { margin-bottom: 8px; font-weight: 600; }
+.assign-tag { font-size: 0.85em; color: var(--accent); }
+.assign-permission-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.assign-permission-row select, .copy-permission { min-height: 44px; }
+#btn-confirm-assign, #btn-cancel-assign { min-height: 44px; }
+
+.user-card { padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+.user-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.user-head { justify-content: space-between; }
+.user-name { font-size: 1.15rem; }
+.user-note { color: var(--text-muted); margin: 0; font-size: 0.95rem; }
+.user-tablet { display: flex; flex-direction: column; gap: 8px; }
+.user-code { font-family: monospace; font-size: 1rem; background: rgba(255,255,255,0.08); padding: 6px 10px; border-radius: 6px; }
+.user-btn { min-height: 44px; padding: 8px 14px; font-size: 0.95rem; }
+.user-btn-icon { min-width: 44px; min-height: 44px; border-radius: 8px; }
+.user-btn-danger { color: #ff8a80; border-color: rgba(255,138,128,0.5); }
+.user-btn.is-home { border-color: var(--accent); color: var(--accent); }
+.user-copies { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.copy-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.copy-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+.copy-info { display: flex; flex-direction: column; gap: 2px; min-width: 160px; }
+.copy-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* F4-3 — Profesional editando la copia de un usuario */
+#copy-banner { background: #3d2a00; color: #ffd27a; border: 1px solid #ffb74d; padding: 10px 16px; border-radius: 10px; margin: 0 0 10px; font-weight: 600; font-size: 1rem; }

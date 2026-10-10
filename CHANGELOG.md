@@ -90,3 +90,28 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Versionar el esquema y RLS reales (`supabase/01_schema_f4.sql`).
   - Códigos de 8 caracteres con vencimiento corto.
 
+### Fase 4: tablet del chico y asignaciones (09/10/2026, equipo coordinado por Claude)
+- **Added (F4-4)**: Vincular la tablet de un usuario con un código.
+  - La pantalla de ingreso tiene "Vincular esta tablet a un usuario".
+  - La tablet entra con una sesión anónima de Supabase y canjea el código con la RPC `redeem_access_code`.
+  - Modo tablet:
+    - Abre directo en la casita (o en la lista de sus tableros), sin barras de gestión.
+    - Usa copias locales (offline-first) que se refrescan al abrir, al volver a la app y al recuperar la conexión.
+    - Aplica los settings del usuario.
+    - Guarda solo las copias editables (RPC `save_assignment_copy`, concurrencia optimista); las de solo lectura no se pueden editar.
+  - Salida para adultos: mantener apretada la esquina superior derecha 3 s, confirmar y escribir DESVINCULAR.
+  - Si la profesional desvincula la tablet o borra al usuario, la tablet lo detecta.
+  - Si se pierde la sesión anónima, avisa.
+- **Added (F4-3)**: Asignación múltiple con checkboxes y permiso por tanda ("Puede editarse" / "Solo mirar").
+  - Ficha por usuario en "Mis usuarios":
+    - Sus copias, con cambio de permiso, casita, "Editar copia" y "Quitar".
+    - Tablet vinculada, con opción de desvincularla.
+    - Código de un solo uso con su vencimiento.
+  - La profesional edita la copia de un usuario desde su cuenta: aviso "Estás editando la copia de…", UPDATE condicional, respaldo si hay conflicto. Al cerrar sesión no quedan copias de los chicos en el navegador.
+- **Security (supabase/02)**:
+  - Códigos de 8 caracteres generados por el servidor, de un solo uso, que vencen en 7 días.
+  - Canje con límite de intentos.
+  - RLS de dispositivo: la tablet solo lee su usuario y sus copias.
+  - Las sesiones anónimas nunca son profesionales.
+- **Tests**: `tools/test-device.mjs` (7 escenarios, 62 chequeos).
+

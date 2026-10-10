@@ -9,7 +9,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=27">
     
     <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -63,10 +63,10 @@
             </div>
             
             <div class="glass-box" style="padding: 20px; margin-bottom: 20px;">
-                <h3>Crear Nuevo Usuario</h3>
+                <h3>Crear nuevo usuario</h3>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="new-user-name" class="glass-input" placeholder="Nombre (ej. Mateo)" style="flex: 1;" />
-                    <button id="btn-create-user" class="btn btn-primary">Crear Usuario</button>
+                    <input type="text" id="new-user-name" class="glass-input" placeholder="Nombre (ej. Mateo)" aria-label="Nombre del nuevo usuario" style="flex: 1;" />
+                    <button id="btn-create-user" class="btn btn-primary user-btn">Crear usuario</button>
                 </div>
             </div>
 
@@ -88,22 +88,33 @@
         </div>
     </div>
 
-    <!-- Modal Flotante de Asignación (Fase 4.2) -->
-    <div id="assign-modal" class="modal-overlay" style="display: none; z-index: 30000;">
-        <div class="modal-content glass-box" style="max-width: 400px;">
+    <!-- Modal Flotante de Asignación (Fase 4.2 / F4-3: asignar = copiar) -->
+    <div id="assign-modal" class="modal-overlay" style="display: none; z-index: 30000;" role="dialog" aria-modal="true" aria-labelledby="assign-title">
+        <div class="modal-content glass-box assign-content">
             <div class="modal-header">
-                <h3>Asignar Tablero</h3>
+                <h3 id="assign-title">Dar copia <span id="assign-board-name"></span></h3>
                 <button id="btn-close-assign" class="btn-close-modal" aria-label="Cerrar">&times;</button>
             </div>
-            <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9em;">
-                Selecciona a qué usuario le quieres enviar una copia de este tablero:
+            <p class="assign-note">
+                Cada usuario recibe su propia copia: si después la cambiás para uno, no cambia para los demás ni tu original.
             </p>
-            <div id="assign-users-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto;">
+            <label class="assign-option assign-all">
+                <input type="checkbox" id="assign-select-all" />
+                <span>Seleccionar todos</span>
+            </label>
+            <div id="assign-users-list" role="group" aria-label="Usuarios" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
                 <!-- Opciones se inyectan acá -->
             </div>
-            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <label class="assign-permission-row" for="assign-permission">
+                <span>Permiso para esta tanda:</span>
+                <select id="assign-permission" class="glass-select">
+                    <option value="read_only" selected>🔒 Solo mirar</option>
+                    <option value="editable">✏️ Puede editarse</option>
+                </select>
+            </label>
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
                 <button id="btn-cancel-assign" class="btn auth-btn-secondary">Cancelar</button>
-                <button id="btn-confirm-assign" class="btn" disabled>Asignar Copia</button>
+                <button id="btn-confirm-assign" class="btn" disabled>Elegí al menos un usuario</button>
             </div>
         </div>
     </div>
@@ -143,6 +154,20 @@
                 <button id="btn-login" class="btn auth-btn" style="margin-top: 15px;">Ingresar</button>
                 <button id="btn-signup" class="btn auth-btn-secondary" style="margin-top: 10px;">Crear cuenta</button>
                 <button id="btn-auth-back" class="btn auth-btn-secondary" style="margin-top: 10px;">Seguir sin cuenta</button>
+                <button id="btn-show-link" class="btn auth-btn-secondary" style="margin-top: 22px;">Vincular esta tablet a un usuario</button>
+            </div>
+
+            <!-- F4-4: vincular la tablet del chico con el código que genera la profesional -->
+            <div id="auth-step-link" style="display: none;">
+                <h2>Vincular tablet</h2>
+                <p class="auth-desc">Ingresá el código que te dio la profesional (8 caracteres). Se hace una sola vez: después la tablet abre directo en los tableros del usuario.</p>
+                <div class="input-group">
+                    <label for="link-code-input" class="sr-only">Código de vinculación</label>
+                    <input type="text" id="link-code-input" class="glass-input auth-input link-code-input" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" />
+                </div>
+                <p id="link-error" class="link-error" role="alert"></p>
+                <button id="btn-link-device" class="btn auth-btn" style="margin-top: 10px;">Vincular</button>
+                <button id="btn-link-back" class="btn auth-btn-secondary" style="margin-top: 10px;">Volver</button>
             </div>
 
         </div>
@@ -357,6 +382,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=21"></script>
+    <script type="module" src="js/main.js?v=24"></script>
 </body>
 </html>
