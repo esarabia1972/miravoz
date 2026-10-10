@@ -158,8 +158,8 @@ export async function deleteUser(userId) {
 // ---------------------------------------------------------------- copias (assignments)
 
 const PERMISSIONS = [
-    { value: 'read_only', label: '🔒 Solo mirar' },
-    { value: 'editable', label: '✏️ Puede editarse' }
+    { value: 'read_only', label: 'Solo mirar' },
+    { value: 'editable', label: 'Puede editarse' }
 ];
 
 async function setPermission(user, copy, permission, selectEl) {

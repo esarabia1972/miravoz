@@ -219,7 +219,7 @@ switch (caseArg) {
             boards: [], access_codes: [], aac_users: [AAC],
             assignments: (q) => {
                 if (q.ops.some(([op]) => op === 'update')) { profUpdateRow = q; return [{ copy_updated_at: '2026-10-09T13:00:00.000Z' }]; }
-                return [{ ...clone(ROW2), aac_users: { display_name: 'Mateo' } }];
+                return [{ ...clone(ROW2), aac_user_id: 'au1' }]; // el nombre se busca aparte en aac_users (sin embed ambiguo)
             }
         };
         break;

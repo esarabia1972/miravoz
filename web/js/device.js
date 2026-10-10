@@ -280,10 +280,15 @@ async function pushCopyAsProfessional(copy, current) {
 /** Trae la copia asignada para editarla como profesional. */
 export async function loadCopyForProfessional(assignmentId) {
     if (!supabaseClient) return null;
+    // Dos consultas simples: un embed `aac_users(...)` es ambiguo para PostgREST porque hay dos relaciones
+    // entre assignments y aac_users (aac_user_id y aac_users.home_board_id) → error PGRST201.
     const { data: row, error } = await supabaseClient.from('assignments')
-        .select('id, copy_bundle, permission, copy_updated_at, aac_users(display_name)')
+        .select('id, aac_user_id, copy_bundle, permission, copy_updated_at')
         .eq('id', assignmentId).maybeSingle();
     if (error || !row) { console.error('loadCopyForProfessional:', error); return null; }
+    const { data: owner } = await supabaseClient.from('aac_users')
+        .select('display_name').eq('id', row.aac_user_id).maybeSingle();
+    row.aac_users = owner || null;
     const local = await localforage.getItem(copyKey(assignmentId));
     // Si había cambios sin subir sobre ESTA misma versión del servidor, se conservan
     const keepLocal = local && local.dirty && local.copyUpdatedAt === row.copy_updated_at;

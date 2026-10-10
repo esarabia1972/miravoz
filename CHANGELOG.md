@@ -224,4 +224,7 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - iOS bloquea la síntesis de voz hasta que se habla una vez dentro de un toque. En modo Rostro o Barrido la selección no es un toque, así que no sonaba. Ahora la voz se desbloquea en silencio al primer toque o tecla.
   - Además: se reanuda si Safari la dejó en pausa, se mantienen referencias a las frases, se espera a que carguen las voces (prioridad es-AR/es-419) y hay un pequeño retraso después de `cancel()`.
   - Botón "🔊 Probar voz" en Configuración, con un aviso sobre el volumen y el modo silencio.
+- **Fixed**:
+  - "Editar copia" fallaba con "No se pudo abrir la copia". La consulta pedía el nombre del usuario embebido (`aac_users(...)`), y desde la migración 01 hay dos relaciones entre `assignments` y `aac_users` (la del usuario y la de la casita), así que PostgREST la rechazaba por ambigua. Ahora son dos consultas.
+  - Se quitaron los emojis del permiso en la ficha del usuario.
 
