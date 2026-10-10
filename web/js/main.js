@@ -4,7 +4,7 @@
 import { CONFIG, settings, initSettings, saveSettings } from './config.js';
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
-import { speak } from './speech.js';
+import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
 import { customAlert, customConfirm, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
 import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
@@ -491,6 +491,13 @@ if (btnSettings && settingsModal) {
         settingsModal.style.display = 'none';
     });
     document.getElementById('btn-settings-done')?.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+    document.getElementById('btn-test-voice')?.addEventListener('click', () => {
+        const status = document.getElementById('voice-status');
+        if (!isSpeechSupported()) { if (status) status.textContent = 'Este navegador no tiene síntesis de voz.'; return; }
+        unlockSpeech();
+        speak('Hola, esta es la voz de MiraVoz', { cancelPrevious: true });
+        if (status) status.textContent = 'Si no escuchaste nada, revisá el volumen y el modo silencio del dispositivo.';
+    });
     settingsModal.addEventListener('pointerdown', (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
 }
 

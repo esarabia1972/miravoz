@@ -220,4 +220,8 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Todos los select usan la misma flecha y foco.
   - La tarjeta muestra una **miniatura** del tablero principal, armada en el momento con los datos locales (no se guarda en la base), en lugar de "Tipo".
   - Las acciones de la tarjeta quedan en una sola fila.
+- **Fixed (voz en iPad)**:
+  - iOS bloquea la síntesis de voz hasta que se habla una vez dentro de un toque. En modo Rostro o Barrido la selección no es un toque, así que no sonaba. Ahora la voz se desbloquea en silencio al primer toque o tecla.
+  - Además: se reanuda si Safari la dejó en pausa, se mantienen referencias a las frases, se espera a que carguen las voces (prioridad es-AR/es-419) y hay un pequeño retraso después de `cancel()`.
+  - Botón "🔊 Probar voz" en Configuración, con un aviso sobre el volumen y el modo silencio.
 
