@@ -12,8 +12,7 @@
     <link rel="stylesheet" href="style.css?v=27">
     
     <!-- Librerías Externas -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -324,7 +323,7 @@
     </div>
 
     <!-- Video oculto para MediaPipe -->
-    <video id="input-video" playsinline style="display: none;"></video>
+    <video id="input-video" playsinline muted autoplay aria-hidden="true" style="position: fixed; left: -10px; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
 
     <!-- Syncing Toast -->
     <div id="sync-toast" class="glass-box" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 15px 25px; z-index: 9999; align-items: center; gap: 15px; border-radius: 50px;">
@@ -382,6 +381,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=24"></script>
+    <script type="module" src="js/main.js?v=26"></script>
 </body>
 </html>

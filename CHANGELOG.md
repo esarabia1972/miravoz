@@ -115,3 +115,16 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Las sesiones anónimas nunca son profesionales.
 - **Tests**: `tools/test-device.mjs` (7 escenarios, 62 chequeos).
 
+### Modo Iris, etapa 1: nuevo motor de cámara (09/10/2026)
+- **Changed**: `tracking.js` usa **MediaPipe Tasks Vision · FaceLandmarker** (`@mediapipe/tasks-vision@1.1.0`). El FaceMesh legado (congelado desde 2022) queda como respaldo automático y se puede forzar con `?engine=legacy`.
+  - GPU con fallback a CPU, también si la GPU empieza a fallar a mitad de la sesión.
+  - Una sola instancia del modelo; los arranques viejos nunca tocan la cámara del arranque vigente (protege contra el bug F0-1).
+  - Aviso "Preparando la cámara…" mientras descarga el modelo, con timeout de 25 s. Los errores de permiso o de falta de cámara se muestran claros.
+  - El `<video>` queda fuera de pantalla en lugar de `display:none` (compatibilidad con iOS y Android).
+  - Los scripts legados se cargan solo si hacen falta, con versión fija.
+- **Same**: el modo Rostro usa las mismas features (landmark 1) y las calibraciones guardadas siguen valiendo. Conviene recalibrar una vez y comparar el puntaje.
+- **Added**:
+  - `headpose.js`: pose de la cabeza, blendshapes de mirada e iris normalizado por ojo, como base del modo Iris híbrido (etapa 2). Se expone en `tracking.faceData`.
+  - El benchmark registra `engine` y `fps`.
+  - `tools/test-headpose.mjs` (11 tests).
+

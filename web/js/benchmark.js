@@ -6,6 +6,7 @@
 import { S } from './state.js';
 import { openBundle, activeGridElements, IMPORTER_VERSION } from './boards.js';
 import { speak } from './speech.js';
+import * as tracking from './tracking.js';
 
 const TARGETS_PER_GRID = 20;
 const STORAGE_KEY = 'miravoz_benchmarks';
@@ -113,7 +114,8 @@ export class Benchmark {
             return { grid: phase.grid, targets: n, correct: hits, accuracy: +(hits / Math.max(n, 1) * 100).toFixed(1), meanTimeMs: meanMs };
         });
 
-        const entry = { ts: Date.now(), mode: S.trackingMode, summary, detail: this.results };
+        // engine: 'tasks' (FaceLandmarker) o 'legacy' (FaceMesh) — para comparar motores con ?engine=legacy
+        const entry = { ts: Date.now(), mode: S.trackingMode, engine: tracking.engineName, fps: Math.round(tracking.fps), summary, detail: this.results };
         try {
             const prev = (await localforage.getItem(STORAGE_KEY)) || [];
             prev.push(entry);
@@ -132,7 +134,7 @@ export class Benchmark {
         const box = document.createElement('div');
         box.style.cssText = 'background:#1a1a2e; border-radius:20px; padding:40px; color:white; font-family:Inter,sans-serif; text-align:center; max-width:500px;';
         const title = document.createElement('h2');
-        title.textContent = `Resultados del Benchmark (${S.trackingMode})`;
+        title.textContent = `Resultados del Benchmark (${S.trackingMode} · motor ${tracking.engineName === 'tasks' ? 'FaceLandmarker' : 'FaceMesh legado'} · ${Math.round(tracking.fps)} fps)`;
         box.appendChild(title);
 
         summary.forEach(s => {
