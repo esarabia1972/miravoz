@@ -2,7 +2,14 @@
 
 La anon key de MiraVoz es pública (va en el cliente). Por eso la seguridad depende **solo** de las políticas RLS de cada tabla, y toda tabla nueva tiene que tener su SQL versionado acá (regla 4 de `EQUIPO.md`).
 
-## Estado al 09/10/2026
+## Estado al 09/10/2026 (actualizado)
+
+- ✅ `00_auditoria.sql` corrido. ✅ `01_schema_f4.sql` aplicado (verificación: assignments_ok=true, profesionales_sin_fila=0, políticas de storage eliminadas).
+- ✅ Prueba con anon key sin sesión: 0 filas en todas las tablas (RLS OK para anónimos).
+- Triggers en auth.users: `on_auth_user_created → handle_new_user` (legado) y `on_auth_user_created_professional → ensure_professional`.
+- Pendiente: borrar el bucket `boards` desde el panel; probar RLS con la sesión de OTRA cuenta; F4-4 (canje de código por RPC security definer, sin políticas para anon).
+
+### Estado inicial
 
 - La base real tiene las tablas `boards`, `aac_users`, `access_codes` y `assignments`, que crearon la F4.1 y la F4.2. **Ninguna de ellas está versionada.**
 - `../supabase_schema.sql` (raíz del repo) es el script viejo de junio, con el bucket de Storage y `user_settings`. Queda como histórico. No volver a correrlo.
