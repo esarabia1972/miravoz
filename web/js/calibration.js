@@ -4,6 +4,7 @@
 
 import { CONFIG } from './config.js';
 import { trainModel, trimOutliers, qualityLabel } from './regression.js';
+import * as gaze from './gaze-model.js';
 
 const STORAGE_KEY = 'miravoz_calibration_v2'; // v2: 6 features polinómicas (v1 incompatible)
 
@@ -16,6 +17,45 @@ export async function loadProfiles() {
     } catch (e) {
         console.error('Error al cargar perfiles de calibración:', e);
     }
+}
+
+/** ¿El perfil guardado sirve para este modo? (los perfiles del modo Iris viejo, solo-iris, no) */
+export function isUsableProfile(mode, profile) {
+    if (!profile) return false;
+    if (mode === 'OJOS') return profile.kind === gaze.MODEL_KIND && !!profile.model;
+    return !!(profile.weightsX && profile.weightsY);
+}
+
+/**
+ * Aprendizaje implícito (modo Iris): suma muestras confirmadas por el uso y re-entrena cada N.
+ * @returns el perfil actualizado si se re-entrenó, o null.
+ */
+let implicitSinceRetrain = 0;
+export async function addImplicitSamples(mode, samples) {
+    const profile = profiles[mode];
+    if (!isUsableProfile(mode, profile) || mode !== 'OJOS' || !samples.length) return null;
+    profile.implicit = gaze.addImplicit(profile.implicit, samples, CONFIG.IMPLICIT_MAX_SAMPLES);
+    implicitSinceRetrain++;
+    let retrained = null;
+    if (implicitSinceRetrain >= CONFIG.IMPLICIT_RETRAIN_EVERY) {
+        implicitSinceRetrain = 0;
+        try {
+            const r = gaze.train(profile.samples, CONFIG.GAZE_LAMBDA, profile.implicit);
+            if (gaze.acceptRetrain(profile.model, r.model, profile.samples)) {
+                profile.model = r.model;
+                retrained = profile;
+            } else {
+                // El modelo nuevo empeora sobre la calibración: probablemente aprendió de errores no corregidos.
+                // Se descarta y se vacía lo implícito para no seguir arrastrando el sesgo.
+                console.warn('Aprendizaje implícito: modelo descartado (empeoraba la calibración)');
+                profile.implicit = [];
+            }
+        } catch (e) {
+            console.warn('Re-entrenamiento implícito falló (se mantiene el modelo):', e?.message || e);
+        }
+    }
+    await saveProfile(mode, profile);
+    return retrained;
 }
 
 export async function clearProfile(mode) {
@@ -34,6 +74,9 @@ async function saveProfile(mode, profile) {
 
 // --- Puntos de calibración (grilla 3x3 sobre el viewport) ---
 export let calibPoints = [];
+// Modo Iris híbrido: 5 puntos extra en los que se pide mover suavemente la cabeza mientras se mira
+// el punto. Así el modelo aprende a separar el movimiento de la cabeza del de los ojos.
+export let headMovePoints = [];
 
 export function updateCalibPoints() {
     const w = window.innerWidth;
@@ -46,6 +89,13 @@ export function updateCalibPoints() {
         [mx, cy], [cx, cy], [w - mx, cy],
         [mx, h - my], [cx, h - my], [w - mx, h - my]
     ];
+    headMovePoints = [[cx, cy], [cx, my], [mx, cy], [w - mx, cy], [cx, h - my]];
+}
+
+function pointsFor(mode) {
+    const still = calibPoints.map(p => ({ target: [...p], headMove: false }));
+    if (mode !== 'OJOS') return still;
+    return [...still, ...headMovePoints.map(p => ({ target: [...p], headMove: true }))];
 }
 updateCalibPoints();
 window.addEventListener('resize', updateCalibPoints);
@@ -60,9 +110,10 @@ export class CalibrationSession {
     constructor(mode, onComplete) {
         this.mode = mode;
         this.onComplete = onComplete;
-        this.pointSamples = calibPoints.map(p => ({ target: [...p], samples: [] }));
-        this.retries = new Array(calibPoints.length).fill(0);
-        this.queue = calibPoints.map((_, i) => i); // puntos pendientes
+        this.points = pointsFor(mode);
+        this.pointSamples = this.points.map(p => ({ target: [...p.target], samples: [] }));
+        this.retries = new Array(this.points.length).fill(0);
+        this.queue = this.points.map((_, i) => i); // puntos pendientes
         this.currentIdx = null;
         this.phase = 'IDLE'; // IDLE | COUNTDOWN | SAMPLING | DONE
         this.phaseStart = 0;
@@ -94,13 +145,19 @@ export class CalibrationSession {
         } else if (this.phase === 'SAMPLING') {
             // F1-4: warm-up — descartar las muestras iniciales (sacada de llegada)
             const elapsed = now - this.phaseStart;
+            const headMove = this.points[this.currentIdx].headMove;
             if (features && elapsed > CONFIG.SAMPLE_WARMUP_MS) {
-                this.pointSamples[this.currentIdx].samples.push({ fx: features[0], fy: features[1] });
+                // Modo Iris: features = vector crudo del modelo híbrido (fx, fy = iris, para outliers)
+                const sample = this.mode === 'OJOS'
+                    ? { fx: features[0], fy: features[1], raw: features }
+                    : { fx: features[0], fy: features[1] };
+                this.pointSamples[this.currentIdx].samples.push(sample);
             }
-            if (elapsed > CONFIG.SAMPLING_MS + CONFIG.SAMPLE_WARMUP_MS) {
-                // F1-4: descarte de outliers del punto
+            const duration = headMove ? CONFIG.GAZE_HEADMOVE_SAMPLING_MS : CONFIG.SAMPLING_MS;
+            if (elapsed > duration + CONFIG.SAMPLE_WARMUP_MS) {
+                // F1-4: descarte de outliers del punto (no en los de mover la cabeza: ahí la variación es buscada)
                 const p = this.pointSamples[this.currentIdx];
-                p.samples = trimOutliers(p.samples, CONFIG.SAMPLE_OUTLIER_SIGMA);
+                if (!headMove) p.samples = trimOutliers(p.samples, CONFIG.SAMPLE_OUTLIER_SIGMA);
                 if (p.samples.length < CONFIG.MIN_SAMPLES_PER_POINT) {
                     // Muestras insuficientes (sin rostro / mucho ruido): repetir el punto,
                     // pero NUNCA en loop infinito — 3 intentos vacíos seguidos abortan.
@@ -121,10 +178,11 @@ export class CalibrationSession {
     }
 
     _train(now) {
-        const lambda = this.mode === 'OJOS' ? CONFIG.RIDGE_LAMBDA_OJOS : CONFIG.RIDGE_LAMBDA_CARA;
         let result;
         try {
-            result = trainModel(this.pointSamples, lambda);
+            result = this.mode === 'OJOS'
+                ? gaze.train(this.pointSamples, CONFIG.GAZE_LAMBDA)
+                : trainModel(this.pointSamples, CONFIG.RIDGE_LAMBDA_CARA);
         } catch (e) {
             console.error('Error entrenando modelo:', e);
             this.phase = 'DONE';
@@ -137,10 +195,12 @@ export class CalibrationSession {
         const threshold = diag * CONFIG.CALIB_POINT_ERROR_FRAC;
         let worstIdx = -1, worstErr = 0;
         result.pointErrors.forEach((err, i) => {
+            if (this.points[i].headMove) return; // ver abajo: no se reintentan
             if (err > worstErr) { worstErr = err; worstIdx = i; }
         });
 
-        if (worstErr > threshold && this.retries[worstIdx] < CONFIG.CALIB_MAX_RETRIES_PER_POINT) {
+        // Los puntos de "mover la cabeza" tienen más error por naturaleza: no se reintentan (calibración más corta)
+        if (worstIdx >= 0 && worstErr > threshold && this.retries[worstIdx] < CONFIG.CALIB_MAX_RETRIES_PER_POINT) {
             this.retries[worstIdx]++;
             console.log(`Calibración: reintentando punto ${worstIdx + 1} (error ${Math.round(worstErr)}px > ${Math.round(threshold)}px)`);
             this.queue.push(worstIdx);
@@ -149,13 +209,25 @@ export class CalibrationSession {
         }
 
         const quality = qualityLabel(result.meanError, diag, CONFIG.CALIB_GOOD_FRAC, CONFIG.CALIB_POINT_ERROR_FRAC);
-        const profile = {
-            weightsX: result.weightsX,
-            weightsY: result.weightsY,
-            meanError: result.meanError,
-            quality,
-            ts: Date.now()
-        };
+        const profile = this.mode === 'OJOS'
+            ? {
+                kind: gaze.MODEL_KIND,
+                model: result.model,
+                // Se guardan las muestras (solo el vector crudo) para re-entrenar con el aprendizaje implícito
+                samples: this.pointSamples.map(p => ({ target: p.target, samples: p.samples.map(s => ({ raw: s.raw })) })),
+                implicit: [],
+                meanError: result.meanError,
+                quality,
+                ts: Date.now()
+            }
+            : {
+                weightsX: result.weightsX,
+                weightsY: result.weightsY,
+                meanError: result.meanError,
+                quality,
+                ts: Date.now()
+            };
+        implicitSinceRetrain = 0;
         saveProfile(this.mode, profile);
         this.phase = 'DONE';
         this.onComplete(profile);
@@ -164,12 +236,16 @@ export class CalibrationSession {
     // Datos para que main.js dibuje el punto actual en el canvas
     renderInfo(now) {
         if (this.phase !== 'COUNTDOWN' && this.phase !== 'SAMPLING') return null;
-        const [tx, ty] = calibPoints[this.currentIdx];
-        const total = calibPoints.length;
+        const pt = this.points[this.currentIdx];
+        const [tx, ty] = pt.target;
+        const total = this.points.length;
         return {
             x: tx, y: ty,
             index: this.currentIdx,
             label: `${this.currentIdx + 1}/${total}`,
+            hint: pt.headMove
+                ? 'Mirá el punto y mové la cabeza despacito'
+                : (this.mode === 'OJOS' ? 'Mirá el punto, con la cabeza quieta' : null),
             sampling: this.phase === 'SAMPLING',
             countdownProgress: this.phase === 'COUNTDOWN'
                 ? Math.min((now - this.phaseStart) / CONFIG.COUNTDOWN_MS, 1)

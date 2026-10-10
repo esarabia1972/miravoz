@@ -12,6 +12,7 @@ import { syncAll } from './sync.js';
 import * as deviceMod from './device.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
+import * as gaze from './gaze-model.js';
 import * as calibration from './calibration.js';
 import { DwellEngine } from './dwell.js';
 import { ScanEngine } from './scanning.js';
@@ -116,6 +117,8 @@ function resetFilters() {
 
 // --- Selección de un target (compartida por dwell y barrido) ---
 const selectTarget = (target) => {
+    // El centro del objetivo se toma ANTES de actuar (la acción puede re-renderizar el tablero)
+    const rect = target.element?.getBoundingClientRect?.();
     if (target.isBoardCard) {
         boards.openBundle(target.data);
     } else if (target.isAccBtn) {
@@ -123,7 +126,47 @@ const selectTarget = (target) => {
     } else {
         boards.handleCellClick(target.element, target.data);
     }
+    // Después de la acción: si fue "borrar"/"atrás", su click ya canceló la selección anterior
+    recordImplicitSelection(rect);
 };
+
+// --- Modo Iris: aprendizaje implícito ---
+// Cada selección por dwell que NO se corrige (borrar último / atrás) en los 3 s siguientes se toma
+// como "miraba ese objetivo" y sus muestras se suman al modelo (re-entrena cada N). Así el modo
+// mejora con el uso y se adapta a cambios de luz, postura o anteojos sin recalibrar.
+const implicitEnabled = urlParams.get('implicit') !== '0';
+let pendingImplicit = null;
+
+function recordImplicitSelection(rect) {
+    if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || !rect || !rect.width) return;
+    if (!calibration.isUsableProfile('OJOS', calibration.profiles.OJOS)) return;
+    const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
+    const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === 8);
+    if (feats.length < 3) return;
+    // Solo aprender de selecciones "seguras": el cursor estuvo en el centro del objetivo casi todo el dwell
+    if (!gaze.isConfidentSelection(calibration.profiles.OJOS.model, feats, rect)) return;
+    const step = Math.max(1, Math.floor(feats.length / CONFIG.IMPLICIT_SAMPLES_PER_SELECT));
+    const target = [rect.left + rect.width / 2, rect.top + rect.height / 2];
+    const samples = feats.filter((_, i) => i % step === 0).slice(0, CONFIG.IMPLICIT_SAMPLES_PER_SELECT).map(raw => ({ target, raw }));
+    commitPendingImplicit(); // la anterior ya pasó su ventana de corrección implícitamente
+    const entry = { samples, timer: null };
+    entry.timer = setTimeout(() => { if (pendingImplicit === entry) commitPendingImplicit(); }, CONFIG.IMPLICIT_CONFIRM_MS);
+    pendingImplicit = entry;
+}
+
+function cancelPendingImplicit() {
+    if (pendingImplicit) clearTimeout(pendingImplicit.timer);
+    pendingImplicit = null;
+}
+
+async function commitPendingImplicit() {
+    const entry = pendingImplicit;
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    pendingImplicit = null;
+    const updated = await calibration.addImplicitSamples('OJOS', entry.samples);
+    if (updated && S.trackingMode === 'OJOS') tracking.applyProfile('OJOS', updated);
+}
 
 // --- Dwell engine (F0-6, F1-6) ---
 const dwell = new DwellEngine(selectTarget);
@@ -207,14 +250,17 @@ function startCalibration() {
 function onCalibrationComplete(profile) {
     calibSession = null;
     if (!profile) {
-        customAlert('No se pudo completar la calibración. Verificá que la cámara te detecte e intentá de nuevo.');
+        customAlert(S.trackingMode === 'OJOS' && tracking.engineName === 'legacy'
+            ? 'El Modo Iris necesita el motor de cámara nuevo, que no pudo iniciar en este navegador. Probá con Chrome o Edge actualizados.'
+            : 'No se pudo completar la calibración. Verificá que la cámara te detecte e intentá de nuevo.');
         goHome();
         return;
     }
 
-    tracking.setWeights(profile.weightsX, profile.weightsY);
+    tracking.applyProfile(S.trackingMode, profile);
     S.isCalibrated = true;
     resetFilters();
+    cancelPendingImplicit();
 
     if (S.currentBundle) {
         S.state = 'BOARD';
@@ -284,8 +330,8 @@ function applyMode(mode) {
         scan.stop();
         tracking.startMediaPipe();
         const profile = calibration.profiles[S.trackingMode];
-        if (profile && profile.weightsX) {
-            tracking.setWeights(profile.weightsX, profile.weightsY);
+        if (calibration.isUsableProfile(S.trackingMode, profile)) {
+            tracking.applyProfile(S.trackingMode, profile);
             S.isCalibrated = true;
             resetFilters();
             const targets = (S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements;
@@ -317,9 +363,10 @@ function goHome() {
     if (S.trackingMode === 'SCAN') scan.setTargets(boards.activeHomeElements);
 }
 
-document.getElementById('btn-acc-home').addEventListener('click', goHome);
+document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
 
 document.getElementById('btn-acc-back').addEventListener('click', () => {
+    cancelPendingImplicit(); // "atrás" corrige la selección anterior: no aprender de ella
     if (S.navigationHistory.length > 0) {
         boards.renderGrid(S.navigationHistory.pop());
     }
@@ -335,6 +382,7 @@ document.getElementById('btn-acc-play').addEventListener('click', (e) => {
     playSentence();
 });
 document.getElementById('btn-acc-delete').addEventListener('click', (e) => {
+    cancelPendingImplicit(); // "borrar último" corrige la selección anterior: no aprender de ella
     flashBtn(e.currentTarget);
     popSentence();
 });
@@ -490,6 +538,18 @@ function drawCalibPoint(info) {
     ctxUI.textAlign = 'center';
     ctxUI.textBaseline = 'middle';
     ctxUI.fillText(info.label, info.x, info.y);
+
+    // Modo Iris: indicación (p. ej. "mové la cabeza despacito") arriba de la pantalla
+    if (info.hint) {
+        ctxUI.font = 'bold 26px Inter';
+        ctxUI.lineWidth = 6;
+        ctxUI.strokeStyle = 'rgba(0,0,0,0.85)';
+        const hy = info.y < canvasUI.height / 3 ? canvasUI.height - 50 : 50; // que no tape el punto
+        const maxW = canvasUI.width - 40; // nunca cortado en pantallas angostas
+        ctxUI.strokeText(info.hint, canvasUI.width / 2, hy, maxW);
+        ctxUI.fillStyle = '#ffd27a';
+        ctxUI.fillText(info.hint, canvasUI.width / 2, hy, maxW);
+    }
 }
 
 function drawCursor(x, y) {

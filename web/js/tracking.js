@@ -12,6 +12,7 @@
 import { S } from './state.js';
 import { phi, dot } from './regression.js';
 import { poseFromMatrix, pickEyeBlendshapes, irisInEye } from './headpose.js';
+import * as gaze from './gaze-model.js';
 import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
 
 const TASKS_VERSION = '1.1.0';
@@ -32,34 +33,46 @@ export let engineName = null;
 /** Cuadros procesados por segundo (promedio móvil) */
 export let fps = 0;
 
-// --- Pesos de la calibración ---
+// --- Modelo de la calibración ---
+// CARA: pesos polinómicos sobre la nariz. OJOS: modelo híbrido cabeza+iris (gaze-model.js).
 let weightsX = null;
 let weightsY = null;
+let gazeModel = null;
 export function setWeights(wx, wy) { weightsX = wx; weightsY = wy; }
-export function clearWeights() { weightsX = null; weightsY = null; }
-export function hasWeights() { return !!(weightsX && weightsY); }
+export function clearWeights() { weightsX = null; weightsY = null; gazeModel = null; }
+export function hasWeights() { return S.trackingMode === 'OJOS' ? !!gazeModel : !!(weightsX && weightsY); }
 
-// Extrae features según el modo. Devuelve [fx, fy] o null. (Idéntico al motor anterior.)
-function extractFeatures(landmarks, mode) {
-    if (mode === 'OJOS') {
-        const avgPupilX = (landmarks[473].x + landmarks[468].x) / 2;
-        const avgPupilY = (landmarks[473].y + landmarks[468].y) / 2;
-        const anchorX = (landmarks[33].x + landmarks[263].x) / 2;
-        const anchorY = (landmarks[33].y + landmarks[263].y) / 2;
-        const interOcular = landmarks[263].x - landmarks[33].x;
-        if (Math.abs(interOcular) < 1e-6) return null;
-        return [(avgPupilX - anchorX) / interOcular, (avgPupilY - anchorY) / interOcular];
-    }
-    // CARA: punta de la nariz (landmark 1)
-    return [landmarks[1].x, landmarks[1].y];
+/** Aplica un perfil de calibración guardado al modo. */
+export function applyProfile(mode, profile) {
+    if (mode === 'OJOS') { gazeModel = profile?.model || null; return; }
+    setWeights(profile.weightsX, profile.weightsY);
+}
+
+// Extrae features según el modo.
+//  CARA → [fx, fy] (nariz, landmark 1; igual que siempre)
+//  OJOS → vector crudo del modelo híbrido (necesita la pose de la cabeza: solo motor FaceLandmarker)
+function extractFeatures(fd, mode) {
+    if (mode === 'OJOS') return gaze.rawFeatures(fd);
+    return [fd.landmarks[1].x, fd.landmarks[1].y];
 }
 
 function predict(features) {
-    const f = phi(features[0], features[1]);
-    return [
-        Math.max(0, Math.min(window.innerWidth, dot(weightsX, f))),
-        Math.max(0, Math.min(window.innerHeight, dot(weightsY, f)))
-    ];
+    let x, y;
+    if (S.trackingMode === 'OJOS') {
+        [x, y] = gaze.predict(gazeModel, features);
+    } else {
+        const f = phi(features[0], features[1]);
+        x = dot(weightsX, f); y = dot(weightsY, f);
+    }
+    return [Math.max(0, Math.min(window.innerWidth, x)), Math.max(0, Math.min(window.innerHeight, y))];
+}
+
+// Últimas features (2 s) para el aprendizaje implícito del modo Iris
+const recent = [];
+/** Features crudas de los últimos `ms` milisegundos (excluyendo los últimos `skipMs`). */
+export function recentFeatures(ms, skipMs = 0) {
+    const now = performance.now();
+    return recent.filter(r => r.t >= now - ms && r.t <= now - skipMs).map(r => r.f);
 }
 
 // Procesamiento común a ambos motores
@@ -73,7 +86,11 @@ function onLandmarks(landmarks, extra = {}) {
 
     if (!landmarks) { currentFeatures = null; faceData = null; return; }
     faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, iris: irisInEye(landmarks), t: now };
-    currentFeatures = extractFeatures(landmarks, S.trackingMode);
+    currentFeatures = extractFeatures(faceData, S.trackingMode);
+    if (currentFeatures) {
+        recent.push({ t: now, f: currentFeatures });
+        while (recent.length && recent[0].t < now - 2000) recent.shift();
+    }
     if ((S.state === 'BOARD' || S.state === 'HOME') && currentFeatures && hasWeights()) {
         const [px, py] = predict(currentFeatures);
         S.rawX = px;
@@ -294,4 +311,5 @@ export function stopMediaPipe() {
     running = false;
     currentFeatures = null;
     faceData = null;
+    recent.length = 0;
 }

@@ -130,3 +130,21 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
 - **Benchmark (10/10/2026, Esteban)**: los dos motores dan resultados idénticos en modo Rostro. FaceLandmarker: 3×3 95% (19/20, 3,2 s) y 4×4 100% (20/20, 3,5 s). FaceMesh: 3×3 95% (19/20, 3,1 s) y 4×4 100% (20/20, 3,4 s). Queda FaceLandmarker como motor por defecto.
 - **Fixed (rendimiento)**: el motor nuevo procesaba en cada refresco de pantalla, a 108 cps en una pantalla de 120 Hz, analizando varias veces la misma imagen. Ahora va al ritmo real de la cámara (normalmente 30 cps), lo que ahorra CPU en tablets de gama baja.
 
+### Modo Iris, etapa 2: modelo híbrido cabeza + iris (10/10/2026) — experimental, solo con `?iris=1`
+- **Added**: `gaze-model.js`.
+  - Estima el punto de la pantalla combinando la pose de la cabeza (yaw, pitch), la posición de la nariz, el iris dentro de cada ojo y los blendshapes de mirada.
+  - Features estandarizadas, términos cuadráticos y cruces iris×cabeza; ridge.
+  - Descarta parpadeos.
+- **Changed**: la calibración del modo Iris tiene 14 puntos.
+  - 9 con la cabeza quieta y 5 donde se pide "mirá el punto y mové la cabeza despacito"; así el modelo aprende a separar cabeza de ojos.
+  - Se muestra una indicación en pantalla.
+  - Los perfiles del modo Iris viejo (solo iris) quedan invalidados.
+- **Added**: aprendizaje implícito. Cada selección por dwell que no se corrige en 3 s ("borrar último", "atrás" o "inicio") suma muestras al modelo, que se re-entrena cada 5 selecciones. Salvaguardas:
+  - Solo cuentan las selecciones con el cursor en el centro del objetivo.
+  - Lo implícito no supera el 30% del entrenamiento.
+  - Un modelo que empeora sobre la calibración se descarta.
+  - Desactivado durante el benchmark; se apaga con `?implicit=0`.
+- **Sin cambios** en los modos Rostro, Barrido y Manual (verificado por revisión y por `tools/test-calibration.mjs`).
+- **Tests**: `tools/test-gaze.mjs` (11) y `tools/test-calibration.mjs` (14).
+- **Pendiente**: benchmark real con webcam. Criterio de reingreso: ≥90% en 3×3.
+

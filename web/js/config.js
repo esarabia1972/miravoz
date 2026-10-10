@@ -17,7 +17,15 @@ export const CONFIG = {
     CALIB_POINT_ERROR_FRAC: 0.08, // F1-5: umbral de error por punto (fracción de la diagonal)
     CALIB_GOOD_FRAC: 0.04,        // F1-5: score "Buena" si error medio < 4% diagonal
     RIDGE_LAMBDA_CARA: 0.1,       // F1-3
-    RIDGE_LAMBDA_OJOS: 0.01,      // F1-3 (con features polinómicas necesita algo más que 0.001)
+    RIDGE_LAMBDA_OJOS: 0.01,      // F1-3 (modelo solo-iris anterior; ya no se usa)
+
+    // Modo Iris híbrido (etapa 2): cabeza + iris
+    GAZE_LAMBDA: 1,               // ridge sobre features estandarizadas
+    GAZE_HEADMOVE_SAMPLING_MS: 2500, // puntos de "mové suavemente la cabeza"
+    IMPLICIT_CONFIRM_MS: 3000,    // una selección cuenta como acierto si no se borra/vuelve en este tiempo
+    IMPLICIT_SAMPLES_PER_SELECT: 8,
+    IMPLICIT_RETRAIN_EVERY: 5,    // re-entrenar cada N selecciones confirmadas
+    IMPLICIT_MAX_SAMPLES: 300,
 
     // Filtro 1 Euro (F1-2)
     ONE_EURO_MIN_CUTOFF: 1.0,
