@@ -30,7 +30,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="style.css?v=33">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -70,6 +70,15 @@
     <!-- Vista de Inicio (Galería) -->
     <div id="home-view" class="view-container" style="display: none;">
         <div class="gallery-container" style="padding-top: 20px;">
+            <!-- Filtros del home (10/10/2026): etiquetas + usuario; se combinan con el buscador -->
+            <div id="home-filters" class="home-filters" hidden>
+                <div id="tag-filter-chips" class="filter-chips" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
+                <label id="user-filter-wrap" class="user-filter" for="user-filter" hidden>
+                    <span>Usuario:</span>
+                    <select id="user-filter" class="glass-select"><option value="">Todos</option></select>
+                </label>
+            </div>
+            <p id="home-filter-empty" class="home-filter-empty" role="status" hidden>Ningún tablero coincide con los filtros.</p>
             <div id="board-list" class="board-grid">
                 <!-- Cards de tableros guardados se generan en JS -->
             </div>
@@ -134,9 +143,33 @@
                     <option value="editable">✏️ Puede editarse</option>
                 </select>
             </label>
-            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
-                <button id="btn-cancel-assign" class="btn auth-btn-secondary">Cancelar</button>
-                <button id="btn-confirm-assign" class="btn" disabled>Elegí al menos un usuario</button>
+            <div class="modal-footer">
+                <button id="btn-cancel-assign" type="button" class="btn btn-secondary">Cancelar</button>
+                <button id="btn-confirm-assign" type="button" class="btn btn-primary" disabled>Elegí al menos un usuario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de etiquetas de un tablero (10/10/2026) -->
+    <div id="tags-modal" class="modal-overlay" style="display: none; z-index: 30000;" role="dialog" aria-modal="true" aria-labelledby="tags-title">
+        <div class="modal-content glass-box tags-content">
+            <div class="modal-header">
+                <h3 id="tags-title">Etiquetas <span id="tags-board-name"></span></h3>
+                <button id="btn-close-tags" type="button" class="btn-close-modal" aria-label="Cerrar">&times;</button>
+            </div>
+            <p class="assign-note">Palabras clave para agrupar y filtrar tus tableros (por ejemplo: Hogar, Cotidiano). Hasta 10 por tablero.</p>
+            <div id="tags-current" class="tags-current" role="group" aria-label="Etiquetas actuales"></div>
+            <div class="tags-add-row">
+                <input type="text" id="tags-input" class="glass-input" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta" maxlength="30" autocomplete="off" />
+                <button id="btn-add-tag" type="button" class="btn btn-secondary">Agregar</button>
+            </div>
+            <div id="tags-suggestions-wrap" hidden>
+                <p class="assign-note" style="margin-bottom: 6px;">Usadas en otros tableros:</p>
+                <div id="tags-suggestions" class="filter-chips" role="group" aria-label="Sugerencias de etiquetas"></div>
+            </div>
+            <p id="tags-status" class="assign-note" role="status" aria-live="polite"></p>
+            <div class="modal-footer">
+                <button id="btn-done-tags" type="button" class="btn btn-primary">Listo</button>
             </div>
         </div>
     </div>
@@ -354,54 +387,65 @@
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content glass-panel" style="max-width: 450px;">
+        <div class="modal-content glass-box settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div class="modal-header">
-                <h2>Configuración</h2>
-                <button class="btn-close" id="btn-close-settings">&times;</button>
+                <h2 id="settings-title">Configuración</h2>
+                <button class="btn-close-modal" id="btn-close-settings" aria-label="Cerrar">&times;</button>
             </div>
-            <div class="modal-body" style="padding-top: 15px;">
-                <div class="setting-group" id="setting-dwell">
-                    <label for="dwell-select">Tiempo de Fijación (Seguimiento Ocular)</label>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 8px;">Define cuánto tiempo debes mirar una celda para activarla.</p>
-                    <select id="dwell-select" class="glass-select" style="width: 100%;">
-                        <option value="800">0.8 segundos</option>
-                        <option value="1200" selected>1.2 segundos</option>
-                        <option value="2000">2.0 segundos</option>
-                        <option value="3000">3.0 segundos</option>
-                        <option value="5000">5.0 segundos</option>
-                    </select>
+
+            <section class="settings-section" id="setting-dwell">
+                <h3>Modo Rostro</h3>
+                <label for="dwell-select">Tiempo de fijación</label>
+                <p class="settings-help">Cuánto tiempo hay que mantener el cursor sobre una celda para elegirla.</p>
+                <select id="dwell-select" class="glass-select">
+                    <option value="800">0,8 segundos</option>
+                    <option value="1200" selected>1,2 segundos</option>
+                    <option value="2000">2 segundos</option>
+                    <option value="3000">3 segundos</option>
+                    <option value="5000">5 segundos</option>
+                </select>
+            </section>
+
+            <section class="settings-section" id="setting-scan">
+                <h3>Modo Barrido</h3>
+                <p class="settings-help">Las opciones se resaltan de a una y se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+                <div class="settings-grid">
+                    <div>
+                        <label for="scan-pattern">Patrón</label>
+                        <select id="scan-pattern" class="glass-select">
+                            <option value="ROW_COLUMN" selected>Fila → elemento</option>
+                            <option value="LINEAR">Elemento por elemento</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-interval">Velocidad</label>
+                        <select id="scan-interval" class="glass-select">
+                            <option value="600">Muy rápida (0,6 s)</option>
+                            <option value="900">Rápida (0,9 s)</option>
+                            <option value="1200" selected>Media (1,2 s)</option>
+                            <option value="1800">Pausada (1,8 s)</option>
+                            <option value="2000">Lenta (2 s)</option>
+                            <option value="2500">Más lenta (2,5 s)</option>
+                            <option value="3000">Muy lenta (3 s)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-audio">Sonido al barrer</label>
+                        <select id="scan-audio" class="glass-select">
+                            <option value="none" selected>Silencio</option>
+                            <option value="beep">Beep</option>
+                            <option value="speak">Decir cada opción</option>
+                        </select>
+                    </div>
                 </div>
+            </section>
 
-                <div class="setting-group" id="setting-scan" style="margin-top: 25px;">
-                    <label>Barrido (Modo Pulsador)</label>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 8px;">El barrido resalta las opciones una por una; se selecciona con el pulsador, la barra espaciadora o tocando la pantalla.</p>
-
-                    <label for="scan-pattern" style="font-size: 0.85rem; color: var(--text-main);">Patrón</label>
-                    <select id="scan-pattern" class="glass-select" style="width: 100%; margin-bottom: 10px;">
-                        <option value="ROW_COLUMN" selected>Fila → Elemento</option>
-                        <option value="LINEAR">Elemento por elemento</option>
-                    </select>
-
-                    <label for="scan-interval" style="font-size: 0.85rem; color: var(--text-main);">Velocidad</label>
-                    <select id="scan-interval" class="glass-select" style="width: 100%; margin-bottom: 10px;">
-                        <option value="600">Rápida (0.6s)</option>
-                        <option value="900">Media-rápida (0.9s)</option>
-                        <option value="1200" selected>Media (1.2s)</option>
-                        <option value="2000">Lenta (2s)</option>
-                        <option value="3000">Muy lenta (3s)</option>
-                    </select>
-
-                    <label for="scan-audio" style="font-size: 0.85rem; color: var(--text-main);">Sonido al barrer</label>
-                    <select id="scan-audio" class="glass-select" style="width: 100%;">
-                        <option value="none" selected>Silencioso</option>
-                        <option value="beep">Beep</option>
-                        <option value="speak">Decir cada opción</option>
-                    </select>
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btn-settings-done">Listo</button>
             </div>
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=37"></script>
+    <script type="module" src="js/main.js?v=38"></script>
 </body>
 </html>

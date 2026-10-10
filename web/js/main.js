@@ -5,7 +5,7 @@ import { CONFIG, settings, initSettings, saveSettings } from './config.js';
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak } from './speech.js';
-import { customAlert, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
+import { customAlert, customConfirm, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
 import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
@@ -60,6 +60,7 @@ async function onProfessionalSession(user) {
 document.getElementById('btn-account')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (!S.currentUser) return;
+    if (!(await customConfirm('¿Cerrar sesión? Tus tableros quedan guardados en tu cuenta.'))) return;
     await deviceMod.clearProfessionalCopies(); // no dejar copias de los chicos en este navegador
     await signOut();
     window.location.reload(); // vuelve a la pantalla de ingreso; los tableros locales NO se borran (F0-4)
@@ -217,6 +218,8 @@ boards.hooks.onBundleOpened = () => {
     clearSentence();
     // Tablet vinculada: el lápiz de edición solo aparece en copias editables
     document.body.classList.toggle('copy-editable', S.currentBundle?.permission === 'editable');
+    // El tablero de prueba es fijo: no se edita ni se guarda (antes, editarlo lo dejaba en el inicio)
+    document.body.classList.toggle('test-board', S.currentBundle?.type === 'test');
     // Profesional editando la copia de un usuario: aviso fijo arriba
     updateCopyBanner();
     // Solo los modos de puntero (Rostro/Iris) requieren calibración; Barrido y Manual no.
@@ -470,6 +473,9 @@ if (searchInput) {
             const name = card.getAttribute('data-name') || '';
             card.style.display = name.includes(query) ? 'flex' : 'none';
         });
+        // Dwell/barrido: solo las tarjetas visibles (buscador + filtros de etiquetas/usuario)
+        const vis = boards.activeHomeElements.filter(t => t.element.style.display !== 'none' && !t.element.classList.contains('is-filtered-out'));
+        if (S.state === 'HOME') { dwell.setTargets(vis); if (S.trackingMode === 'SCAN') scan.setTargets(vis); }
     });
 }
 
@@ -484,6 +490,8 @@ if (btnSettings && settingsModal) {
     document.getElementById('btn-close-settings').addEventListener('click', () => {
         settingsModal.style.display = 'none';
     });
+    document.getElementById('btn-settings-done')?.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+    settingsModal.addEventListener('pointerdown', (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
 }
 
 if (dwellSelect) {

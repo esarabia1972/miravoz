@@ -203,6 +203,181 @@ export async function importFile(file) {
 let isRenderingBoards = false;
 let rerenderRequested = false;
 
+// Etiquetas (10/10/2026): bundle.tags = ['Hogar', ...]. Viajan dentro del bundle (sync sin migración).
+export const MAX_TAGS = 10;
+export const MAX_TAG_LENGTH = 30;
+
+/** Normaliza una lista de etiquetas: trim, espacios simples, máx. 30 caracteres, sin duplicados (sin distinguir mayúsculas), máx. 10. */
+export function normalizeTags(list) {
+    const out = [];
+    const seen = new Set();
+    for (const raw of Array.isArray(list) ? list : []) {
+        if (typeof raw !== 'string') continue;
+        const tag = raw.replace(/\s+/g, ' ').trim().slice(0, MAX_TAG_LENGTH).trim();
+        const key = tag.toLocaleLowerCase('es');
+        if (!tag || seen.has(key)) continue;
+        seen.add(key);
+        out.push(tag);
+        if (out.length >= MAX_TAGS) break;
+    }
+    return out;
+}
+
+const tagKey = (t) => t.toLocaleLowerCase('es');
+
+/**
+ * Filtro del home (lógica pura). Etiquetas: el tablero debe tener TODAS las elegidas (cada chip achica).
+ * Usuario: solo tableros asignados a ese usuario.
+ */
+export function matchesHomeFilters(bundle, { tags = [], userBoardIds = null } = {}) {
+    if (tags.length) {
+        const own = new Set(normalizeTags(bundle.tags).map(tagKey));
+        if (!tags.every(t => own.has(t))) return false;
+    }
+    if (userBoardIds && !userBoardIds.has(bundle.id)) return false;
+    return true;
+}
+
+// Estado de filtros y asignaciones del home
+const homeFilters = { tags: new Set(), userId: '' }; // tags en minúsculas
+let homeCards = [];             // [{ card, bundle, entry }]
+let assignCountByBoard = new Map();
+let boardsByUser = new Map();   // aac_user_id -> Set(board_id)
+let filterUsers = [];           // [{ id, display_name }]
+let assignmentsRequest = 0;
+
+const ICONS = {
+    assign: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+    tags: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>',
+    export: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+    duplicate: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+    remove: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
+};
+
+function makeActionButton(kind, label, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-icon card-action card-action-' + kind;
+    btn.innerHTML = ICONS[kind]; // SVG fijo, sin datos de personas
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.onclick = (e) => { e.stopPropagation(); onClick(e); };
+    return btn;
+}
+
+function renderCardTags(container, bundle) {
+    const tags = normalizeTags(bundle.tags);
+    container.replaceChildren();
+    container.hidden = tags.length === 0;
+    tags.slice(0, 3).forEach(t => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = t;
+        container.appendChild(chip);
+    });
+    if (tags.length > 3) {
+        const more = document.createElement('span');
+        more.className = 'tag-chip tag-chip-more';
+        more.textContent = `+${tags.length - 3}`;
+        more.title = tags.slice(3).join(', ');
+        container.appendChild(more);
+    }
+    container.setAttribute('aria-label', tags.length ? `Etiquetas: ${tags.join(', ')}` : '');
+}
+
+function buildBoardCard(bundle) {
+    const card = document.createElement('div');
+    card.className = 'board-card glass-box';
+    card.setAttribute('data-name', bundle.name.toLowerCase());
+    card.dataset.boardId = bundle.id;
+
+    let previewText = 'Sin opciones';
+    let optionsCount = 0;
+    if (bundle.boards && bundle.mainBoard && bundle.boards[bundle.mainBoard]) {
+        const mainElements = bundle.boards[bundle.mainBoard].gridElements || [];
+        optionsCount = mainElements.length;
+        const labels = mainElements
+            .map(e => e.label ? (e.label.es || e.label.en) : '')
+            .filter(Boolean).slice(0, 5);
+        if (labels.length > 0) {
+            previewText = labels.join(', ') + (optionsCount > 5 ? '...' : '');
+        }
+    }
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'board-card-info';
+    const h3 = document.createElement('h3');
+    h3.className = 'board-card-title';
+    h3.textContent = bundle.name;
+    const tagsDiv = document.createElement('div');
+    tagsDiv.className = 'board-card-tags';
+    renderCardTags(tagsDiv, bundle);
+    const pType = document.createElement('p');
+    pType.className = 'board-card-meta';
+    pType.textContent = `Tipo: ${(bundle.type || '').toUpperCase()} | Opciones: ${optionsCount}`;
+    const pPrev = document.createElement('p');
+    pPrev.className = 'board-card-preview';
+    pPrev.textContent = previewText;
+    infoDiv.append(h3, tagsDiv, pType, pPrev);
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'board-card-actions';
+
+    const assignWrap = document.createElement('span');
+    assignWrap.className = 'card-action-wrap';
+    const assignBtn = makeActionButton('assign', 'Dar copia a usuarios', () => openAssignModal(bundle));
+    const badge = document.createElement('span');
+    badge.className = 'card-badge';
+    badge.setAttribute('aria-hidden', 'true');
+    badge.hidden = true;
+    assignWrap.append(assignBtn, badge);
+    if (!S.currentUser) assignWrap.hidden = true; // asignar requiere cuenta
+
+    const tagsBtn = makeActionButton('tags', 'Etiquetas', () => openTagsModal(bundle, tagsBtn));
+    tagsBtn.dataset.tagsFor = bundle.id;
+
+    const exportBtn = makeActionButton('export', 'Exportar .grd', () => {
+        const payload = { grids: Object.values(bundle.boards) };
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${bundle.name}.grd`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+
+    const duplicateBtn = makeActionButton('duplicate', 'Duplicar tablero', async () => {
+        const clone = JSON.parse(JSON.stringify(bundle));
+        clone.id = 'bundle_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        clone.name = clone.name + ' (copia)';
+        delete clone.ownerId; delete clone.syncedAt; // es un tablero nuevo
+        await saveBundle(clone, { isNew: true });
+        loadSavedBoards();
+    });
+
+    const deleteBtn = makeActionButton('remove', 'Eliminar tablero', async () => {
+        await removeBundle(bundle);
+        loadSavedBoards();
+        showUndoToast(async () => {
+            await saveBundle(bundle); // también cancela el borrado pendiente en la nube
+            loadSavedBoards();
+        });
+    });
+    deleteBtn.classList.add('card-action-danger');
+
+    actionsDiv.append(assignWrap, tagsBtn, exportBtn, duplicateBtn, deleteBtn);
+
+    const progress = document.createElement('div');
+    progress.className = 'progress-bar';
+    progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
+
+    card.append(infoDiv, actionsDiv, progress);
+    card.onclick = () => openBundle(bundle);
+
+    const entry = { element: card, data: bundle, isBoardCard: true };
+    return { card, bundle, entry, assignBtn, badge };
+}
+
 export async function loadSavedBoards() {
     // Si ya se está renderizando, no descartar el pedido: re-renderizar al terminar
     if (isRenderingBoards) { rerenderRequested = true; return; }
@@ -211,140 +386,190 @@ export async function loadSavedBoards() {
         const keys = await localforage.keys();
         boardList.innerHTML = '';
         activeHomeElements = [];
+        homeCards = [];
 
         const fragment = document.createDocumentFragment();
-        let boardCount = 0;
         for (const key of keys) {
             if (key.startsWith('miravoz_')) continue; // settings, calibración, benchmarks
 
             const bundle = await localforage.getItem(key);
             if (!bundle || !bundle.name) continue;
+            // El tablero de prueba no se guarda: si quedó en disco por error (versiones viejas), se limpia.
+            // No es de nadie ni está en la nube, así que no pasa por removeBundle.
+            if (bundle.type === 'test') { await localforage.removeItem(key); continue; }
             // F4: tableros de una cuenta solo se ven con esa cuenta; los locales sin dueño, siempre
             if (!isVisibleTo(bundle, S.currentUser?.id)) continue;
 
-            boardCount++;
-            const card = document.createElement('div');
-            card.className = 'board-card glass-box';
-            card.style.flexDirection = 'column';
-            card.style.alignItems = 'flex-start';
-            card.style.gap = '15px';
-            card.style.position = 'relative';
-            card.style.overflow = 'hidden';
-            card.setAttribute('data-name', bundle.name.toLowerCase());
-
-            let previewText = 'Sin opciones';
-            let optionsCount = 0;
-            if (bundle.boards && bundle.mainBoard && bundle.boards[bundle.mainBoard]) {
-                const mainElements = bundle.boards[bundle.mainBoard].gridElements || [];
-                optionsCount = mainElements.length;
-                const labels = mainElements
-                    .map(e => e.label ? (e.label.es || e.label.en) : '')
-                    .filter(Boolean).slice(0, 5);
-                if (labels.length > 0) {
-                    previewText = labels.join(', ') + (optionsCount > 5 ? '...' : '');
-                }
-            }
-
-            const infoDiv = document.createElement('div');
-            const h3 = document.createElement('h3');
-            h3.style.cssText = 'margin:0; font-size:1.2rem; color:var(--text-main);';
-            h3.textContent = bundle.name;
-            const pType = document.createElement('p');
-            pType.style.cssText = 'font-size:0.85rem; color:var(--text-muted); margin:5px 0 0 0;';
-            pType.textContent = `Tipo: ${(bundle.type || '').toUpperCase()} | Opciones: ${optionsCount}`;
-            const pPrev = document.createElement('p');
-            pPrev.style.cssText = 'font-size:0.8rem; color:var(--text-muted); margin:2px 0 0 0; font-style:italic;';
-            pPrev.textContent = previewText;
-            infoDiv.append(h3, pType, pPrev);
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.style.cssText = 'position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:8px;';
-
-            const assignBtn = document.createElement('button');
-            assignBtn.className = 'btn-icon';
-            assignBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
-            assignBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>';
-            assignBtn.title = 'Asignar a un usuario';
-            assignBtn.setAttribute('aria-label', assignBtn.title);
-            if (!S.currentUser) assignBtn.style.display = 'none'; // asignar requiere cuenta
-            assignBtn.onclick = (e) => {
-                e.stopPropagation();
-                openAssignModal(bundle);
-            };
-
-            const exportBtn = document.createElement('button');
-            exportBtn.className = 'btn-icon';
-            exportBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
-            exportBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
-            exportBtn.title = 'Exportar .grd';
-            exportBtn.setAttribute('aria-label', exportBtn.title);
-            exportBtn.onclick = (e) => {
-                e.stopPropagation();
-                const payload = { grids: Object.values(bundle.boards) };
-                const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `${bundle.name}.grd`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-            };
-
-
-            const duplicateBtn = document.createElement('button');
-            duplicateBtn.className = 'btn-icon';
-            duplicateBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px;';
-            duplicateBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-            duplicateBtn.title = 'Duplicar tablero';
-            duplicateBtn.setAttribute('aria-label', duplicateBtn.title);
-            duplicateBtn.onclick = async (e) => {
-                e.stopPropagation();
-                const clone = JSON.parse(JSON.stringify(bundle));
-                clone.id = 'bundle_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-                clone.name = clone.name + ' (copia)';
-                delete clone.ownerId; delete clone.syncedAt; // es un tablero nuevo
-                await saveBundle(clone, { isNew: true });
-                loadSavedBoards();
-            };
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn-icon';
-            deleteBtn.style.cssText = 'padding: 6px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; color: var(--danger-text);';
-            deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-            deleteBtn.title = 'Eliminar tablero';
-            deleteBtn.setAttribute('aria-label', deleteBtn.title);
-            deleteBtn.onclick = async (e) => {
-                e.stopPropagation();
-                await removeBundle(bundle);
-                loadSavedBoards();
-                showUndoToast(async () => {
-                    await saveBundle(bundle); // también cancela el borrado pendiente en la nube
-                    loadSavedBoards();
-                });
-            };
-            
-            actionsDiv.append(assignBtn, exportBtn, duplicateBtn, deleteBtn);
-
-            const progress = document.createElement('div');
-            progress.className = 'progress-bar';
-            progress.style.cssText = 'position:absolute; bottom:0; left:0; height:10px; background:rgba(0,255,136,0.5); width:0%; transition:width 0.1s linear;';
-
-            card.append(infoDiv, actionsDiv, progress);
-            card.onclick = () => openBundle(bundle);
-            fragment.appendChild(card);
-
-            activeHomeElements.push({ element: card, data: bundle, isBoardCard: true });
+            const item = buildBoardCard(bundle);
+            homeCards.push(item);
+            fragment.appendChild(item.card);
         }
 
-        if (boardCount === 0) {
+        if (homeCards.length === 0) {
             boardList.innerHTML = '<p style="color: var(--text-muted);">Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.</p>';
         } else {
             boardList.appendChild(fragment);
         }
-        hooks.onHomeRendered(activeHomeElements);
+        updateAssignBadges();
+        renderHomeFilterBar();
+        applyHomeFilters(); // también avisa a main (hooks.onHomeRendered) con las tarjetas visibles
+        refreshAssignments(); // en segundo plano: badges y filtro por usuario
     } finally {
         isRenderingBoards = false;
         if (rerenderRequested) { rerenderRequested = false; loadSavedBoards(); }
     }
+}
+
+// --- Asignaciones para badges y filtro por usuario ---
+
+/** Relee las asignaciones de la profesional (RLS ya filtra). Sin sesión o con error: sin badges ni filtro. */
+export async function refreshAssignments() {
+    const req = ++assignmentsRequest;
+    let counts = new Map(), byUser = new Map(), people = [];
+    if (S.currentUser && supabaseClient) {
+        try {
+            const [asg, au] = await Promise.all([
+                supabaseClient.from('assignments').select('board_id, aac_user_id'),
+                supabaseClient.from('aac_users').select('id, display_name')
+            ]);
+            if (asg && !asg.error && Array.isArray(asg.data)) {
+                asg.data.forEach(({ board_id, aac_user_id }) => {
+                    if (!board_id) return;
+                    counts.set(board_id, (counts.get(board_id) || 0) + 1);
+                    if (!byUser.has(aac_user_id)) byUser.set(aac_user_id, new Set());
+                    byUser.get(aac_user_id).add(board_id);
+                });
+                if (au && !au.error && Array.isArray(au.data)) people = au.data;
+            } else if (asg?.error) {
+                console.error('Error leyendo asignaciones del home:', asg.error);
+            }
+        } catch (err) {
+            console.error('Error leyendo asignaciones del home:', err);
+        }
+    }
+    if (req !== assignmentsRequest) return; // llegó una respuesta más nueva
+    assignCountByBoard = counts;
+    boardsByUser = byUser;
+    filterUsers = people
+        .filter(u => u && u.id)
+        .sort((a, b) => String(a.display_name || '').localeCompare(String(b.display_name || ''), 'es'));
+    if (homeFilters.userId && !filterUsers.some(u => u.id === homeFilters.userId)) homeFilters.userId = '';
+    updateAssignBadges();
+    renderUserFilter();
+    applyHomeFilters();
+}
+
+function updateAssignBadges() {
+    homeCards.forEach(({ bundle, assignBtn, badge }) => {
+        const n = assignCountByBoard.get(bundle.id) || 0;
+        badge.hidden = n === 0;
+        badge.textContent = n > 99 ? '99+' : String(n);
+        const label = n === 0 ? 'Dar copia a usuarios'
+            : `Dar copia a usuarios (${n} ${n === 1 ? 'usuario tiene' : 'usuarios tienen'} copia)`;
+        assignBtn.title = label;
+        assignBtn.setAttribute('aria-label', label);
+    });
+}
+
+// --- Barra de filtros del home ---
+const filterBar = document.getElementById('home-filters');
+const tagFilterChips = document.getElementById('tag-filter-chips');
+const userFilterWrap = document.getElementById('user-filter-wrap');
+const userFilterSelect = document.getElementById('user-filter');
+const filterEmptyMsg = document.getElementById('home-filter-empty');
+
+/** Etiquetas en uso: [{ tag, key, count }] ordenadas alfabéticamente (sin distinguir mayúsculas). */
+function tagsInUse(bundles) {
+    const map = new Map();
+    bundles.forEach(b => normalizeTags(b.tags).forEach(t => {
+        const k = tagKey(t);
+        if (!map.has(k)) map.set(k, { tag: t, key: k, count: 0 });
+        map.get(k).count++;
+    }));
+    return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag, 'es', { sensitivity: 'base' }));
+}
+
+function makeFilterChip(text, pressed, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-chip';
+    btn.textContent = text;
+    btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    btn.onclick = onClick;
+    return btn;
+}
+
+function renderHomeFilterBar() {
+    if (!tagFilterChips) return;
+    const used = tagsInUse(homeCards.map(c => c.bundle));
+    // Descartar etiquetas elegidas que ya no existen
+    [...homeFilters.tags].forEach(k => { if (!used.some(u => u.key === k)) homeFilters.tags.delete(k); });
+
+    tagFilterChips.replaceChildren();
+    if (used.length) {
+        tagFilterChips.appendChild(makeFilterChip('Todas', homeFilters.tags.size === 0, () => {
+            homeFilters.tags.clear();
+            renderHomeFilterBar(); applyHomeFilters();
+        }));
+        used.forEach(({ tag, key, count }) => {
+            const chip = makeFilterChip(`${tag} (${count})`, homeFilters.tags.has(key), () => {
+                if (homeFilters.tags.has(key)) homeFilters.tags.delete(key); else homeFilters.tags.add(key);
+                renderHomeFilterBar(); applyHomeFilters();
+                [...tagFilterChips.querySelectorAll('.filter-chip')].find(c => c.dataset.key === key)?.focus();
+            });
+            chip.dataset.key = key;
+            chip.setAttribute('aria-label', `${tag}, ${count} ${count === 1 ? 'tablero' : 'tableros'}`);
+            tagFilterChips.appendChild(chip);
+        });
+    }
+    tagFilterChips.hidden = used.length === 0;
+    renderUserFilter();
+}
+
+function renderUserFilter() {
+    if (!userFilterSelect || !userFilterWrap) return;
+    const show = !!S.currentUser && filterUsers.length > 0 && homeCards.length > 0;
+    userFilterWrap.hidden = !show;
+    if (show) {
+        const all = document.createElement('option');
+        all.value = '';
+        all.textContent = 'Todos';
+        const opts = filterUsers.map(u => {
+            const o = document.createElement('option');
+            o.value = u.id;
+            o.textContent = u.display_name || 'Sin nombre'; // lo escribe la profesional: textContent
+            return o;
+        });
+        userFilterSelect.replaceChildren(all, ...opts);
+        userFilterSelect.value = homeFilters.userId;
+    } else {
+        homeFilters.userId = '';
+    }
+    if (filterBar) filterBar.hidden = (tagFilterChips?.hidden ?? true) && userFilterWrap.hidden;
+}
+
+if (userFilterSelect) {
+    userFilterSelect.addEventListener('change', () => {
+        homeFilters.userId = userFilterSelect.value;
+        applyHomeFilters();
+    });
+}
+
+/** Aplica etiquetas + usuario con una clase propia (el buscador de texto usa style.display y no la pisa). */
+export function applyHomeFilters() {
+    const criteria = {
+        tags: [...homeFilters.tags],
+        userBoardIds: homeFilters.userId ? (boardsByUser.get(homeFilters.userId) || new Set()) : null
+    };
+    const visible = [];
+    homeCards.forEach(({ card, bundle, entry }) => {
+        const ok = matchesHomeFilters(bundle, criteria);
+        card.classList.toggle('is-filtered-out', !ok);
+        if (ok) visible.push(entry);
+    });
+    activeHomeElements = visible;
+    if (filterEmptyMsg) filterEmptyMsg.hidden = !(homeCards.length > 0 && visible.length === 0);
+    hooks.onHomeRendered(activeHomeElements);
 }
 
 // --- Apertura y render de tableros ---
@@ -802,5 +1027,127 @@ if (btnConfirmAssign) {
         customAlert(`Listo: ${joinNames(names)} ${names.length === 1 ? 'ya tiene' : 'ya tienen'} su copia de «${boardName}».`);
         closeAssignModal();
         fetchUsers(); // refresca "Mis usuarios" con las copias nuevas
+        refreshAssignments(); // badges y filtro por usuario del home
     });
+}
+
+// --- Etiquetas de un tablero (10/10/2026) ---
+// Se guardan en el propio bundle (bundle.tags) con saveBundle: viajan a la nube sin migración.
+const tagsModal = document.getElementById('tags-modal');
+const tagsBoardName = document.getElementById('tags-board-name');
+const tagsCurrent = document.getElementById('tags-current');
+const tagsInput = document.getElementById('tags-input');
+const tagsAddBtn = document.getElementById('btn-add-tag');
+const tagsSuggestions = document.getElementById('tags-suggestions');
+const tagsSuggestionsWrap = document.getElementById('tags-suggestions-wrap');
+const tagsStatus = document.getElementById('tags-status');
+let tagsBundle = null;
+let tagsReturnFocusId = null;
+
+function setTagsStatus(text) { if (tagsStatus) tagsStatus.textContent = text; }
+
+async function persistTags(nextTags) {
+    if (!tagsBundle) return;
+    // Releer del disco: la versión de la tarjeta puede ser vieja (p. ej. la sync la reemplazó)
+    const fresh = (await localforage.getItem(tagsBundle.id)) || tagsBundle;
+    fresh.tags = normalizeTags(nextTags);
+    tagsBundle = fresh;
+    await saveBundle(fresh);
+    renderTagsModal();
+}
+
+function renderTagsModal() {
+    if (!tagsBundle || !tagsCurrent) return;
+    const current = normalizeTags(tagsBundle.tags);
+    tagsCurrent.replaceChildren();
+    if (current.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'assign-note';
+        p.textContent = 'Este tablero todavía no tiene etiquetas.';
+        tagsCurrent.appendChild(p);
+    }
+    current.forEach(tag => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip tag-chip-edit';
+        const txt = document.createElement('span');
+        txt.textContent = tag;
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'tag-chip-remove';
+        x.textContent = '×';
+        x.setAttribute('aria-label', `Quitar la etiqueta ${tag}`);
+        x.onclick = async () => {
+            await persistTags(current.filter(t => t !== tag));
+            setTagsStatus(`Se quitó «${tag}».`);
+            tagsInput?.focus();
+        };
+        chip.append(txt, x);
+        tagsCurrent.appendChild(chip);
+    });
+
+    // Sugerencias: etiquetas usadas en otros tableros que este no tiene
+    const own = new Set(current.map(tagKey));
+    const typed = tagKey((tagsInput?.value || '').trim());
+    const suggestions = tagsInUse(homeCards.map(c => c.bundle).filter(b => b.id !== tagsBundle.id))
+        .filter(s => !own.has(s.key) && (!typed || s.key.includes(typed)));
+    tagsSuggestions.replaceChildren();
+    suggestions.forEach(({ tag }) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'filter-chip';
+        b.textContent = '+ ' + tag;
+        b.setAttribute('aria-label', `Agregar la etiqueta ${tag}`);
+        b.onclick = () => addTag(tag);
+        tagsSuggestions.appendChild(b);
+    });
+    if (tagsSuggestionsWrap) tagsSuggestionsWrap.hidden = suggestions.length === 0;
+    const full = current.length >= MAX_TAGS;
+    if (tagsInput) tagsInput.disabled = full;
+    if (tagsAddBtn) tagsAddBtn.disabled = full;
+    tagsSuggestions.querySelectorAll('button').forEach(b => { b.disabled = full; });
+}
+
+async function addTag(raw) {
+    if (!tagsBundle) return;
+    const tag = normalizeTags([raw])[0];
+    if (!tag) { setTagsStatus('Escribí una palabra para la etiqueta.'); return; }
+    const current = normalizeTags(tagsBundle.tags);
+    if (current.some(t => tagKey(t) === tagKey(tag))) { setTagsStatus(`«${tag}» ya está.`); return; }
+    if (current.length >= MAX_TAGS) { setTagsStatus(`Hasta ${MAX_TAGS} etiquetas por tablero.`); return; }
+    if (tagsInput) tagsInput.value = '';
+    await persistTags([...current, tag]);
+    setTagsStatus(`Se agregó «${tag}».`);
+    if (tagsInput && !tagsInput.disabled) tagsInput.focus();
+}
+
+function openTagsModal(bundle, triggerBtn) {
+    if (!tagsModal) return;
+    tagsBundle = bundle;
+    tagsReturnFocusId = triggerBtn ? bundle.id : null;
+    if (tagsBoardName) tagsBoardName.textContent = bundle.name ? `«${bundle.name}»` : '';
+    if (tagsInput) { tagsInput.value = ''; tagsInput.maxLength = MAX_TAG_LENGTH; }
+    setTagsStatus('');
+    renderTagsModal();
+    tagsModal.style.display = 'flex';
+    (tagsInput && !tagsInput.disabled ? tagsInput : document.getElementById('btn-done-tags'))?.focus();
+}
+
+async function closeTagsModal() {
+    if (!tagsModal || tagsModal.style.display === 'none') return;
+    tagsModal.style.display = 'none';
+    tagsBundle = null;
+    const focusId = tagsReturnFocusId;
+    await loadSavedBoards(); // chips de la tarjeta y filtros
+    if (focusId) [...boardList.querySelectorAll('[data-tags-for]')].find(b => b.dataset.tagsFor === focusId)?.focus();
+}
+
+if (tagsModal) {
+    tagsAddBtn?.addEventListener('click', () => addTag(tagsInput.value));
+    tagsInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addTag(tagsInput.value); }
+    });
+    tagsInput?.addEventListener('input', () => renderTagsModal());
+    document.getElementById('btn-done-tags')?.addEventListener('click', closeTagsModal);
+    document.getElementById('btn-close-tags')?.addEventListener('click', closeTagsModal);
+    tagsModal.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeTagsModal(); } });
 }

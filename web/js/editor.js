@@ -58,6 +58,7 @@ export function enterEditMode() {
     if (!S.currentBundle) return;
     // Tablet vinculada: una copia de solo lectura no se edita (el lápiz ya está oculto; esto lo garantiza)
     if (S.currentBundle.assignmentId && !S.currentBundle.profEdit && S.currentBundle.permission !== 'editable') return;
+    if (S.currentBundle.type === 'test') return; // el tablero de prueba es fijo
     editMode = true;
     document.body.classList.add('edit-mode');
     buildToolbar();

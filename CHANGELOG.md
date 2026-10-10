@@ -203,3 +203,15 @@ Todas las versiones y cambios notables del proyecto MiraVoz serán documentados 
   - Se aplica antes del primer pintado y se guarda en el dispositivo.
   - Paleta clara con contraste AA medido, logo oscuro en modo día y colores fijos pasados a variables (`theme.js`).
 
+### Home de la profesional: tarjetas, etiquetas y filtros (10/10/2026)
+- **Fixed**:
+  - El ícono de eliminar tablero quedaba cortado. La tarjeta tiene ahora una fila de acciones abajo: asignar, etiquetas, exportar, duplicar y eliminar.
+  - El tablero de prueba aparecía en el inicio después de editarlo. Ahora no se puede editar, no se guarda y se limpió del inicio.
+  - Los botones del modal "Dar copia" se veían mal.
+  - El modal de Configuración se rediseñó en secciones (Rostro, Barrido), con voseo, botón "Listo" y las mismas velocidades que la ficha del usuario.
+- **Added**:
+  - Contador de usuarios asignados sobre el ícono de asignar, como un badge.
+  - Confirmación antes de cerrar sesión.
+  - **Etiquetas** por tablero, guardadas en el bundle y sincronizadas: editor con sugerencias, chips en la tarjeta y filtros en el home por etiquetas (acumulativos) y por usuario, combinables con el buscador.
+  - Dwell y barrido usan solo las tarjetas visibles.
+
