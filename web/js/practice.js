@@ -731,4 +731,4 @@ const SCENES = [
 // --- Registro local por persona (para la futura pestaña "Progreso"; no se envía a ningún lado todavía) ---
 const logKey = () => `miravoz_practice_${deps.scope()}`;
 function readLog() { try { return JSON.parse(localStorage.getItem(logKey()) || '[]') || []; } catch { return []; } }
-function writeLog(entry) { try { localStorage.setItem(logKey(), JSON.stringify(appendLog(readLog(), entry))); } catch { /* sin espacio: se pierde el registro, no la práctica */ } }
+function writeLog(entry) { try { deps.onLog?.(entry); } catch {} try { localStorage.setItem(logKey(), JSON.stringify(appendLog(readLog(), entry))); } catch { /* sin espacio: se pierde el registro, no la práctica */ } }

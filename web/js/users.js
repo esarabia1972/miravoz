@@ -3,6 +3,7 @@
 
 import { supabaseClient } from './auth.js';
 import { customAlert, customConfirm } from './ui.js';
+import { openProgress } from './progress.js';
 
 export let users = [];
 let currentProfessionalId = null;
@@ -246,6 +247,33 @@ function button(text, ariaLabel, onClick, className = 'btn btn-secondary user-bt
     return b;
 }
 
+// 1.9.0: registro de uso (granular) con consentimiento + pestaña Progreso
+async function setMetrics(user, enabled) {
+    if (enabled && !(await customConfirm(
+        `Al activar el registro, la tablet de ${user.display_name} guarda cada selección, las frases que arma y los tiempos, para analizar su progreso (incluso con Claude, si lo conectaste).\n\n` +
+        'Hace falta el consentimiento de la persona o de su familia/responsables. ¿Lo tenés?'))) return;
+    if (!enabled && !(await customConfirm(`¿Dejar de registrar el uso de ${user.display_name}? Lo ya registrado se conserva (se puede borrar desde Progreso).`))) return;
+    const prev = (user.settings && typeof user.settings === 'object') ? user.settings : {};
+    const settings = { ...prev, metrics: { ...(prev.metrics || {}), enabled, ...(enabled ? { consent_at: new Date().toISOString() } : { disabled_at: new Date().toISOString() }) } };
+    const { error } = await supabaseClient.from('aac_users').update({ settings }).eq('id', user.id);
+    if (error) { customAlert('No se pudo cambiar. Revisá la conexión e intentá de nuevo.'); return; }
+    user.settings = settings;
+    renderUsersList(`metrics:${user.id}`);
+}
+
+function renderMetrics(user) {
+    const row = el('div', 'user-row user-metrics');
+    const on = !!user.settings?.metrics?.enabled;
+    row.appendChild(el('span', 'user-note', on
+        ? 'Registro de uso activado (con consentimiento). La tablet lo aplica la próxima vez que se conecta.'
+        : 'Registro de uso desactivado.'));
+    const toggle = button(on ? 'Desactivar registro' : 'Activar registro', `${on ? 'Desactivar' : 'Activar'} el registro de uso de ${user.display_name}`, () => setMetrics(user, !on));
+    toggle.dataset.focusKey = `metrics:${user.id}`;
+    row.appendChild(toggle);
+    row.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
+    return row;
+}
+
 function renderTablet(user) {
     const box = el('div', 'user-tablet');
 
@@ -402,6 +430,7 @@ export function renderUsersList(focusKey = null) {
         card.appendChild(head);
 
         card.appendChild(renderTablet(user));
+        card.appendChild(renderMetrics(user));
 
         const panel = el('div', 'user-copies');
         panel.id = panelId;

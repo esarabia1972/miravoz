@@ -13,8 +13,9 @@
 import { labelText, navInfo } from '../js/asterics.js';
 import { pageOrder, gridName, arasaacIdFromUrl, pickArasaacKeyword } from '../js/pages.js';
 import * as E from './_edit.js';
+import { summarizeUsage } from '../js/metrics-summary.js';
 
-export const SERVER_INFO = { name: 'miravoz', title: 'MiraVoz', version: '1.8.0' };
+export const SERVER_INFO = { name: 'miravoz', title: 'MiraVoz', version: '1.9.0' };
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const MAX_CELLS = 400; // por respuesta de ver_tablero (las páginas grandes se paginan)
 
@@ -29,6 +30,7 @@ export const INSTRUCTIONS = [
     'Para armar un tablero: crear_tablero → poner_celdas (en lote, con pictograma como palabra o id de ARASAAC) → revisar_tablero. Filas y columnas se cuentan desde 1. Cada cambio guarda antes una versión: con historial_tablero y restaurar_version se puede deshacer.',
     'Después de cambiar algo, ofrecer el enlace "abrir_en_miravoz" para que la cuenta lo vea y lo ajuste en la app (los cambios aparecen solos en unos segundos si MiraVoz está abierto).',
     'Usuarios: asignar_tablero da a cada usuario una COPIA (el original sigue siendo de la cuenta); para cambiar lo que ve un usuario se edita su copia (parámetro asignacion en las herramientas de páginas y celdas) o se le manda la versión nueva del original con actualizar_copia. La tablet recibe los cambios al abrirse o al recuperar la conexión.',
+    'Progreso: ver_progreso resume cómo usa cada usuario su tablet (celdas que no usa, tiempos, cansancio, frases) y ver_eventos da el detalle. Con eso se pueden proponer mejoras concretas a su copia del tablero (mover lo más usado a lugares fáciles, sacar o reubicar lo que no usa, agrandar celdas donde se corrige mucho) y aplicarlas con confirmación.',
     'Antes de borrar páginas, celdas o tableros, quitar asignaciones, actualizar copias o cambiar lo que ve un usuario, confirmar con la persona. Mostrar códigos de vinculación solo si se pidieron.'
 ].join(' ');
 
@@ -192,6 +194,23 @@ export const TOOLS = [
             additionalProperties: false
         },
         annotations: { ...RO, openWorldHint: true }
+    },
+    {
+        name: 'ver_progreso',
+        title: 'Ver progreso de un usuario',
+        description: 'Resume cómo usa un usuario su tablet en un período: días y minutos de uso, selecciones por día, tiempo por selección, cansancio (inicio contra final de la sesión), método de acceso, correcciones, celdas más usadas, celdas de sus tableros que nunca usó, páginas visitadas, idas y vueltas, frases recientes. Solo hay datos si la cuenta activó el registro de uso con consentimiento.',
+        inputSchema: { type: 'object', properties: { usuario: { type: 'string', description: 'Id del usuario.' }, dias: { type: 'integer', minimum: 1, maximum: 365, description: 'Período en días (por defecto 30).' } }, required: ['usuario'], additionalProperties: false },
+        annotations: RO
+    },
+    {
+        name: 'ver_eventos',
+        title: 'Ver eventos de uso',
+        description: 'Lista los eventos de uso de un usuario (selecciones, frases, páginas, pausas, calibraciones…) en orden, para análisis detallados (secuencias, combinaciones, dónde se traba). Usar ver_progreso para el resumen.',
+        inputSchema: { type: 'object', properties: {
+            usuario: { type: 'string' }, desde: { type: 'string', description: 'Fecha/hora ISO (opcional).' }, hasta: { type: 'string', description: 'Fecha/hora ISO (opcional).' },
+            tipo: { type: 'string', description: 'seleccion, frase, pagina, tablero, cancelada, borrar, pausa, calibracion, alineacion, practica, sesion_inicio, sesion_fin (opcional).' },
+            limite: { type: 'integer', minimum: 1, maximum: 1000, description: 'Máximo de eventos (por defecto 200).' } }, required: ['usuario'], additionalProperties: false },
+        annotations: RO
     }
 ];
 TOOLS.push(...WRITE_TOOLS);
@@ -359,6 +378,29 @@ export async function callTool(name, args, ctx) {
                 id: u.id, nombre: u.display_name,
                 tableros: asg.map(a => ({ asignacion: a.id, nombre: a.name || 'Tablero sin nombre', permiso: a.permission === 'editable' ? 'editable' : 'solo uso', inicio: a.id === u.home_board_id, tablero_original: a.board_id || null, actualizado: a.copy_updated_at }))
             });
+        }
+        case 'ver_progreso': {
+            const days = Math.max(1, Math.min(365, Number(args.dias) || 30));
+            const users = await db.select('aac_users', `select=id,display_name,settings&id=eq.${encodeURIComponent(args.usuario)}`);
+            if (!users.length) return toolError('No hay un usuario con ese id en esta cuenta.');
+            const since = new Date(Date.now() - days * 86400000).toISOString();
+            const [events, asg] = await Promise.all([
+                db.select('usage_events', `select=ts,kind,session_id,board_id,assignment_id,page_id,cell_id,label,method,duration_ms,data&aac_user_id=eq.${encodeURIComponent(args.usuario)}&ts=gte.${encodeURIComponent(since)}&order=ts.desc&limit=20000`).catch(() => null),
+                db.select('assignments', `select=id,copy_bundle&aac_user_id=eq.${encodeURIComponent(args.usuario)}`)
+            ]);
+            if (events === null) return toolError('No se pudo leer el registro de uso (¿falta correr supabase/10_metricas_de_uso.sql?).');
+            const s = summarizeUsage(events, { boards: asg.map(a => ({ name: a.copy_bundle?.name, bundle: a.copy_bundle || {}, assignment_id: a.id })) });
+            return toolText({ usuario: users[0].display_name, registro_activado: !!users[0].settings?.metrics?.enabled, dias: days, ...s });
+        }
+        case 'ver_eventos': {
+            const lim = Math.max(1, Math.min(1000, Number(args.limite) || 200));
+            let q = `select=ts,kind,session_id,board_id,page_id,cell_id,label,method,duration_ms,data&aac_user_id=eq.${encodeURIComponent(args.usuario)}&order=ts.desc&limit=${lim}`;
+            if (args.desde) q += `&ts=gte.${encodeURIComponent(args.desde)}`;
+            if (args.hasta) q += `&ts=lte.${encodeURIComponent(args.hasta)}`;
+            if (args.tipo) q += `&kind=eq.${encodeURIComponent(args.tipo)}`;
+            const ev = await db.select('usage_events', q).catch(() => null);
+            if (ev === null) return toolError('No se pudo leer el registro de uso.');
+            return toolText({ cantidad: ev.length, eventos: ev.reverse().map(e => ({ cuando: e.ts, tipo: e.kind, celda: e.label || undefined, metodo: e.method || undefined, ms: e.duration_ms ?? undefined, pagina: e.page_id || undefined, sesion: e.session_id || undefined, datos: e.data || undefined })) });
         }
         case 'buscar_pictogramas': {
             const word = String(args.palabra || '').trim();

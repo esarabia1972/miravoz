@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=58">
+    <link rel="stylesheet" href="style.css?v=59">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -569,6 +569,11 @@
                     <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
                 </div>
             </section>
+            <section class="settings-section" id="setting-metrics" hidden>
+                <h3>Registro de uso</h3>
+                <p class="settings-help" id="metrics-status">Se registra el uso para analizar el progreso (con consentimiento).</p>
+                <div class="settings-inline"><button type="button" class="btn btn-secondary" id="btn-metrics-pause">Pausar el registro</button></div>
+            </section>
                 </div>
             </div>
             <div class="modal-footer settings-footer">
@@ -581,6 +586,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=90"></script>
+    <script type="module" src="js/main.js?v=91"></script>
 </body>
 </html>

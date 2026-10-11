@@ -8,7 +8,7 @@ import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
 import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
 import * as offline from './offline.js';
-import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE } from './auth.js';
+import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE, supabaseClient } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll, startCloudWatch } from './sync.js';
 import * as deviceMod from './device.js';
@@ -27,6 +27,9 @@ import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orie
 import { failureAdvice } from './validation.js';
 import * as practice from './practice.js';
 import { BlinkDetector, eyeClosure, calibrateThreshold } from './blink.js';
+import * as metrics from './metrics.js';
+import { labelText } from './asterics.js';
+import { gridName } from './pages.js';
 import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
@@ -152,7 +155,12 @@ function resetFilters() {
 }
 
 // --- Selección de un target (compartida por dwell y barrido) ---
+// 1.9.0: cómo se eligió la última celda (para el registro de uso): permanencia | parpadeo | barrido | toque
+let pendingMethod = null;
+const metricsCtx = () => ({ bundle: S.currentBundle, gridId: S.currentGridId, pageName: S.currentBundle?.boards?.[S.currentGridId] ? gridName(S.currentBundle.boards[S.currentGridId]) : null });
 const selectTarget = (target) => {
+    pendingMethod = pendingMethod || (S.trackingMode === 'SCAN' ? 'barrido' : 'permanencia');
+    setTimeout(() => { pendingMethod = null; }, 0);
     // El centro del objetivo se toma ANTES de actuar (la acción puede re-renderizar el tablero)
     const rect = target.element?.getBoundingClientRect?.();
     if (target.isBoardCard) {
@@ -279,7 +287,9 @@ function onBlinkFire(closedAt) {
     playClick(); // confirma que el parpadeo se reconoció, haya o no algo para elegir
     if (S.state === 'PRACTICE' && practice.wantsBlink()) { practice.onBlink(); return; }
     if (S.trackingMode === 'SCAN') {
+        pendingMethod = 'parpadeo';
         if (scan.activate()) blinkFlash = { x: canvasUI.width / 2, y: 70, t: now };
+        pendingMethod = null;
         return;
     }
     if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
@@ -291,6 +301,7 @@ function onBlinkFire(closedAt) {
     blinkFlash = { x: p.x, y: p.y, t: now };
     if (!target) return;
     dwell.markSelected(now);
+    pendingMethod = 'parpadeo';
     selectTarget(target);
 }
 function drawBlink(now) {
@@ -346,6 +357,7 @@ function startAlignment({ onDone }) {
 }
 function finishAlignment(offset) {
     const s = alignSession;
+    metrics.aligned({ recentrado: !!offset, offset: offset || null });
     alignSession = null;
     document.getElementById('align-view').hidden = true;
     if (s && s.onDone) s.onDone(offset);
@@ -488,8 +500,11 @@ function syncCompanionContext() {
 
 // --- Hooks de boards ---
 boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
-boards.hooks.onGridRendered = (targets) => { if (S.state !== 'PRACTICE') selectionContexts.setBase(targets); };
-boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
+boards.hooks.onGridRendered = (targets) => { if (S.state !== 'PRACTICE') selectionContexts.setBase(targets); metrics.pageShown(metricsCtx()); };
+boards.hooks.onCellActivated = (elData) => {
+    benchmark.onActivated(elData);
+    metrics.cellSelected(elData, metricsCtx(), pendingMethod || 'toque', labelText(elData?.label) || elData?.autoLabel || '');
+};
 boards.hooks.onBundleOpened = () => {
     // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
     // tableros. Se vacía solo con "borrar todo", una celda que la borra, o al cerrar sesión / desvincular.
@@ -609,6 +624,7 @@ function onCalibrationComplete(profile) {
     S.isCalibrated = true;
     resetFilters();
     cancelPendingImplicit();
+    metrics.calibrated({ tipo: wasQuickCheck ? 'rapida' : 'completa', modo: S.trackingMode, mediana: Math.round(profile.validation?.metrics?.medianError || 0), p90: Math.round(profile.validation?.metrics?.p90Error || 0) });
     // 1.5.0: calibración nueva de Rostro → nueva referencia de alineación (posición de la cabeza y centro)
     if (!wasQuickCheck && S.trackingMode === 'CARA') {
         const ref = buildReference(alignRec.poses, alignRec.center);
@@ -707,6 +723,7 @@ function updateModeSegmented() {
 }
 
 function applyMode(mode) {
+    metrics.modeChanged(mode);
     if (practice.isOpen()) practice.closePractice({ silent: true });
     S.trackingMode = mode;
     pointer.invalidate('mode', performance.now());
@@ -786,15 +803,18 @@ function flashBtn(btn) {
 
 document.getElementById('btn-acc-play').addEventListener('click', (e) => {
     flashBtn(e.currentTarget);
+    metrics.sentenceSpoken(getSentence(), metricsCtx());
     playSentence();
 });
 document.getElementById('btn-acc-delete').addEventListener('click', (e) => {
     cancelPendingImplicit(); // "borrar último" corrige la selección anterior: no aprender de ella
     flashBtn(e.currentTarget);
+    if (getSentence().length) metrics.sentenceEdited('pop', metricsCtx());
     popSentence();
 });
 document.getElementById('btn-acc-clear').addEventListener('click', (e) => {
     flashBtn(e.currentTarget);
+    if (getSentence().length) metrics.sentenceEdited('clear', metricsCtx());
     clearSentence();
 });
 
@@ -829,7 +849,10 @@ document.getElementById('btn-close-import').addEventListener('click', () => {
 });
 
 // --- Practicar (1.3.0): actividades de acceso; reemplaza al botón "Tablero de Prueba" ---
+metrics.initMetrics({ supabase: supabaseClient, device: () => deviceMod.device });
+dwell.onAbandon = (target, progress) => metrics.selectionAbandoned(target?.data ? (labelText(target.data.label) || target.data.autoLabel || '') : (target?.element?.dataset?.word || ''), metricsCtx(), progress);
 practice.initPractice({
+    onLog: (entry) => metrics.practiced(entry),
     setTargets: (t) => { if (S.state === 'PRACTICE') selectionContexts.setBase(t); },
     mode: () => S.trackingMode,
     scope: () => profileScope(),
@@ -873,6 +896,7 @@ if (btnSettings && settingsModal) {
         e.preventDefault();
         settingsModal.style.display = 'flex';
         refreshOfflineStatus();
+        refreshMetricsSetting();
         const up = document.getElementById('btn-apply-update');
         if (up) up.hidden = !offline.hasUpdate();
     });
@@ -912,6 +936,19 @@ function wireScanSetting(id, key, isNumber = false) {
         saveSettings({ scan: { ...settings.scan, [key]: value } });
     });
 }
+
+// --- Registro de uso en la tablet (1.9.0): visible solo si la cuenta lo activó; se puede pausar ---
+function refreshMetricsSetting() {
+    const sec = document.getElementById('setting-metrics');
+    if (!sec) return;
+    sec.hidden = !(deviceMod.isDeviceMode() && metrics.isAvailable());
+    const paused = metrics.isPaused();
+    document.getElementById('metrics-status').textContent = paused
+        ? 'El registro está en pausa: no se guarda nada hasta reanudarlo.'
+        : 'Se registra el uso (selecciones, frases y tiempos) para analizar el progreso, con consentimiento.';
+    document.getElementById('btn-metrics-pause').textContent = paused ? 'Reanudar el registro' : 'Pausar el registro';
+}
+document.getElementById('btn-metrics-pause')?.addEventListener('click', () => { metrics.setPaused(!metrics.isPaused()); refreshMetricsSetting(); });
 
 // --- Configuración del parpadeo (1.4.0) ---
 function wireBlinkSettings() {
@@ -1078,6 +1115,9 @@ function appLoop() {
             const r = pointer.step(tracking.latestSample, now);
             S.smoothX = r.x; S.smoothY = r.y;
             if (S.state === 'PRACTICE') practice.tickPractice(now, r.x !== null ? { x: r.x, y: r.y } : null);
+            // 1.9.0: pausas largas sin ver la cara (registro de uso)
+            if (r.x === null && r.reason === 'no-face' && S.isCalibrated) { if (!noFaceSince) noFaceSince = now; }
+            else if (noFaceSince) { if (now - noFaceSince > 3000) metrics.paused('sin cara', Math.round(now - noFaceSince)); noFaceSince = 0; }
             if (r.x !== null) {
                 cursorTrail.push({ t: now, x: r.x, y: r.y });
                 while (cursorTrail.length && cursorTrail[0].t < now - 1500) cursorTrail.shift();
@@ -1156,6 +1196,7 @@ function drawPauseMessage(msg) {
     ctxUI.fillText(msg, canvasUI.width / 2, y, maxW);
 }
 
+let noFaceSince = 0;
 let alignRefMemo = { key: null, ref: null, at: 0 };
 function alignRefCache() {
     const now = performance.now();

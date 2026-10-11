@@ -10,6 +10,7 @@ export class DwellEngine {
         this.rects = [];            // [{target, rect}] — cache (F1-6)
         this.lastRectRefresh = 0;
         this.selectEnabled = true; // 1.4.0: con "solo parpadeo" la permanencia resalta pero no elige
+        this.onAbandon = null;     // 1.9.0: (target, progreso) cuando se deja una celda con la permanencia avanzada
         this.reset();
 
         window.addEventListener('resize', () => this.refreshRects());
@@ -101,6 +102,10 @@ export class DwellEngine {
                 this.candidateSince = now;
             }
             if (now - this.candidateSince > CONFIG.HYSTERESIS_MS) {
+                if (this.currentTarget && this.onAbandon && this.selectEnabled && now - this.lastClickTime > CONFIG.DWELL_COOLDOWN_MS) {
+                    const progress = (now - this.dwellStartTime) / CONFIG.DWELL_MS;
+                    if (progress >= 0.4 && progress < 1) { try { this.onAbandon(this.currentTarget, progress); } catch { /* el registro nunca rompe la selección */ } }
+                }
                 this._clearVisual(this.currentTarget);
                 this.currentTarget = this.candidateTarget;
                 if (this.currentTarget) {

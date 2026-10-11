@@ -2,6 +2,15 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.0] - 2026-10-11
+
+- **Added**: **registro de uso granular** de la tablet (decisión de Esteban: eventos, no solo resúmenes). Cada selección (celda, página, momento, tiempo desde la anterior, método: fijación/parpadeo/barrido/toque), selecciones abandonadas, frases dichas (con su texto), borrar, páginas y tableros, pausas sin cara, calibraciones, alineaciones, cambios de modo y actividades de Practicar.
+  - **Solo con consentimiento**: se activa por usuario desde Mis usuarios ("Activar registro"), declarando el consentimiento de la persona o su familia. La tablet lo puede **pausar** desde Configuración. El servidor rechaza todo si no está activado.
+  - Cola en el dispositivo (funciona sin conexión) y subida con el token de la tablet: `device_log_events()` en `supabase/10_metricas_de_uso.sql` (tabla `usage_events`, RLS, 24 meses).
+- **Added**: pestaña **Progreso** por usuario (Mis usuarios → Ver progreso): días y minutos de uso, selecciones por día, tiempo por selección, cansancio, correcciones, método de acceso, celdas más usadas, celdas que no usó, frases recientes; botón para borrar el registro. Cálculo en `web/js/metrics-summary.js` (puro, testeado).
+- **Added**: servidor MCP, **etapa 4**: `ver_progreso` (el mismo resumen) y `ver_eventos` (detalle filtrable) para que Claude analice el uso y proponga mejoras a la copia del usuario.
+- **Changed**: política de privacidad: sección "Registro de uso".
+
 ## [1.8.2] - 2026-10-11
 
 - **Fixed**: guardar la versión de respaldo de una copia de usuario fallaba en producción por la política de RLS (42501). Ahora el servidor MCP usa la función `save_board_version()` (`supabase/09_guardar_version_rpc.sql`), que verifica en la base que el tablero o la asignación sea de la cuenta (también por el usuario dueño de la copia) y guarda. Si la función no está, se usa el INSERT directo como antes.

@@ -1563,3 +1563,23 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .recal-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 10px 14px; border: none; border-radius: 10px; background: transparent; color: var(--text-main); font: 600 1rem 'Inter', sans-serif; text-align: left; cursor: pointer; }
 .recal-menu button span { font-weight: 400; font-size: 0.85rem; color: var(--text-muted); }
 .recal-menu button:hover { background: var(--cell-hover); }
+
+/* Progreso (1.9.0) */
+.progress-range { margin-left: auto; max-width: 200px; }
+.progress-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.progress-card { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--cell-border); background: var(--cell-bg); }
+.progress-card-value { font-size: 1.8rem; font-weight: 800; color: var(--text-main); }
+.progress-card-label { font-weight: 600; color: var(--text-main); }
+.progress-card-note { font-size: 0.85rem; color: var(--text-muted); }
+.progress-section { border: 1px solid var(--cell-border); border-radius: 14px; padding: 14px 16px; background: var(--cell-bg); margin-bottom: 14px; }
+.progress-section h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.progress-grid .progress-section { margin-bottom: 0; }
+@media (max-width: 760px) { .progress-grid { grid-template-columns: 1fr; } }
+.progress-list { margin: 0; padding-left: 18px; line-height: 1.6; max-height: 320px; overflow-y: auto; }
+.progress-bars { display: flex; align-items: flex-end; gap: 4px; height: 140px; }
+.progress-bar-col { flex: 1 1 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; min-width: 6px; }
+.progress-bar-fill { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
+.progress-bar-label { font-size: 0.7rem; color: var(--text-muted); }
+.progress-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+.user-metrics { flex-wrap: wrap; }
