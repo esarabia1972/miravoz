@@ -898,10 +898,25 @@ if (btnSettings && settingsModal) {
         refreshOfflineStatus();
         refreshMetricsSetting();
         const up = document.getElementById('btn-apply-update');
-        if (up) up.hidden = !offline.hasUpdate();
+        if (up) { up.hidden = !offline.hasUpdate(); up.textContent = 'Actualizar ahora'; }
+        // 1.9.3: ¿hay una versión publicada más nueva que la que corre? (la tablet suele quedar abierta días)
+        fetch('/version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
+            if (!v || !v.app || v.app === APP_VERSION || !up) return;
+            up.hidden = false;
+            up.textContent = `Actualizar a la versión ${v.app}`;
+            up.dataset.newer = v.app;
+            const el = document.getElementById('app-version');
+            if (el) el.textContent = `Versión ${APP_VERSION} · hay una nueva (${v.app})`;
+        }).catch(() => {});
     });
-    document.getElementById('btn-apply-update')?.addEventListener('click', () => {
-        if (!offline.applyUpdateNow()) showInfoToast('Terminá o borrá la frase en curso y volvé a intentar.', 4000);
+    document.getElementById('btn-apply-update')?.addEventListener('click', async (e) => {
+        if (getSentence().length) { showInfoToast('Terminá o borrá la frase en curso y volvé a intentar.', 4000); return; }
+        if (offline.applyUpdateNow()) return;
+        // Versión nueva todavía no descargada: se registra la nueva, se descarga y se recarga (se aplica al arrancar)
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = 'Actualizando…';
+        try { await offline.registerOffline(); } catch { /* igual se recarga */ }
+        setTimeout(() => window.location.reload(), 1500);
     });
     document.getElementById('btn-prepare-offline')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
