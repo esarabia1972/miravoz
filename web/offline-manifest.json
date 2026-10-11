@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "4e11087b4824",
+ "version": "a76128229709",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -19,7 +19,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "fda130f665cbb2ec30de4715cfe14bce18fed2e4da64eba28bf15391390c27e9",
+   "sha256": "657430f1d242e4fdfa3dd8d2df702c2d5d9a2558a0319cac3df984f99ddeaf15",
    "bytes": 34587
   },
   {
@@ -34,8 +34,8 @@
   },
   {
    "url": "/js/benchmark.js",
-   "sha256": "9684eab08f3fb0910627ba3f3c00b50d8184a4cd3b1116c172ea2fa6c521e364",
-   "bytes": 7515
+   "sha256": "a89b800845e7be704cf3754cfffabba18a88b15e555d19ca9a797bbc8256a828",
+   "bytes": 7547
   },
   {
    "url": "/js/boards.js",
@@ -164,8 +164,8 @@
   },
   {
    "url": "/js/tracking.js",
-   "sha256": "df6739770b3f1639fe9f6b6ac5c8a89d383257a020e81eaf033130c33bdc0a0a",
-   "bytes": 18557
+   "sha256": "a19fe8c46d76699fcda992926fad5bff53eb6b8c1798027f0db5598ffea065ae",
+   "bytes": 24423
   },
   {
    "url": "/js/ui.js",
@@ -181,6 +181,16 @@
    "url": "/js/validation.js",
    "sha256": "ef15e63a1047e8dd839a020735569906d88da488e0e91e697a3ac7852bc222bb",
    "bytes": 7068
+  },
+  {
+   "url": "/js/vision-scheduler.js",
+   "sha256": "89d3f50d228ea1b3e2d3987b5e37db3aa831dd9f8bf11721668230f7ee2784c0",
+   "bytes": 4106
+  },
+  {
+   "url": "/js/vision-worker.js",
+   "sha256": "01dcee748f9ec4618627872fbec03ab71d28e62c4fb172c8b039712d7b466ff5",
+   "bytes": 3190
   },
   {
    "url": "/logo.png",
@@ -349,5 +359,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28714243
+ "totalBytes": 28727437
 }

@@ -371,3 +371,13 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
   - descarga incompleta, archivo alterado y manifiesto cambiado durante la instalación;
   - actualización que espera sin mezclar versiones.
 - Pendiente de dispositivo: el comportamiento real en Safari del iPad (cuotas, desalojo, pestaña frente a pantalla de inicio) y la voz sin conexión.
+
+### Etapa F — M06: inferencia separada y rendimiento medido
+- **Added (M06)**: motor FaceLandmarker en un **Web Worker** (`web/js/vision-worker.js`), activable con `?vision=worker`. Queda **en evaluación**: el predeterminado sigue siendo el hilo principal, que es lo probado, hasta medir el worker en el iPad.
+  - El cuadro viaja como `ImageBitmap` transferido, con la sesión, la secuencia y el **momento de captura del hilo principal**. El reloj del worker no se usa para la validez.
+  - Si el worker no inicia, no responde en 2 s o falla, la mirada se **invalida antes** de recuperar y se vuelve al hilo principal con una sesión nueva: nunca se mezclan resultados de los dos motores.
+  - Hay una sola instancia de detector activa a la vez.
+- **Added (M06)**: `web/js/vision-scheduler.js`. Como máximo **un cuadro en procesamiento y uno pendiente** (el más reciente). Los cuadros descartados se liberan (`bitmap.close()`) y los resultados de otra sesión o de una secuencia superada se descartan; la cola nunca crece.
+- **Added (M06)**: mediciones del motor, sin video ni datos personales: inferencia p50 y p95, captura→resultado p50 y p95, resultados por segundo, cuadros descartados y antigüedad de la muestra (`tracking.visionStats()`). Se guardan con cada benchmark para comparar el hilo principal con el worker. Las metas provisorias (≥15 resultados/s, p95 captura→resultado <200 ms) se revisan con datos del iPad.
+- Tests: `tools/test-vision.mjs` (5): cola acotada en una sesión larga con un motor lento, descarte por sesión y secuencia (T07), caída por falta de respuesta y métricas.
+- Pendiente de dispositivo: que el worker funcione en Safari del iPad (GPU, `OffscreenCanvas`), su latencia frente al hilo principal y su consumo en una sesión de 20 minutos.

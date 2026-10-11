@@ -116,7 +116,7 @@ export class Benchmark {
         const summary = this.results.map(summarizePhase);
 
         // engine: 'tasks' (FaceLandmarker) o 'legacy' (FaceMesh) — para comparar motores con ?engine=legacy
-        const entry = { ts: Date.now(), mode: S.trackingMode, engine: tracking.engineName, fps: Math.round(tracking.fps), summary, detail: this.results };
+        const entry = { ts: Date.now(), mode: S.trackingMode, engine: tracking.engineName, fps: Math.round(tracking.fps), vision: tracking.visionStats(), summary, detail: this.results };
         try {
             const prev = (await localforage.getItem(STORAGE_KEY)) || [];
             prev.push(entry);

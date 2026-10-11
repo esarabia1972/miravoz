@@ -16,6 +16,7 @@ import * as gaze from './gaze-model.js';
 import { CONFIG } from './config.js';
 import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
 import { buildSample, invalidSample } from './selection.js';
+import { FrameScheduler, RollingStats, RateCounter } from './vision-scheduler.js';
 
 const TASKS_VERSION = '1.1.0';
 // M05: alojado en el proyecto (web/vendor) para funcionar sin conexión; el modelo lo guarda el Service Worker
@@ -25,6 +26,29 @@ const LEGACY_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe';
 
 const params = new URLSearchParams(window.location.search);
 const forcedEngine = params.get('engine'); // 'legacy' | 'tasks' | null
+// M06: dónde corre la inferencia. 'main' (por defecto, el comportamiento probado) o 'worker' (?vision=worker,
+// en evaluación hasta medirlo en el iPad). Si el worker falla, se vuelve al hilo principal.
+let visionMode = params.get('vision') === 'worker' ? 'worker' : 'main';
+
+// --- M06: mediciones (sin video ni datos personales) ---
+const inferStats = new RollingStats(300);   // tiempo de inferencia por cuadro (ms)
+const latencyStats = new RollingStats(300); // captura → resultado (ms)
+const resultRate = new RateCounter();       // resultados nuevos por segundo
+let droppedFrames = 0;
+/** Métricas del motor para el diagnóstico (M06/M08). */
+export function visionStats(now = performance.now()) {
+    const r = (v) => (v === null ? null : Math.round(v * 10) / 10);
+    return {
+        mode: visionMode, engine: engineName, delegate: visionMode === 'worker' ? workerDelegate : landmarkerDelegate,
+        inferP50: r(inferStats.percentile(0.5)), inferP95: r(inferStats.percentile(0.95)),
+        latencyP50: r(latencyStats.percentile(0.5)), latencyP95: r(latencyStats.percentile(0.95)),
+        resultsPerSec: resultRate.rate(now), dropped: droppedFrames + (scheduler ? scheduler.dropped : 0), samples: latencyStats.count,
+        sampleAgeMs: latestSample ? Math.round(now - latestSample.capturedAt) : null
+    };
+}
+let workerDelegate = null;
+let scheduler = null;
+let visionWorker = null;
 
 // --- Estado público ---
 /** Features crudas del modo activo: [fx, fy] o null si no hay rostro */
@@ -119,6 +143,8 @@ function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
     const now = performance.now();
     if (latencies.length >= 300) latencies.shift();
     latencies.push(now - capturedAt);
+    latencyStats.push(now - capturedAt);
+    resultRate.tick(now);
     if (waitingFirstFrame) { waitingFirstFrame = false; hideSyncToast(); }
     fpsFrames++;
     if (now - fpsWindowStart >= 1000) { fps = fpsFrames * 1000 / (now - fpsWindowStart); fpsFrames = 0; fpsWindowStart = now; }
@@ -209,23 +235,111 @@ function withTimeout(promise, ms, what) {
     return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(`Tiempo agotado: ${what}`)), ms))]);
 }
 
-async function startTasks(video, gen) {
-    let landmarker = await withTimeout(getLandmarker(), 25000, 'descarga del modelo');
-    if (gen !== generation) return false; // se pidió detener mientras cargaba
-
+async function openCamera(video, gen) {
     const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
-    if (gen !== generation) { s.getTracks().forEach(t => t.stop()); return false; } // arranque viejo: no tocar el vigente
+    if (gen !== generation) { s.getTracks().forEach(t => t.stop()); return null; } // arranque viejo: no tocar el vigente
     stream = s;
     const st = s.getVideoTracks()[0]?.getSettings?.() || {};
     cameraInfo = { width: st.width || null, height: st.height || null, frameRate: st.frameRate || null, facingMode: st.facingMode || 'user', mirror: false };
-    // Cámara cortada (otra app la tomó, se desconectó, permiso revocado): mirada inválida en el acto
     s.getVideoTracks().forEach(tr => tr.addEventListener('ended', () => { if (gen === generation) publishInvalid('camera-ended'); }));
     video.muted = true;
     video.setAttribute('muted', '');
     video.setAttribute('playsinline', '');
     video.srcObject = s;
     await video.play();
-    if (gen !== generation) return false;
+    if (gen !== generation) return null;
+    return s;
+}
+
+// --- M06: motor en un Web Worker (?vision=worker) ---
+function workerSupported() {
+    return typeof Worker !== 'undefined' && typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined';
+}
+
+async function startWorker(video, gen) {
+    const w = new Worker(new URL('./vision-worker.js', import.meta.url), { type: 'module' });
+    visionWorker = w;
+    await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('El motor en worker no inició a tiempo')), 30000);
+        w.onmessage = (e) => {
+            if (e.data?.type === 'ready') { clearTimeout(timer); workerDelegate = e.data.delegate; resolve(); }
+            else if (e.data?.type === 'fatal') { clearTimeout(timer); reject(new Error(e.data.error)); }
+        };
+        w.onerror = (ev) => { clearTimeout(timer); reject(new Error(ev.message || 'error en el worker')); };
+        w.postMessage({ type: 'init' });
+    });
+    if (gen !== generation) { w.terminate(); return false; }
+    const s = await openCamera(video, gen);
+    if (!s) { w.terminate(); return false; }
+
+    scheduler = new FrameScheduler({
+        send: (f) => w.postMessage({ type: 'frame', bitmap: f.bitmap, sessionId: f.sessionId, sequence: f.sequence, capturedAt: f.capturedAt }, [f.bitmap]),
+        release: (f) => { try { f.bitmap && f.bitmap.close(); } catch { /* ya liberado */ } },
+        timeoutMs: 2000
+    });
+    const failed = (why) => {
+        if (gen !== generation) return;
+        console.warn('Motor en worker caído, vuelvo al hilo principal:', why);
+        publishInvalid('engine-error'); // la mirada se invalida ANTES de recuperar
+        try { w.terminate(); } catch { /* nada */ }
+        visionWorker = null; scheduler = null;
+        visionMode = 'main';
+        stopMediaPipe();
+        startMediaPipe(); // sesión nueva, hilo principal: nunca se mezclan resultados de los dos motores
+    };
+    w.onmessage = (e) => {
+        const d = e.data || {};
+        if (d.type !== 'result' && d.type !== 'error') return;
+        if (!scheduler || gen !== generation) return;
+        const usable = scheduler.onResult(d, performance.now());
+        if (!usable) return;
+        if (d.type === 'error') { publishInvalid('engine-error'); return; }
+        inferStats.push(d.inferMs);
+        onLandmarks(d.landmarks, d.landmarks ? { pose: d.pose, eyes: d.eyes } : {}, d.capturedAt);
+    };
+    w.onerror = (ev) => failed(ev.message || 'error');
+
+    const camFps = s.getVideoTracks()[0]?.getSettings?.().frameRate || 30;
+    const minIntervalMs = 1000 / Math.min(camFps, 60) * 0.9;
+    let lastDetect = 0, frameSeq = 0;
+    const step = () => {
+        if (gen !== generation) return;
+        const tNow = performance.now();
+        if (scheduler && scheduler.checkTimeout(tNow)) { failed('sin respuesta'); return; }
+        if (scheduler && video.readyState >= 2 && video.currentTime !== lastVideoTime && tNow - lastDetect >= minIntervalMs) {
+            lastVideoTime = video.currentTime;
+            lastDetect = tNow;
+            const capturedAt = tNow;
+            const seq = ++frameSeq;
+            createImageBitmap(video).then((bitmap) => {
+                if (gen !== generation || !scheduler) { bitmap.close(); return; }
+                scheduler.submit({ bitmap, sequence: seq, capturedAt }, performance.now());
+            }).catch(() => { droppedFrames++; });
+        }
+        rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return true;
+}
+
+async function startTasks(video, gen) {
+    if (visionMode === 'worker') {
+        if (workerSupported()) {
+            try { return await startWorker(video, gen); }
+            catch (e) {
+                if (gen !== generation) return false;
+                console.warn('Motor en worker no disponible, uso el hilo principal:', e?.message || e);
+                try { visionWorker && visionWorker.terminate(); } catch { /* nada */ }
+                visionWorker = null; stopStream();
+            }
+        }
+        visionMode = 'main';
+    }
+    let landmarker = await withTimeout(getLandmarker(), 25000, 'descarga del modelo');
+    if (gen !== generation) return false; // se pidió detener mientras cargaba
+
+    const s = await openCamera(video, gen);
+    if (!s) return false;
 
     // Procesar como máximo al ritmo REAL de la cámara (normalmente 30 cps). Antes se procesaba en cada
     // refresco de pantalla (60-120 Hz) analizando varias veces la misma imagen: CPU de más en tablets.
@@ -244,6 +358,7 @@ async function startTasks(video, gen) {
                 lastDetect = tNow;
                 const capturedAt = performance.now(); // momento de captura: viaja con el resultado aunque llegue tarde
                 const res = landmarker.detectForVideo(video, capturedAt);
+                inferStats.push(performance.now() - capturedAt);
                 consecutiveErrors = 0;
                 const lm = res.faceLandmarks && res.faceLandmarks[0];
                 onLandmarks(lm || null, lm ? {
@@ -275,6 +390,8 @@ async function startTasks(video, gen) {
 }
 
 function stopStream() {
+    if (visionWorker) { try { visionWorker.postMessage({ type: 'close' }); visionWorker.terminate(); } catch { /* nada */ } visionWorker = null; }
+    if (scheduler) { scheduler.newSession(); scheduler = null; }
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     if (stream) stream.getTracks().forEach(t => t.stop());
