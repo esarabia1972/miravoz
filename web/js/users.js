@@ -576,22 +576,31 @@ export function renderUsersList(focusKey = null) {
 }
 
 export function initUsers() {
+    // Nuevo usuario (1.3.1): botón arriba a la derecha que abre un modal con el nombre
+    const modal = document.getElementById('new-user-modal');
+    const form = document.getElementById('new-user-form');
     const btnCreate = document.getElementById('btn-create-user');
     const inputName = document.getElementById('new-user-name');
-
-    if (btnCreate && inputName) {
-        btnCreate.addEventListener('click', async () => {
-            const name = inputName.value.trim();
-            if (!name) return;
-
-            btnCreate.disabled = true;
-            btnCreate.textContent = 'Creando...';
-
-            await createUser(name);
-
-            inputName.value = '';
+    const openBtn = document.getElementById('btn-new-user');
+    if (!modal || !form || !btnCreate || !inputName) return;
+    const close = () => { modal.style.display = 'none'; inputName.value = ''; openBtn?.focus(); };
+    openBtn?.addEventListener('click', () => {
+        modal.style.display = 'flex';
+        setTimeout(() => inputName.focus(), 50); // lo abre la persona de la cuenta registrada: se escribe directo
+    });
+    document.getElementById('btn-close-new-user')?.addEventListener('click', close);
+    document.getElementById('btn-cancel-new-user')?.addEventListener('click', close);
+    modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = inputName.value.trim();
+        if (!name || btnCreate.disabled) return;
+        btnCreate.disabled = true;
+        btnCreate.textContent = 'Creando...';
+        try { await createUser(name); } finally {
             btnCreate.disabled = false;
-            btnCreate.textContent = 'Crear usuario';
-        });
-    }
+            btnCreate.textContent = 'Crear';
+        }
+        close();
+    });
 }

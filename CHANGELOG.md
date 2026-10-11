@@ -2,6 +2,13 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.3.1] - 2026-10-11
+
+- **Changed**: "Nuevo tablero" es solo un ícono "+" (sin fondo verde), junto al de Importar.
+- **Changed**: Practicar sigue el modo Día/Noche (fondo, textos, dibujo, luciérnaga y opciones).
+- **Changed**: Mis usuarios: "Nuevo usuario" es un botón arriba a la derecha que abre un modal para el nombre (antes era un bloque fijo que ocupaba lugar).
+- **Changed**: los globos revientan de verdad: onda expansiva y pedazos que salen volando y caen (respeta "reducir movimiento").
+
 ## [1.3.0] - 2026-10-11
 
 - **Added**: sección **Practicar** (reemplaza al botón "Tablero de Prueba"): cinco actividades de acceso en orden de dificultad, con aprendizaje sin error y todo sintetizado en el dispositivo (funciona sin conexión).

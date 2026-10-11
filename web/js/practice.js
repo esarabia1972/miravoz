@@ -283,7 +283,14 @@ export function tickPractice(now, cursor) {
     activity.tick(now, local, dt);
 }
 
-const BG = '#0f1420';
+// Colores del dibujo según el modo Día/Noche (se leen en cada cuadro: siguen al tema de la app)
+const PALETTES = {
+    dark: { bg: '#0f1420', fade: 'rgba(15,20,32,0.018)', light: 62, line: 'rgba(255,255,255,0.05)', track: 'rgba(255,255,255,0.1)', ring: 'rgba(255,255,255,0.5)',
+        cover: ['#3a4256', '#262c3b'], dots: 'rgba(255,255,255,0.06)', fly: [255, 214, 90], flyCore: ['#fff6c2', '#ffe27a'], bar: '#ffd65a' },
+    light: { bg: '#f4f6fb', fade: 'rgba(244,246,251,0.022)', light: 50, line: 'rgba(15,23,42,0.08)', track: 'rgba(15,23,42,0.1)', ring: 'rgba(15,23,42,0.45)',
+        cover: ['#cfd5e1', '#b7bfce'], dots: 'rgba(255,255,255,0.45)', fly: [255, 140, 0], flyCore: ['#ffb84d', '#ff9f1c'], bar: '#e58600' }
+};
+const pal = () => (document.documentElement.getAttribute('data-theme') === 'light' ? PALETTES.light : PALETTES.dark);
 const ACTIVITIES = {
     // 1. Causa y efecto: cualquier movimiento pinta y suena
     paint() {
@@ -293,19 +300,19 @@ const ACTIVITIES = {
                 setHeader(level.title, hintFor(level, deps.mode()), '');
                 canvas.style.display = 'block';
                 ({ w, h } = sizeCanvas());
-                ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = pal().bg; ctx.fillRect(0, 0, w, h);
                 grid = new CoverageGrid(8, 6); lastMoveAt = now;
                 setTargets([asTarget(backBtn)]);
             },
             tick(now, p, dt) {
-                ctx.fillStyle = 'rgba(15,20,32,0.018)'; ctx.fillRect(0, 0, w, h); // los trazos se desvanecen despacio
+                ctx.fillStyle = pal().fade; ctx.fillRect(0, 0, w, h); // los trazos se desvanecen despacio
                 const brush = Math.max(14, Math.min(w, h) * 0.035);
                 if (p) {
                     if (last) {
                         const d = Math.hypot(p.x - last.x, p.y - last.y);
                         if (d > 1.5) {
                             hue = (hue + d * 0.25) % 360;
-                            ctx.strokeStyle = `hsl(${hue}, 90%, 62%)`; ctx.lineWidth = brush; ctx.lineCap = 'round';
+                            ctx.strokeStyle = `hsl(${hue}, 90%, ${pal().light}%)`; ctx.lineWidth = brush; ctx.lineCap = 'round';
                             ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
                             moveAcc += d; activeMs += dt; lastMoveAt = now;
                             grid.mark(p.x, p.y, brush, w, h);
@@ -332,9 +339,9 @@ const ACTIVITIES = {
             SCENES[idx].draw(sceneCv.getContext('2d'), w, h);
             coverCv = document.createElement('canvas'); coverCv.width = w; coverCv.height = h;
             cctx = coverCv.getContext('2d');
-            const g = cctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#3a4256'); g.addColorStop(1, '#262c3b');
+            const g = cctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, pal().cover[0]); g.addColorStop(1, pal().cover[1]);
             cctx.fillStyle = g; cctx.fillRect(0, 0, w, h);
-            cctx.fillStyle = 'rgba(255,255,255,0.06)';
+            cctx.fillStyle = pal().dots;
             for (let y = 20; y < h; y += 40) for (let x = 20 + (y / 40 % 2) * 20; x < w; x += 40) { cctx.beginPath(); cctx.arc(x, y, 3, 0, Math.PI * 2); cctx.fill(); }
             grid = new CoverageGrid(8, 5); revealAt = 0; last = null;
         }
@@ -365,7 +372,7 @@ const ACTIVITIES = {
                     ctx.globalAlpha = 1 - k; ctx.drawImage(coverCv, 0, 0, w, h); ctx.globalAlpha = 1;
                     if (now - revealAt > 3500) newScene();
                 } else ctx.drawImage(coverCv, 0, 0, w, h);
-                if (p && !revealAt) { ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, R(), 0, Math.PI * 2); ctx.stroke(); }
+                if (p && !revealAt) { ctx.strokeStyle = pal().ring; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, R(), 0, Math.PI * 2); ctx.stroke(); }
             },
             stop() { return { done }; }
         };
@@ -400,6 +407,7 @@ const ACTIVITIES = {
             done++;
             popSound();
             el.classList.add('pop');
+            burst(layer, pos.x + size / 2, pos.y + size / 2, size, getComputedStyle(el).getPropertyValue('--balloon') || '#ff5d73');
             counterEl.textContent = `Globos: ${done}`;
             if (done % 5 === 0) praise();
             // los objetivos no cambian mientras explota (pop() ignora lo que llegue): el barrido no salta a "Actividades"
@@ -497,26 +505,57 @@ const ACTIVITIES = {
                 if (near) { onMs += dt; sumOn += dt; }
                 humLevel(near);
                 if (onMs >= FOLLOW.goalMs) { onMs = 0; done++; loop = nextLoopSeconds(loop); praise(); counterEl.textContent = `Vueltas: ${done}`; }
-                ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+                const P = pal();
+                ctx.fillStyle = P.bg; ctx.fillRect(0, 0, w, h);
                 // estela del recorrido (tenue)
-                ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 2; ctx.beginPath();
+                ctx.strokeStyle = P.line; ctx.lineWidth = 2; ctx.beginPath();
                 for (let k = 0; k <= 80; k++) { const q = followPosition(t + (k - 40) * 0.08, w, h, loop); k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
                 ctx.stroke();
                 const glow = near ? 3.2 : 2.2;
                 const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r * glow);
-                g.addColorStop(0, near ? 'rgba(255,240,140,1)' : 'rgba(255,230,120,0.9)');
-                g.addColorStop(0.35, near ? 'rgba(255,214,90,0.55)' : 'rgba(255,214,90,0.25)');
-                g.addColorStop(1, 'rgba(255,214,90,0)');
+                const [fr, fg, fb] = P.fly;
+                g.addColorStop(0, `rgba(${fr},${fg},${fb},${near ? 1 : 0.9})`);
+                g.addColorStop(0.35, `rgba(${fr},${fg},${fb},${near ? 0.55 : 0.25})`);
+                g.addColorStop(1, `rgba(${fr},${fg},${fb},0)`);
                 ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r * glow, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = near ? '#fff6c2' : '#ffe27a'; ctx.beginPath(); ctx.arc(f.x, f.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = near ? P.flyCore[0] : P.flyCore[1]; ctx.beginPath(); ctx.arc(f.x, f.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
                 // barra de progreso arriba
-                ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(16, 12, w - 32, 10);
-                ctx.fillStyle = '#ffd65a'; ctx.fillRect(16, 12, (w - 32) * Math.min(1, onMs / FOLLOW.goalMs), 10);
+                ctx.fillStyle = P.track; ctx.fillRect(16, 12, w - 32, 10);
+                ctx.fillStyle = P.bar; ctx.fillRect(16, 12, (w - 32) * Math.min(1, onMs / FOLLOW.goalMs), 10);
             },
             stop() { return { done, onTargetFrac: presentMs ? +(sumOn / presentMs).toFixed(3) : 0 }; }
         };
     }
 };
+
+// --- Globo que revienta: onda expansiva + pedazos de goma que salen volando y caen ---
+function burst(layer, cx, cy, size, color) {
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const b = document.createElement('div');
+    b.className = 'practice-burst';
+    Object.assign(b.style, { left: `${cx}px`, top: `${cy}px` });
+    b.style.setProperty('--balloon', color.trim());
+    const ring = document.createElement('span');
+    ring.className = 'practice-ring';
+    ring.style.setProperty('--d', `${size}px`);
+    b.appendChild(ring);
+    const n = reduce ? 0 : 14;
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+        const dist = size * (0.55 + Math.random() * 0.6);
+        const sh = document.createElement('span');
+        sh.className = i % 3 === 0 ? 'practice-shard practice-shard-dot' : 'practice-shard';
+        sh.style.setProperty('--dx', `${Math.cos(a) * dist}px`);
+        sh.style.setProperty('--dy', `${Math.sin(a) * dist + size * 0.35}px`); // caen un poco (gravedad)
+        sh.style.setProperty('--rot', `${Math.round((Math.random() * 2 - 1) * 540)}deg`);
+        sh.style.setProperty('--sw', `${Math.max(8, size * (0.06 + Math.random() * 0.06))}px`);
+        sh.style.setProperty('--sh', `${Math.max(6, size * (0.03 + Math.random() * 0.05))}px`);
+        sh.style.animationDelay = `${Math.random() * 40}ms`;
+        b.appendChild(sh);
+    }
+    layer.appendChild(b);
+    setTimeout(() => b.remove(), 900);
+}
 
 // --- Íconos de "Elegir" (SVG fijo) ---
 const ICONS = {

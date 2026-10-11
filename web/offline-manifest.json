@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "67405fadf16b",
- "appVersion": "1.3.0",
+ "version": "8924dcddc0de",
+ "appVersion": "1.3.1",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "eae288c789711b08422f703c4d1ef9ed43a62d438bc7165b09e4d92ea9ab5ec8",
-   "bytes": 38296
+   "sha256": "28fdd4963aecd282d21321ae5773b6e6f443b4a5b4bd7e40542f9c9c1bb3799f",
+   "bytes": 39358
   },
   {
    "url": "/js/asterics.js",
@@ -45,7 +45,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "c4db72ace8a8383570016b995e3eaa13be695b9823cfe5be3b6a40402e1c9f81",
+   "sha256": "52945c0e0a70d3cf7fbefc43cc34512481e9332cd08e36e563fc01acaf3084f5",
    "bytes": 104
   },
   {
@@ -125,8 +125,8 @@
   },
   {
    "url": "/js/practice.js",
-   "sha256": "889e38e596177cfe36a0d8bccb417e75acea50b6702fb237a5cd9254b5189f99",
-   "bytes": 34235
+   "sha256": "9bf86f42e5811daf0000507d1aa198421b5ce57495ac5a9230920dec86532b81",
+   "bytes": 36754
   },
   {
    "url": "/js/prediction.js",
@@ -190,8 +190,8 @@
   },
   {
    "url": "/js/users.js",
-   "sha256": "4c9580ea4c097287ccda9ab11cd41d7a6c2cae73840cbe7dad799f3297975a21",
-   "bytes": 25681
+   "sha256": "acf59d9f26494adfff8d1d49a9909617738d8e850f51b0e2531ad080fbac2833",
+   "bytes": 26552
   },
   {
    "url": "/js/validation.js",
@@ -290,8 +290,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "cb6298bd8653eb9113cebd9e3eca1d50d6f021cbd233be6412e37b153915a165",
-   "bytes": 64684
+   "sha256": "23c05dd7ffb4abe2999f461b1f14a5e5190f0c59ab5eb0ae2033fb900d71afb5",
+   "bytes": 66404
   },
   {
    "url": "/terminos.html",
@@ -390,5 +390,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28818927
+ "totalBytes": 28825099
 }

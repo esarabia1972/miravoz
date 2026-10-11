@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=47">
+    <link rel="stylesheet" href="style.css?v=48">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -70,9 +70,8 @@
             <div id="home-filters" class="home-filters home-toolbar" hidden>
                 <!-- Crear e importar (solo cuenta registrada; en la tablet vinculada se ocultan por CSS) -->
                 <div class="home-create">
-                    <button type="button" id="btn-new-board" class="home-create-btn" title="Crear un tablero nuevo">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        <span>Nuevo</span>
+                    <button type="button" id="btn-new-board" class="home-tool-btn" aria-label="Nuevo tablero" title="Nuevo tablero">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </button>
                     <button type="button" id="btn-open-import" class="home-tool-btn" aria-label="Importar tablero" title="Importar tablero">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -125,14 +124,10 @@
                     <span>Volver</span>
                 </button>
                 <h2 id="users-title">Mis usuarios</h2>
-            </div>
-            
-            <div class="glass-box" style="padding: 20px; margin-bottom: 20px;">
-                <h3>Crear nuevo usuario</h3>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="new-user-name" name="miravoz-aac-display-name" class="glass-input" placeholder="Nombre (ej. Mateo)" aria-label="Nombre del nuevo usuario" autocomplete="off" autocapitalize="words" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" style="flex: 1;" />
-                    <button id="btn-create-user" class="btn btn-primary user-btn">Crear usuario</button>
-                </div>
+                <button type="button" id="btn-new-user" class="btn btn-secondary user-btn fullscreen-header-action">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Nuevo usuario
+                </button>
             </div>
 
             <div id="users-list" style="display: flex; flex-direction: column; gap: 15px;">
@@ -141,6 +136,24 @@
         </div>
     </div>
     
+    <!-- Nuevo usuario (1.3.1): un campo, en un modal, para no ocupar lugar en la lista -->
+    <div id="new-user-modal" class="modal-overlay" style="display: none; z-index: 30000;" role="dialog" aria-modal="true" aria-labelledby="new-user-title">
+        <div class="modal-content glass-box new-user-content">
+            <div class="modal-header">
+                <h3 id="new-user-title">Nuevo usuario</h3>
+                <button id="btn-close-new-user" type="button" class="btn-close-modal" aria-label="Cerrar">&times;</button>
+            </div>
+            <form id="new-user-form" autocomplete="off">
+                <label for="new-user-name" class="assign-note">Nombre</label>
+                <input type="text" id="new-user-name" name="miravoz-aac-display-name" class="glass-input" placeholder="Por ejemplo: Mateo" autocomplete="off" autocapitalize="words" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="60" style="width: 100%; box-sizing: border-box;" />
+                <div class="modal-footer">
+                    <button id="btn-cancel-new-user" type="button" class="btn btn-secondary">Cancelar</button>
+                    <button id="btn-create-user" type="submit" class="btn btn-primary">Crear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal Flotante de Importación -->
     <div id="import-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content glass-box">
@@ -514,6 +527,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=75"></script>
+    <script type="module" src="js/main.js?v=76"></script>
 </body>
 </html>

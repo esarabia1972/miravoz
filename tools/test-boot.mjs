@@ -499,6 +499,10 @@ if (caseArg === 'practicar') {
     check('"Nuevo" e "Importar" están en la barra del home (arriba)', $('home-filters') && !$('home-filters').hidden && $('home-filters').contains($('btn-new-board')) && $('home-filters').contains($('btn-open-import')), $('home-filters')?.hidden);
     check('"Tablero de Prueba" ya no está; "Practicar" sí', !$('btn-test-board') && !!$('btn-practice'), '');
     check('Mis usuarios es pantalla completa', $('users-view').classList.contains('fullscreen-panel'), $('users-view').className);
+    $('btn-new-user').click(); await sleep(20);
+    check('"Nuevo usuario" abre el modal del nombre', visible($('new-user-modal')) && !!$('new-user-name'), $('new-user-modal').style.display);
+    $('btn-cancel-new-user').click(); await sleep(10);
+    check('Cancelar cierra el modal sin crear', !visible($('new-user-modal')) && !sbCalls.some(c => c.table === 'aac_users' && c.op === 'insert'), '');
     $('btn-practice').click();
     await sleep(50);
     const pv = $('practice-view');
