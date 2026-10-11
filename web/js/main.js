@@ -1061,14 +1061,27 @@ async function localBundlesForOffline() {
 }
 
 // --- Arranque ---
+// El arranque nunca puede quedar colgado esperando al almacenamiento o al Service Worker (Safari en
+// navegación privada puede demorar o no responder): cada paso tiene un tope y, si vence, se sigue.
+const withTimeout = (p, ms, fallback) => Promise.race([Promise.resolve(p).catch(() => fallback), new Promise(r => setTimeout(() => r(fallback), ms))]);
+
+// Red de seguridad: si a los 12 s no se ve ni el ingreso ni la app, se muestra el ingreso
+setTimeout(() => {
+    const visible = (id) => { const el = document.getElementById(id); return el && el.style.display && el.style.display !== 'none'; };
+    if (!['auth-view', 'home-view', 'board-view'].some(visible) && !S.state.startsWith('CALIBRATING')) {
+        console.warn('Arranque demorado: se muestra la pantalla de ingreso');
+        showAuthView(true);
+    }
+}, 12000);
+
 (async function init() {
     initTheme();
-    await initSettings();
+    await withTimeout(initSettings(), 3000);
     offline.configureUpdates({
         isSafeMoment: () => !calibSession && getSentence().length === 0,
         onUpdateReady: () => { const b = document.getElementById('btn-apply-update'); if (b) b.hidden = false; }
     });
-    await offline.registerOffline(); // al arrancar, una versión ya descargada se aplica acá (antes de usar la cámara)
+    await withTimeout(offline.registerOffline(), 2500); // al arrancar, una versión ya descargada se aplica acá (antes de usar la cámara)
     offline.markInUse();
     renderModeSegmented();
     if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
@@ -1080,8 +1093,8 @@ async function localBundlesForOffline() {
     renderSentence();
 
     // Tablet vinculada a un usuario: modo dispositivo (sin gestión ni cuenta de profesional)
-    if (await deviceMod.loadDevice()) {
-        await calibration.loadProfiles();
+    if (await withTimeout(deviceMod.loadDevice(), 3000, null)) {
+        await withTimeout(calibration.loadProfiles(), 3000);
         await enterDeviceMode();
         requestAnimationFrame(appLoop);
         return;

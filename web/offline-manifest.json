@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "afb2861621c2",
+ "version": "7a15375470c7",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -19,7 +19,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "f08e4bf2394df7e76ce074587d12aa4c906c24e2f8d42cb2b14b232b077d41c2",
+   "sha256": "83e49bec55bdcb6cd83d448f83bf55d0eb04cc08d2ee344d8fad4245bfd6965c",
    "bytes": 37168
   },
   {
@@ -94,8 +94,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "a35bbef32aa51f353edb0e724e6f92aa54c96906e839e4d99ea0d6655f18a42f",
-   "bytes": 53960
+   "sha256": "a465c5db144811cdd05e02d9f781b58464032a8622c1b51989bcae651189536f",
+   "bytes": 54871
   },
   {
    "url": "/js/media.js",
@@ -374,5 +374,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28756058
+ "totalBytes": 28756969
 }
