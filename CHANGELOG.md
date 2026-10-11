@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.3.3] - 2026-10-11
+
+- **Removed**: el panel "Configuración de su tablet" de Mis usuarios. El modo de acceso, la permanencia y el barrido se configuran en la propia tablet (Configuración); lo guardado antes desde la cuenta registrada ya no se aplica.
+
 ## [1.3.2] - 2026-10-11
 
 - **Changed**: "Cerrar sesión" y "Desvincular tablet" pasan de la barra inferior a Configuración, abajo a la izquierda y en rojo (lejos de "Listo").

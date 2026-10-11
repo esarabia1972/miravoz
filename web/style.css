@@ -1104,14 +1104,6 @@ button:focus-visible, .btn:focus-visible, .btn-icon:focus-visible, [role="button
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--auth-box-border); }
 
 /* F4-6: Configuración de su tablet (por perfil, en "Mis usuarios") */
-.user-settings { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--cell-border); padding-top: 10px; }
-.user-settings-toggle { align-self: flex-start; }
-.user-settings-panel { display: flex; flex-direction: column; gap: 10px; }
-.user-settings-panel[hidden], .user-settings-field[hidden] { display: none; }
-.user-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-.user-settings-field { display: flex; flex-direction: column; gap: 4px; }
-.user-settings-label { font-size: 0.95rem; font-weight: 600; }
-.user-settings-select { min-height: 44px; width: 100%; }
 
 /* Menú para adultos en la tablet (10/10/2026) */
 .adult-menu { max-width: 440px; width: 92vw; display: flex; flex-direction: column; gap: 12px; text-align: left; }
@@ -1511,3 +1503,6 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .settings-footer #btn-settings-done { margin-left: auto; }
 .btn-danger-outline { background: transparent; border: 1px solid var(--danger-text); color: var(--danger-text); border-radius: 10px; padding: 8px 16px; font: 600 0.95rem 'Inter', sans-serif; cursor: pointer; }
 .btn-danger-outline:hover { background: var(--danger-bg); border-color: var(--danger-bg); color: #fff; }
+.new-user-content label[for="new-user-name"] { display: block; margin: 4px 0 8px; font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+.new-user-content .modal-header { margin-bottom: 14px; }
+.new-user-content .modal-footer { margin-top: 22px; }

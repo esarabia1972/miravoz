@@ -901,36 +901,14 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
 });
 
 // --- Tablet vinculada a un usuario (F4-4) ---
-const ACCESS_MODE_MAP = { MANUAL: 'CLICKS', CLICKS: 'CLICKS', FACE: 'CARA', CARA: 'CARA', SCAN: 'SCAN' }; // OJOS (experimental) no se aplica desde el servidor
 
-// La configuración que define la profesional (aac_users.settings) se aplica SOLO cuando cambia: así un
-// ajuste hecho por un adulto en la tablet (menú de la esquina) no se pisa en cada arranque.
-async function applyDeviceSettings(s = {}) {
-    const key = JSON.stringify(s || {});
-    if (key !== deviceMod.device?.appliedSettingsKey) {
-        const patch = {};
-        const mode = ACCESS_MODE_MAP[s.accessMode];
-        if (mode) patch.accessMode = mode;
-        if (Number.isFinite(s.dwellMs)) patch.dwellMs = s.dwellMs;
-        if (s.scan && typeof s.scan === 'object') patch.scan = { ...settings.scan, ...s.scan };
-        if (Object.keys(patch).length) {
-            await saveSettings(patch);
-            syncSettingsControls();
-        }
-        await deviceMod.markSettingsApplied(key);
-    }
+// 1.3.3 (decisión de Esteban): la configuración de acceso se hace EN la tablet (Configuración). Lo que haya
+// quedado guardado en aac_users.settings desde la cuenta registrada ya no se aplica; solo se restaura el modo local.
+async function applyDeviceSettings() {
     const target = settings.accessMode || 'CLICKS';
     if (target !== S.trackingMode) { modeSelect.value = target; applyMode(target); }
 }
 
-// Refleja los settings guardados en los controles del panel de configuración
-function syncSettingsControls() {
-    if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
-    for (const [id, key] of [['scan-pattern', 'pattern'], ['scan-interval', 'intervalMs'], ['scan-audio', 'audio']]) {
-        const el = document.getElementById(id);
-        if (el) el.value = String(settings.scan[key]);
-    }
-}
 
 // --- Pantalla completa (tablet): se pide con un gesto del usuario; donde no se puede, no pasa nada ---
 function requestFullscreenSafe() {
@@ -1014,7 +992,7 @@ async function enterDeviceMode() {
     // Pantalla completa al primer toque (los navegadores solo la permiten tras un gesto del usuario)
     window.addEventListener('pointerdown', requestFullscreenSafe, { once: true });
     await openDeviceHome({ casita: true });
-    await applyDeviceSettings(deviceMod.device?.settings); // después de abrir: calibra una sola vez si hace falta
+    await applyDeviceSettings(); // después de abrir: calibra una sola vez si hace falta
 
     // Refrescar desde la nube en segundo plano (la tablet ya es usable con lo local)
     const res = await deviceMod.pullCopies();
@@ -1026,7 +1004,7 @@ async function enterDeviceMode() {
         return;
     }
     if (res === 'ok') {
-        await applyDeviceSettings(deviceMod.device?.settings);
+        await applyDeviceSettings();
         if (S.state === 'HOME') openDeviceHome();
     }
 }
