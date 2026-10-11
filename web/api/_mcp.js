@@ -257,7 +257,7 @@ export function describeBoard(row, { pagina, base } = {}) {
             if (budget <= 0) { truncated = true; break; }
             budget--;
             const c = { fila: (el.y || 0) + 1, columna: (el.x || 0) + 1 };
-            const text = labelText(el.label) || el.autoLabel || '';
+            const text = String(labelText(el.label) || (el.autoLabel && typeof el.autoLabel === 'object' ? String(el.autoLabel.es || '') : (typeof el.autoLabel === 'string' ? el.autoLabel : '')) || '');
             if (text) c.texto = text;
             if ((el.width || 1) > 1 || (el.height || 1) > 1) c.tamano = `${el.width || 1}x${el.height || 1}`;
             const sp = cellSpeech(el);

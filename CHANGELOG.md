@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.4] - 2026-10-11
+
+- **Fixed**: Progreso fallaba con "text.trim is not a function" en tableros con textos automáticos de ARASAAC (`autoLabel` es un objeto, no un texto). Corregido también en el registro de uso, en `ver_tablero` y `revisar_tablero` del servidor MCP.
+
 ## [1.9.3] - 2026-10-11
 
 - **Fixed**: una tablet que queda abierta días no se enteraba de las versiones nuevas. Al abrir Configuración se consulta la versión publicada y, si hay una más nueva, aparece "Actualizar a la versión X" (con la frase vacía: descarga y recarga).

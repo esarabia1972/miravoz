@@ -264,7 +264,7 @@ export function reviewBundle(bundle) {
         for (const el of g.gridElements || []) {
             used += (el.width || 1) * (el.height || 1);
             const where = `"${page}", fila ${(el.y || 0) + 1}, columna ${(el.x || 0) + 1}`;
-            const text = labelText(el.label) || el.autoLabel || '';
+            const text = String(labelText(el.label) || (el.autoLabel && typeof el.autoLabel === 'object' ? String(el.autoLabel.es || '') : (typeof el.autoLabel === 'string' ? el.autoLabel : '')) || '');
             for (const a of el.actions || []) if (a.toGridId && !boards[a.toGridId]) issues.push({ tipo: 'vínculo roto', donde: where, celda: text });
             if (!text.trim() && !el.image) issues.push({ tipo: 'celda vacía', donde: where });
             else if (!el.image && text.trim().length > 1) issues.push({ tipo: 'sin pictograma', donde: where, celda: text });

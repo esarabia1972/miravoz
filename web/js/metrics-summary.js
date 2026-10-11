@@ -69,7 +69,7 @@ export function summarizeUsage(events, { boards = [], recentPhrases = 20 } = {})
         for (const pid of pageOrder(bundle)) {
             const g = bundle.boards[pid];
             for (const el of g.gridElements || []) {
-                const text = labelText(el.label) || el.autoLabel || '';
+                const text = String(labelText(el.label) || (el.autoLabel && typeof el.autoLabel === 'object' ? String(el.autoLabel.es || '') : (typeof el.autoLabel === 'string' ? el.autoLabel : '')) || '');
                 if (!text.trim()) continue;
                 if (usedIds.has(el.id) || usedLabels.has(norm(text))) continue;
                 const navOnly = (el.actions || []).some(a => a.toGridId || a.navType) && !(el.actions || []).some(a => /Speak/.test(a.modelName || ''));

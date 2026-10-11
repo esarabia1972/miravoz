@@ -39,6 +39,11 @@ await t('resumen: uso, tiempos, cansancio, correcciones, celdas más usadas y si
     assert(s.celdas_mas_usadas[0].veces === 6 && s.cantidad_celdas_sin_uso === 1 && s.celdas_sin_uso[0].celda === 'Galletitas', JSON.stringify(s.celdas_sin_uso));
     assert(s.frases_recientes[0].texto === 'agua leche' && s.metodos.permanencia === 12, 'frases y métodos');
 });
+await t('celdas con texto raro (autoLabel no texto, label numérico) no rompen el resumen', () => {
+    const odd = { mainBoard: 'g', boards: { g: { id: 'g', gridElements: [{ id: 'x', label: {}, autoLabel: { es: 'Hola', source: 'arasaac' } }, { id: 'y', label: null, autoLabel: true }] } } };
+    const s = summarizeUsage([], { boards: [{ name: 'Raro', bundle: odd }] });
+    assert(Array.isArray(s.celdas_sin_uso) && s.celdas_sin_uso.some(c => c.celda === 'Hola'), JSON.stringify(s.celdas_sin_uso));
+});
 await t('sin eventos: resumen vacío sin errores', () => {
     const s = summarizeUsage([], {});
     assert(s.selecciones === 0 && s.fatiga === null && s.periodo === null, JSON.stringify(s).slice(0, 100));

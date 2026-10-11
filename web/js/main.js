@@ -503,7 +503,7 @@ boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionCo
 boards.hooks.onGridRendered = (targets) => { if (S.state !== 'PRACTICE') selectionContexts.setBase(targets); metrics.pageShown(metricsCtx()); };
 boards.hooks.onCellActivated = (elData) => {
     benchmark.onActivated(elData);
-    metrics.cellSelected(elData, metricsCtx(), pendingMethod || 'toque', labelText(elData?.label) || elData?.autoLabel || '');
+    metrics.cellSelected(elData, metricsCtx(), pendingMethod || 'toque', labelText(elData?.label) || elData?.autoLabel?.es || '');
 };
 boards.hooks.onBundleOpened = () => {
     // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
@@ -850,7 +850,7 @@ document.getElementById('btn-close-import').addEventListener('click', () => {
 
 // --- Practicar (1.3.0): actividades de acceso; reemplaza al botón "Tablero de Prueba" ---
 metrics.initMetrics({ supabase: supabaseClient, device: () => deviceMod.device });
-dwell.onAbandon = (target, progress) => metrics.selectionAbandoned(target?.data ? (labelText(target.data.label) || target.data.autoLabel || '') : (target?.element?.dataset?.word || ''), metricsCtx(), progress);
+dwell.onAbandon = (target, progress) => metrics.selectionAbandoned(target?.data ? (labelText(target.data.label) || target.data.autoLabel?.es || '') : (target?.element?.dataset?.word || ''), metricsCtx(), progress);
 practice.initPractice({
     onLog: (entry) => metrics.practiced(entry),
     setTargets: (t) => { if (S.state === 'PRACTICE') selectionContexts.setBase(t); },
