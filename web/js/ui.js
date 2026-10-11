@@ -261,3 +261,22 @@ export function renderSentence() {
     });
     sentenceContainer.scrollLeft = sentenceContainer.scrollWidth;
 }
+
+// --- Toast de error (rojo, letras blancas, se cierra solo) ---
+let errorToastTimer = null;
+export function showErrorToast(message, ms = 5000) {
+    let toast = document.getElementById('error-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'error-toast';
+        toast.className = 'error-toast';
+        toast.setAttribute('role', 'alert');
+        toast.onclick = () => toast.classList.remove('visible');
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    // reflow para que la animación se repita si ya estaba visible
+    toast.classList.remove('visible'); void toast.offsetWidth; toast.classList.add('visible');
+    if (errorToastTimer) clearTimeout(errorToastTimer);
+    errorToastTimer = setTimeout(() => toast.classList.remove('visible'), ms);
+}

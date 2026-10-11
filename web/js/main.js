@@ -5,7 +5,7 @@ import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from 
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
-import { customAlert, customConfirm, customChoice, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
+import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
 import * as offline from './offline.js';
 import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
@@ -1122,8 +1122,7 @@ setTimeout(() => {
         try { await signOut(); } catch { /* sin red: igual queda afuera */ }
         showAuthView(true);
         updateAccountUI();
-        const err = document.getElementById('auth-error');
-        if (err) err.textContent = NOT_ENABLED_MESSAGE;
+        showErrorToast(NOT_ENABLED_MESSAGE);
         return false;
     }
 
@@ -1134,8 +1133,7 @@ setTimeout(() => {
             if (user) { if (await admitOrReject(user)) await enterProfessionalApp(user); return; }
             showAuthView(true);
             updateAccountUI();
-            const err = document.getElementById('auth-error');
-            if (oauthError && err) err.textContent = oauthErrorText(oauthError);
+            if (oauthError) showErrorToast(oauthErrorText(oauthError));
         },
         onSignedIn: async (user) => { if (await admitOrReject(user)) await enterProfessionalApp(user); },
         onSignedOut: () => window.location.reload() // sesión cerrada o vencida: vuelve a la pantalla de ingreso

@@ -205,7 +205,8 @@ if (caseArg === 'sin-sesion' || caseArg === 'sin-cdn' || caseArg === 'vuelta-goo
 
 if (caseArg === 'vuelta-google-error') {
     check('URL limpia (sin error/error_description) y conserva ?iris=1', location.search === '?iris=1' && location.hash === '', location.href);
-    check('#auth-error muestra el error de Google', /Acceso denegado/.test($('auth-error').textContent), `"${$('auth-error').textContent}"`);
+    const et = document.getElementById('error-toast');
+    check('toast rojo con el error de Google', !!et && et.classList.contains('visible') && /Acceso denegado/.test(et.textContent), et ? `"${et.textContent}"` : 'sin toast');
 }
 
 if (caseArg === 'sin-sesion') {
