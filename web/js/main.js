@@ -27,6 +27,7 @@ import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orie
 import { failureAdvice } from './validation.js';
 import * as practice from './practice.js';
 import { BlinkDetector, eyeClosure, calibrateThreshold } from './blink.js';
+import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -286,6 +287,116 @@ function drawBlink(now) {
     }
 }
 
+// --- Alineación de la cara "tipo Starlink" (1.5.0, align.js) ---
+const alignRec = { poses: [], center: [] };   // durante una calibración de Rostro
+const driftWatch = new DriftWatch();
+let alignSession = null;                       // { phase, okSince, samples, startedAt, onDone, lastSaid, lastText }
+const alignKey = () => `miravoz_align_${profileScope()}_CARA@${window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait'}`;
+function loadAlignRef() { try { const r = JSON.parse(localStorage.getItem(alignKey()) || 'null'); return r && r.v === 1 ? r : null; } catch { return null; } }
+function saveAlignRef(ref) { try { if (ref) localStorage.setItem(alignKey(), JSON.stringify(ref)); else localStorage.removeItem(alignKey()); } catch {} }
+function recordAlignSample(fresh, now) {
+    const pose = tracking.faceData?.pose;
+    if (pose && alignRec.poses.length < 4000) alignRec.poses.push(pose);
+    const info = calibSession && calibSession.renderInfo(now);
+    // Punto CENTRAL de la calibración (50%, 50%): hacia dónde apunta la cabeza al mirar el centro
+    if (info && info.sampling && info.stage === 'CAPTURE' && fresh.features &&
+        Math.abs(info.x - window.innerWidth / 2) < 4 && Math.abs(info.y - window.innerHeight / 2) < 4) alignRec.center.push(fresh.features);
+}
+function updateAlignButton() {
+    const b = document.getElementById('btn-alinear');
+    if (b) b.hidden = !(S.trackingMode === 'CARA' && S.isCalibrated && loadAlignRef());
+}
+function sayAlign(text, now) {
+    const el = document.getElementById('align-instruction');
+    if (el && el.textContent !== text) el.textContent = text;
+    if (alignSession && text !== alignSession.lastText && now - alignSession.lastSaid > 2200) {
+        alignSession.lastText = text; alignSession.lastSaid = now;
+        speak(text, { cancelPrevious: true });
+    }
+}
+function startAlignment({ onDone }) {
+    const ref = loadAlignRef();
+    if (!ref) { onDone(null); return; }
+    if (practice.isOpen()) practice.closePractice({ silent: true });
+    alignSession = { ref, phase: 'position', okSince: null, samples: [], startedAt: performance.now(), onDone, lastSaid: -Infinity, lastText: '' };
+    S.state = 'ALIGNING';
+    pointer.invalidate('aligning', performance.now());
+    homeView.style.display = 'none'; boardView.style.display = 'none';
+    topBar.style.display = 'none'; bottomBar.style.display = 'none';
+    document.getElementById('align-view').hidden = false;
+}
+function finishAlignment(offset) {
+    const s = alignSession;
+    alignSession = null;
+    document.getElementById('align-view').hidden = true;
+    if (s && s.onDone) s.onDone(offset);
+}
+/** Volver a la vista anterior después de alinear durante el uso (sin verificación). */
+function returnFromAlignment(offset) {
+    if (offset) tracking.setCenterOffset(offset);
+    driftWatch.reset();
+    topBar.style.display = 'flex';
+    if (S.currentBundle) { S.state = 'BOARD'; boardView.style.display = 'flex'; boardView.style.opacity = '1'; selectionContexts.setBase(boards.activeGridElements); }
+    else goHome();
+    pointer.invalidate('aligned', performance.now());
+    if (offset) showInfoToast('Listo: alineado.', 3000);
+}
+function alignTick(now) {
+    const s = alignSession;
+    if (!s) return;
+    const fresh = pointer.takeNewSample(tracking.latestSample, now);
+    const pose = tracking.faceData?.pose;
+    const st = alignmentState(pose, s.ref);
+    const W = canvasUI.width, H = canvasUI.height, cx = W / 2, cy = H / 2 + 30;
+    const RT = Math.min(W, H) * 0.16, faceR = RT / 2; // el corrimiento tolerado (posTolCm) = faceR
+    // aro objetivo y zona de tolerancia
+    ctxUI.beginPath(); ctxUI.arc(cx, cy, faceR, 0, 2 * Math.PI); ctxUI.fillStyle = 'rgba(0,255,136,0.12)'; ctxUI.fill();
+    ctxUI.beginPath(); ctxUI.arc(cx, cy, RT, 0, 2 * Math.PI); ctxUI.lineWidth = 4; ctxUI.strokeStyle = 'rgba(255,255,255,0.85)'; ctxUI.stroke();
+    ctxUI.beginPath(); ctxUI.moveTo(cx - RT - 14, cy); ctxUI.lineTo(cx + RT + 14, cy); ctxUI.moveTo(cx, cy - RT - 14); ctxUI.lineTo(cx, cy + RT + 14);
+    ctxUI.lineWidth = 1.5; ctxUI.strokeStyle = 'rgba(255,255,255,0.35)'; ctxUI.stroke();
+    if (!st) { sayAlign('No se ve la cara: mirá hacia la tablet', now); s.okSince = null; return; }
+    if (s.phase === 'position') {
+        // la cara: posición (espejo) y tamaño (más cerca = más grande)
+        const fx = cx + Math.max(-2.5, Math.min(2.5, st.dx / (ALIGN.posTolCm * 2))) * RT;
+        const fy = cy - Math.max(-2.5, Math.min(2.5, st.dy / (ALIGN.posTolCm * 2))) * RT;
+        const r = faceR / Math.max(0.5, Math.min(2, st.ratio));
+        ctxUI.beginPath(); ctxUI.arc(fx, fy, faceR, 0, 2 * Math.PI); ctxUI.setLineDash([8, 8]); ctxUI.lineWidth = 2; ctxUI.strokeStyle = 'rgba(255,255,255,0.5)'; ctxUI.stroke(); ctxUI.setLineDash([]);
+        ctxUI.beginPath(); ctxUI.arc(fx, fy, r, 0, 2 * Math.PI);
+        ctxUI.fillStyle = st.ok ? 'rgba(0,255,136,0.35)' : 'rgba(255,190,70,0.3)'; ctxUI.fill();
+        ctxUI.lineWidth = 5; ctxUI.strokeStyle = st.ok ? '#00ff88' : '#ffbe46'; ctxUI.stroke();
+        sayAlign(st.instruction, now);
+        if (st.ok) {
+            if (s.okSince === null) s.okSince = now;
+            const p = Math.min(1, (now - s.okSince) / ALIGN.holdMs);
+            ctxUI.beginPath(); ctxUI.arc(cx, cy, RT + 12, -Math.PI / 2, -Math.PI / 2 + p * 2 * Math.PI); ctxUI.lineWidth = 6; ctxUI.strokeStyle = '#00ff88'; ctxUI.stroke();
+            if (now - s.okSince >= ALIGN.holdMs) { s.phase = 'recenter'; s.okSince = now; s.samples = []; s.lastText = ''; s.lastSaid = -Infinity; }
+        } else s.okSince = null;
+        return;
+    }
+    // Recentrar: mirar (apuntar con la nariz) el punto del centro
+    if (!st.posOk || !st.distOk) { s.phase = 'position'; s.okSince = null; return; }
+    sayAlign('Muy bien. Ahora apuntá con la nariz al punto del centro', now);
+    if (fresh && fresh.features && now - s.okSince > 500) s.samples.push(fresh.features);
+    const p = Math.min(1, (now - s.okSince) / (ALIGN.recenterMs + 500));
+    ctxUI.beginPath(); ctxUI.arc(cx, cy, 16, 0, 2 * Math.PI); ctxUI.fillStyle = '#00ff88'; ctxUI.fill();
+    ctxUI.beginPath(); ctxUI.arc(cx, cy, 34, -Math.PI / 2, -Math.PI / 2 + p * 2 * Math.PI); ctxUI.lineWidth = 6; ctxUI.strokeStyle = '#00ff88'; ctxUI.stroke();
+    if (p >= 1) {
+        const off = recenterOffset(s.samples, s.ref);
+        if (off) { speak('Listo', { cancelPrevious: true }); finishAlignment(off); }
+        else { s.phase = 'position'; s.okSince = null; showInfoToast('La posición cambió mucho respecto de la calibración: conviene recalibrar.', 6000); }
+    }
+}
+document.getElementById('btn-align-skip')?.addEventListener('click', () => finishAlignment(null));
+document.getElementById('btn-align-recal')?.addEventListener('click', () => {
+    alignSession = null;
+    document.getElementById('align-view').hidden = true;
+    startCalibration();
+});
+document.getElementById('btn-alinear')?.addEventListener('click', () => {
+    if (S.trackingMode !== 'CARA' || !S.isCalibrated) return;
+    startAlignment({ onDone: returnFromAlignment });
+});
+
 // --- Motor de barrido (F2) ---
 const scan = new ScanEngine(selectTarget);
 
@@ -392,7 +503,12 @@ function beginCameraAccess() {
     tracking.clearWeights();
     if (chk.ok) {
         tracking.applyProfile(S.trackingMode, chk.profile);
-        startCalibration({ validateOnly: chk.profile });
+        // 1.5.0: en Rostro, antes de la verificación rápida se alinea la cara con la posición de la calibración
+        if (S.trackingMode === 'CARA' && loadAlignRef()) {
+            startAlignment({ onDone: (offset) => { tracking.setCenterOffset(offset || [0, 0]); startCalibration({ validateOnly: chk.profile, offset }); } });
+        } else {
+            startCalibration({ validateOnly: chk.profile });
+        }
     } else {
         const msg = compatibilityMessage(chk.reason);
         if (msg) showInfoToast(msg, 6000);
@@ -401,12 +517,13 @@ function beginCameraAccess() {
 }
 
 /** Calibración completa, o verificación rápida de un perfil guardado ({ validateOnly: perfil }). */
-function startCalibration({ validateOnly = null } = {}) {
+function startCalibration({ validateOnly = null, offset = null } = {}) {
     if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+    if (!validateOnly) { tracking.setCenterOffset([0, 0]); alignRec.poses = []; alignRec.center = []; }
     if (practice.isOpen()) practice.closePractice({ silent: true }); // calibrar con Practicar abierto: se cierra (y se calla)
 
     calibration.updateCalibPoints();
-    calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete, { validateOnly });
+    calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete, { validateOnly, offset });
     S.isCalibrated = false;
     pointer.invalidate('calibrating', performance.now());
     if (btnCalibText()) btnCalibText().textContent = validateOnly
@@ -463,6 +580,13 @@ function onCalibrationComplete(profile) {
     S.isCalibrated = true;
     resetFilters();
     cancelPendingImplicit();
+    // 1.5.0: calibración nueva de Rostro → nueva referencia de alineación (posición de la cabeza y centro)
+    if (!wasQuickCheck && S.trackingMode === 'CARA') {
+        const ref = buildReference(alignRec.poses, alignRec.center);
+        saveAlignRef(ref);
+        driftWatch.reset();
+    }
+    updateAlignButton();
 
     if (S.currentBundle) {
         S.state = 'BOARD';
@@ -590,6 +714,7 @@ function applyMode(mode) {
         beginCameraAccess();
     }
     applyBlinkMode();
+    updateAlignButton();
 }
 
 // --- Navegación Home/Board ---
@@ -888,6 +1013,7 @@ function appLoop() {
         if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
             // Una muestra por cuadro NUEVO de cámara (M04/T05): refrescar la pantalla no multiplica observaciones
             const fresh = pointer.takeNewSample(tracking.latestSample, now);
+            if (fresh && S.trackingMode === 'CARA' && !calibSession.validateOnly) recordAlignSample(fresh, now);
             calibSession.onFrame(fresh ? fresh.features : null, now, fresh);
             // onFrame puede completar la sesión (onCalibrationComplete pone calibSession en null):
             // re-chequear antes de dibujar el punto.
@@ -895,6 +1021,8 @@ function appLoop() {
                 const info = calibSession.renderInfo(now);
                 if (info) drawCalibPoint(info);
             }
+        } else if (S.state === 'ALIGNING') {
+            alignTick(now);
         } else if (selectionContexts.isPaused()) {
             // Panel del acompañante abierto: selección en pausa (el fondo no se activa)
             pointer.invalidate('companion', now);
@@ -917,6 +1045,11 @@ function appLoop() {
             }
             if (r.x !== null) drawCursor(r.x, r.y);
             else if (S.isCalibrated) { const msg = pauseMessage(r.reason); if (msg) drawPauseMessage(msg); }
+            // 1.5.0: si la cabeza (o la tablet) se corrió de la posición de la calibración, se sugiere alinear (sin pausar)
+            if (S.trackingMode === 'CARA' && S.isCalibrated) {
+                const ref = alignRefCache();
+                if (ref && driftWatch.push(tracking.faceData?.pose, ref, now)) drawDriftHint();
+            }
         }
         if (!calibSession) drawBlink(now);
     } catch (e) {
@@ -982,6 +1115,20 @@ function drawPauseMessage(msg) {
     ctxUI.strokeText(msg, canvasUI.width / 2, y, maxW);
     ctxUI.fillStyle = '#ffd27a';
     ctxUI.fillText(msg, canvasUI.width / 2, y, maxW);
+}
+
+let alignRefMemo = { key: null, ref: null, at: 0 };
+function alignRefCache() {
+    const now = performance.now();
+    if (now - alignRefMemo.at > 2000) alignRefMemo = { key: alignKey(), ref: loadAlignRef(), at: now };
+    return alignRefMemo.ref;
+}
+function drawDriftHint() {
+    const text = 'Te corriste de la posición de la calibración: tocá Alinear';
+    ctxUI.font = 'bold 20px Inter'; ctxUI.textAlign = 'center'; ctxUI.textBaseline = 'middle';
+    const w = Math.min(canvasUI.width - 40, ctxUI.measureText(text).width + 40), x = canvasUI.width / 2, y = 96;
+    ctxUI.fillStyle = 'rgba(0,0,0,0.75)'; ctxUI.beginPath(); ctxUI.roundRect ? ctxUI.roundRect(x - w / 2, y - 22, w, 44, 22) : ctxUI.rect(x - w / 2, y - 22, w, 44); ctxUI.fill();
+    ctxUI.fillStyle = '#ffd27a'; ctxUI.fillText(text, x, y, w - 20);
 }
 
 function drawCursor(x, y) {

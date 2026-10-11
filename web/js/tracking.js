@@ -132,7 +132,7 @@ function predict(features) {
     if (S.trackingMode === 'OJOS') {
         [x, y] = gaze.predict(gazeModel, medianFeatures(features));
     } else {
-        const f = phi(features[0], features[1]);
+        const f = phi(features[0] - centerOffset[0], features[1] - centerOffset[1]);
         x = dot(weightsX, f); y = dot(weightsY, f);
     }
     return [x, y]; // sin recortar: buildSample decide si está demasiado afuera (M01)
@@ -149,6 +149,11 @@ export function recentFeatures(ms, skipMs = 0) {
 // Procesamiento común a ambos motores
 let fpsWindowStart = 0, fpsFrames = 0;
 let waitingFirstFrame = false;
+// 1.5.0: recentrado de Rostro (align.js) — se resta a las features [giro/10, cabeceo/10] antes de predecir
+let centerOffset = [0, 0];
+export function setCenterOffset(o) { centerOffset = Array.isArray(o) && o.length === 2 && o.every(Number.isFinite) ? [o[0], o[1]] : [0, 0]; }
+export function getCenterOffset() { return [...centerOffset]; }
+
 // 1.4.0: cada cuadro de cara (o su ausencia) se avisa al detector de parpadeo de main.js
 let faceListener = null;
 export function setFaceListener(fn) { faceListener = fn; }

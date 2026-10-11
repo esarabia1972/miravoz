@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "680daf67ff68",
- "appVersion": "1.4.2",
+ "version": "44ddf1541419",
+ "appVersion": "1.5.0",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,13 @@
   },
   {
    "url": "/index.html",
-   "sha256": "bea78aae9ad936cabecb3f0a43c73d157f5f134a6890c6783dc1185f721de517",
-   "bytes": 41721
+   "sha256": "af849fc0ccb5a698842221ad0e045851b8750a9ffa417b1222c8890a87f3f134",
+   "bytes": 42868
+  },
+  {
+   "url": "/js/align.js",
+   "sha256": "ab6844eec1efd4d17e7b699560d420c862a2a79ab5242b923dced1342e7f2649",
+   "bytes": 4920
   },
   {
    "url": "/js/asterics.js",
@@ -50,13 +55,13 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "982fd198a86a7e41ac23a8f188e48a825aba7b9554f8cf93386580530ba0f11d",
+   "sha256": "fd19b2a4ada81822b03dfb485cbd37485eeaf811ea17f0e2b6d978d7d45d35f4",
    "bytes": 104
   },
   {
    "url": "/js/calibration.js",
-   "sha256": "2c25448a9aa36fddb1d68650939bdc96bf44d132eaa7acd78be9dad277416779",
-   "bytes": 21861
+   "sha256": "213c922a323740f7c57413c8c4151e88e7125a3c20623b2e18abcbe0142d505f",
+   "bytes": 22105
   },
   {
    "url": "/js/colors.js",
@@ -105,8 +110,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "031b3329cbfba14811066bde751a80a099d5efe5ec27d4033b866278bc86d304",
-   "bytes": 66110
+   "sha256": "262d3998e4bf83e8138dfd7b88b0479dca53a45d96d84782b293313acbfff05f",
+   "bytes": 75461
   },
   {
    "url": "/js/media.js",
@@ -185,8 +190,8 @@
   },
   {
    "url": "/js/tracking.js",
-   "sha256": "8f00056635056c396d6120ec306759c95ee1cbccb74013d3363912b7e3aeb352",
-   "bytes": 26654
+   "sha256": "5e252d364fde9fe2f1b9f96b4079655d85e95b7c52aac694a912b159894f6378",
+   "bytes": 27034
   },
   {
    "url": "/js/ui.js",
@@ -295,8 +300,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "e1c985b8c16bfba80bf17213115cf005d5f634f031580123951aa7fb968ff899",
-   "bytes": 68133
+   "sha256": "cc8201c59c926b8efd79206ba101d475c1fd5ca91284496e88682fea7f9b6865",
+   "bytes": 69220
   },
   {
    "url": "/terminos.html",
@@ -395,5 +400,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28844007
+ "totalBytes": 28861136
 }

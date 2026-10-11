@@ -172,8 +172,9 @@ const MAX_POINT_SAMPLING_MS = 3000; // tope por punto si el motor entrega pocos 
  * onComplete(profile | null): profile.validation.status = 'accepted' | 'failed'. null = abortada.
  */
 export class CalibrationSession {
-    constructor(mode, onComplete, { validateOnly = null } = {}) {
+    constructor(mode, onComplete, { validateOnly = null, offset = null } = {}) {
         this.mode = mode;
+        this.offset = mode !== 'OJOS' && Array.isArray(offset) ? offset : null; // 1.5.0: recentrado previo (Rostro)
         this.onComplete = onComplete;
         this.validateOnly = validateOnly;
         this.viewport = { w: window.innerWidth, h: window.innerHeight };
@@ -316,7 +317,9 @@ export class CalibrationSession {
     // --- Verificación (M04) ---
     _startValidation(now, profile) {
         this.stage = 'VALIDATE';
-        this.trained = { profile, predictor: predictorFor(this.mode, profile) };
+        const base = predictorFor(this.mode, profile);
+        const off = this.offset;
+        this.trained = { profile, predictor: off ? (f) => base([f[0] - off[0], f[1] - off[1]]) : base };
         this.vTargets = validationTargets(window.innerWidth, window.innerHeight);
         this.vData = this.vTargets.map(t => ({ target: t, preds: [], newFrames: 0 }));
         this.vIdx = 0;

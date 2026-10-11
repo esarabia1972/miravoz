@@ -1181,7 +1181,7 @@ body.test-board #btn-edit-board { display: none !important; }
 .tags-add-row .btn { min-height: 44px; }
 
 /* Configuración (rediseño 10/10/2026) */
-.settings-panel { max-width: 560px; width: 92vw; max-height: 90dvh; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 16px; }
+.settings-panel { max-width: 1040px; width: 94vw; max-height: 92dvh; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 16px; }
 .settings-panel .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .settings-section { border: 1px solid var(--cell-border); border-radius: 14px; padding: 16px; background: var(--cell-bg); display: flex; flex-direction: column; gap: 6px; }
 .settings-section h3 { font-size: 1.05rem; margin: 0 0 4px; color: var(--text-main); }
@@ -1522,3 +1522,17 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 @keyframes practice-nope { 20%, 60% { transform: translateX(-10px) rotate(-4deg); } 40%, 80% { transform: translateX(10px) rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) { .practice-balloon.is-goal, .practice-balloon.nope { animation: none; } }
 .practice-balloon.is-goal.pop, .practice-balloon.nope.pop { animation: practice-pop 0.14s ease-out forwards; }
+
+/* Configuración en dos columnas (1.5.0): sin scroll en iPad horizontal */
+.settings-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.settings-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 760px), (orientation: portrait) and (max-width: 900px) { .settings-columns { grid-template-columns: 1fr; } }
+.settings-grid > div[hidden] { display: none; }
+
+/* Alinear (1.5.0) */
+.align-view { position: fixed; inset: 0; z-index: 900; background: rgba(5, 8, 14, 0.92); color: #fff; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: max(24px, env(safe-area-inset-top)) 24px 28px; box-sizing: border-box; text-align: center; }
+.align-view[hidden] { display: none !important; }
+.align-view h2 { margin: 0; font-size: 1.5rem; }
+.align-instruction { margin: 10px 0 4px; font-size: 1.6rem; font-weight: 800; color: #ffd27a; min-height: 2em; }
+.align-help { margin: 0; color: rgba(255,255,255,0.7); max-width: 640px; }
+.align-actions { display: flex; gap: 12px; }

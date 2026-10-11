@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=53">
+    <link rel="stylesheet" href="style.css?v=54">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -59,6 +59,7 @@
                     <option value="CLICKS" selected>Modo Manual</option>
                 </select>
             </div>
+            <button id="btn-alinear" class="btn btn-secondary" hidden title="Volver a la posición de la calibración">Alinear</button>
             <button id="btn-recalibrar" class="btn btn-secondary">Recalibrar</button>
         </div>
     </div>
@@ -302,6 +303,19 @@
         <div style="margin-top:18px;"><button id="btn-cancelar-calibracion" type="button" style="font-size:18px; padding:12px 24px; border-radius:12px; background:transparent; color:#fff; border:2px solid #fff; cursor:pointer;">Cancelar y usar Manual</button></div>
     </div>
 
+    <!-- Alineación de la cara "tipo antena Starlink" (1.5.0): el dibujo va en #ui-layer, encima -->
+    <div id="align-view" class="align-view" hidden role="dialog" aria-modal="true" aria-labelledby="align-title">
+        <div class="align-top">
+            <h2 id="align-title">Alinear la cara</h2>
+            <p id="align-instruction" class="align-instruction" aria-live="polite"></p>
+            <p class="align-help">Llevá el círculo de la cara al centro del aro, del mismo tamaño. Se puede mover la cabeza o la tablet.</p>
+        </div>
+        <div class="align-actions">
+            <button type="button" id="btn-align-skip" class="btn btn-secondary">Seguir sin alinear</button>
+            <button type="button" id="btn-align-recal" class="btn btn-secondary">Recalibrar</button>
+        </div>
+    </div>
+
     <!-- Vista del Tablero (Board) -->
     <div id="board-view" class="view-container" style="display:none;">
         <div id="accumulator-bar" class="accumulator-bar">
@@ -456,6 +470,8 @@
                 <button class="btn-close-modal" id="btn-close-settings" aria-label="Cerrar">&times;</button>
             </div>
 
+            <div class="settings-columns">
+                <div class="settings-col">
             <section class="settings-section" id="setting-dwell">
                 <h3>Modo Rostro</h3>
                 <p class="settings-help"><strong>Rostro</strong>: el cursor sigue la punta de la nariz, así que hace falta poder mover un poco la cabeza. <strong>Iris</strong> (experimental, en evaluación): sigue los ojos con la cabeza quieta; no se debe usar como única vía de comunicación hasta validarlo con cada persona.</p>
@@ -469,41 +485,6 @@
                     <option value="5000">5 segundos</option>
                 </select>
             </section>
-
-            <section class="settings-section" id="setting-scan">
-                <h3>Modo Barrido</h3>
-                <p class="settings-help">Las opciones se resaltan de a una y se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
-                <div class="settings-grid">
-                    <div>
-                        <label for="scan-pattern">Patrón</label>
-                        <select id="scan-pattern" class="glass-select">
-                            <option value="ROW_COLUMN" selected>Fila → elemento</option>
-                            <option value="LINEAR">Elemento por elemento</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="scan-interval">Velocidad</label>
-                        <select id="scan-interval" class="glass-select">
-                            <option value="600">Muy rápida (0,6 s)</option>
-                            <option value="900">Rápida (0,9 s)</option>
-                            <option value="1200" selected>Media (1,2 s)</option>
-                            <option value="1800">Pausada (1,8 s)</option>
-                            <option value="2000">Lenta (2 s)</option>
-                            <option value="2500">Más lenta (2,5 s)</option>
-                            <option value="3000">Muy lenta (3 s)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="scan-audio">Sonido al barrer</label>
-                        <select id="scan-audio" class="glass-select">
-                            <option value="none" selected>Silencio</option>
-                            <option value="beep">Beep</option>
-                            <option value="speak">Decir cada opción</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-
             <section class="settings-section" id="setting-blink">
                 <h3>Parpadeo</h3>
                 <p class="settings-help">Elegir parpadeando, con la cámara. En Barrido reemplaza al pulsador; en Rostro e Iris elige lo que está bajo el cursor. Los parpadeos comunes no cuentan.</p>
@@ -540,12 +521,45 @@
                     <p class="settings-help" id="blink-status" role="status" aria-live="polite">Conviene ajustarlo una vez con cada persona: tarda unos 8 segundos.</p>
                 </div>
             </section>
-
+                </div>
+                <div class="settings-col">
+            <section class="settings-section" id="setting-scan">
+                <h3>Modo Barrido</h3>
+                <p class="settings-help">Las opciones se resaltan de a una y se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+                <div class="settings-grid">
+                    <div>
+                        <label for="scan-pattern">Patrón</label>
+                        <select id="scan-pattern" class="glass-select">
+                            <option value="ROW_COLUMN" selected>Fila → elemento</option>
+                            <option value="LINEAR">Elemento por elemento</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-interval">Velocidad</label>
+                        <select id="scan-interval" class="glass-select">
+                            <option value="600">Muy rápida (0,6 s)</option>
+                            <option value="900">Rápida (0,9 s)</option>
+                            <option value="1200" selected>Media (1,2 s)</option>
+                            <option value="1800">Pausada (1,8 s)</option>
+                            <option value="2000">Lenta (2 s)</option>
+                            <option value="2500">Más lenta (2,5 s)</option>
+                            <option value="3000">Muy lenta (3 s)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-audio">Sonido al barrer</label>
+                        <select id="scan-audio" class="glass-select">
+                            <option value="none" selected>Silencio</option>
+                            <option value="beep">Beep</option>
+                            <option value="speak">Decir cada opción</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
             <section class="settings-section" id="setting-voice">
                 <button type="button" class="btn btn-secondary" id="btn-test-voice">Probar voz</button>
                 <p class="settings-help" id="voice-status" role="status"></p>
             </section>
-
             <section class="settings-section" id="setting-offline">
                 <h3>Uso sin conexión</h3>
                 <p class="settings-help" id="offline-status" role="status">Revisando…</p>
@@ -553,6 +567,8 @@
                 <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
                 <p class="settings-help">Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo. La voz sin conexión depende del iPad: probala con el modo avión.</p>
             </section>
+                </div>
+            </div>
             <p class="settings-help" id="app-version" style="text-align:right; opacity:0.7;"></p>
 
             <div class="modal-footer settings-footer">
@@ -564,6 +580,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=81"></script>
+    <script type="module" src="js/main.js?v=82"></script>
 </body>
 </html>

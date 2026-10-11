@@ -2,6 +2,16 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.5.0] - 2026-10-11
+
+- **Added**: **Alinear la cara** "tipo antena Starlink" (`web/js/align.js`, puro y testeado). La calibración de Rostro guarda la posición de la cabeza respecto de la cámara (distancia y corrimiento) y hacia dónde apunta al mirar el centro.
+  - Al abrir con una calibración guardada, antes de la verificación rápida aparece la guía: un círculo (la cara) que hay que llevar al centro de un aro y con el mismo tamaño (distancia), moviendo la cabeza o la tablet, con indicaciones habladas ("Acercate un poco", "Corré la cabeza un poco a tu derecha").
+  - Al quedar alineado, 1,5 s apuntando al punto central **recentran** el cursor: corrige una tablet inclinada o una cabeza algo corrida sin recalibrar. Si la diferencia es muy grande, sugiere recalibrar.
+  - Botón **Alinear** arriba (en Rostro) para hacerlo en cualquier momento, y aviso sin pausar ("Te corriste de la posición de la calibración: tocá Alinear") si la cabeza queda corrida más de 3 s.
+  - "Seguir sin alinear" y "Recalibrar" siempre disponibles. Las calibraciones anteriores no tienen referencia: hace falta calibrar una vez.
+- **Changed**: Configuración más ancha y en dos columnas (sin scroll en el iPad horizontal).
+- **Fixed**: en Configuración, el campo "Ojos cerrados durante" se mostraba aunque el parpadeo largo no estuviera elegido.
+
 ## [1.4.2] - 2026-10-11
 
 - **Changed**: Practicar → Globos en **Barrido** es un juego propio de tiempo: 2 a 5 globos en fila y uno dorado; hay que elegir justo cuando se ilumina el dorado. Elegir otro no es error (se sacude). Suma un globo cada 4 aciertos. Antes era igual a "Parpadear" (un solo globo).
