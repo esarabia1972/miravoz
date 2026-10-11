@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "8bc03c8ff36a",
+ "version": "afb2861621c2",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -19,8 +19,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "5c0619400d619c5e1d39c7b4dd609d04002f67936f7a2c3437519ec852a70198",
-   "bytes": 37160
+   "sha256": "f08e4bf2394df7e76ce074587d12aa4c906c24e2f8d42cb2b14b232b077d41c2",
+   "bytes": 37168
   },
   {
    "url": "/js/asterics.js",
@@ -39,8 +39,8 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "03bcf4c425429f2a78f49bb315c1a76401256e11aa3ef1a419d4a3ae73e4a8f4",
-   "bytes": 82203
+   "sha256": "b3cdc61428efe1a5f5f2bff4f269a92c61575e083dbf7717670c3b8df322fd21",
+   "bytes": 82213
   },
   {
    "url": "/js/calibration.js",
@@ -64,8 +64,8 @@
   },
   {
    "url": "/js/device.js",
-   "sha256": "be617df90c8696d93f5e05f0bec0cb028977c40f4aa4b8a75312061a1676f4b5",
-   "bytes": 18651
+   "sha256": "828d1ae69c7d517537b1020602d15ccb61889d9c75d3d90dfea91b152b0c60c0",
+   "bytes": 18666
   },
   {
    "url": "/js/dwell.js",
@@ -94,8 +94,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "43393714fa8cea59fd740418e326c50ffdbaabf5465952f24e22d4c08ba724b2",
-   "bytes": 53944
+   "sha256": "a35bbef32aa51f353edb0e724e6f92aa54c96906e839e4d99ea0d6655f18a42f",
+   "bytes": 53960
   },
   {
    "url": "/js/media.js",
@@ -204,8 +204,8 @@
   },
   {
    "url": "/manifest.webmanifest",
-   "sha256": "caf9b66567ae1740e90f9aeb25fa8ef56da7b6fefe52e8a991f3d6da180900e3",
-   "bytes": 538
+   "sha256": "f7d1ed36657641d25184871f5f7314b486e9c75b280da73446d66ee6cb0e7d5b",
+   "bytes": 571
   },
   {
    "url": "/pictograms/01_me_encuentro_mal.png",
@@ -269,8 +269,8 @@
   },
   {
    "url": "/privacidad.html",
-   "sha256": "2dcf23d847815c33547910796b9c511a3bbc5b558adf92424172f17359b4aa65",
-   "bytes": 6294
+   "sha256": "9092f497be3afcad4a9149026944e6cc9edf562d2d8a5449f5e3be14eddebe39",
+   "bytes": 6331
   },
   {
    "url": "/style.css",
@@ -279,8 +279,8 @@
   },
   {
    "url": "/terminos.html",
-   "sha256": "06bdb789478244b5abdf1e953a7eb6c8a8965eb1d1858f9e21528bb559e44784",
-   "bytes": 3630
+   "sha256": "f0d211d906586929f53583273f0326f26b779d1463238a802d5653f57b21acb4",
+   "bytes": 3623
   },
   {
    "url": "/vendor/inter-5.3.0/LICENSE",
@@ -374,5 +374,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28755946
+ "totalBytes": 28756058
 }

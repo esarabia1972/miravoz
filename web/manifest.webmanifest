@@ -1,7 +1,7 @@
 {
   "name": "MiraVoz",
   "short_name": "MiraVoz",
-  "description": "Comunicación aumentativa con la mirada, el rostro o un pulsador.",
+  "description": "Comunicación aumentativa y alternativa con pictogramas: tocando, con un pulsador o con el rostro.",
   "lang": "es",
   "start_url": "/",
   "scope": "/",

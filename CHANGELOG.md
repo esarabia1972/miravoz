@@ -420,3 +420,8 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
   - La política cubre la Ley 25.326 y el uso limitado de los datos de Google.
   - Funcionan sin conexión (el Service Worker sirve cada página propia en lugar de la app).
 - **Changed**: `vercel.json` agrega las direcciones sin `.html` para las páginas legales.
+- **Changed (pedido de Esteban)**: textos públicos ajustados.
+  - Se quitaron "gratuita", las menciones a la mirada y al seguimiento ocular, y los formatos .grd/.obz de la landing.
+  - Nuevo título: "Una voz para cada persona" (también en el título de la página y en el manifest).
+  - En lugar de "la profesional" se usa "**cuenta registrada**", también en los mensajes de la tablet: vinculación, desvinculación, tablero actualizado y sin tableros.
+  - La política de privacidad y los términos hablan de "titulares de cuentas registradas".

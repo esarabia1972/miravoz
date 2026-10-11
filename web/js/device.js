@@ -69,7 +69,7 @@ export async function linkWithCode(rawCode) {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session && !session.user.is_anonymous) {
-            return { ok: false, error: 'Hay una profesional con sesión iniciada en este dispositivo. Cerrá esa sesión antes de vincular la tablet.' };
+            return { ok: false, error: 'Hay una cuenta registrada con sesión iniciada en este dispositivo. Cerrá esa sesión antes de vincular la tablet.' };
         }
         const { data, error } = await supabaseClient.rpc('device_redeem', { p_code: rawCode });
         if (error) {
@@ -163,7 +163,7 @@ export async function pullCopies() {
         // Copias que la profesional quitó: se sacan de la tablet (con respaldo)
         for (const c of await listCopies()) {
             if (serverIds.has(c.id)) continue;
-            await backupBundle(c.id, c, 'asignación quitada por la profesional');
+            await backupBundle(c.id, c, 'asignación quitada desde la cuenta registrada');
             await localforage.removeItem(c.id);
             removed.push(c.id);
         }
@@ -216,12 +216,12 @@ async function pushCopy(copy) {
         if (data?.unlinked) { window.dispatchEvent(new CustomEvent('miravoz:device-unlinked')); return false; }
         if (data?.conflict) {
             // La profesional editó la copia desde su cuenta: gana su versión, lo de acá va a respaldo
-            await backupBundle(current.id, current, 'conflicto: la profesional editó la copia');
+            await backupBundle(current.id, current, 'conflicto: la copia se editó desde la cuenta registrada');
             const fresh = copyFromRow({ id: current.assignmentId, copy_bundle: data.copy_bundle,
                                         permission: current.permission, copy_updated_at: data.copy_updated_at });
             await localforage.setItem(fresh.id, fresh);
             window.dispatchEvent(new CustomEvent('miravoz:bundles-changed', { detail: { ids: [fresh.id], removed: [] } }));
-            showInfoToast('Este tablero se actualizó desde la cuenta de la profesional.', 7000);
+            showInfoToast('Este tablero se actualizó desde la cuenta registrada.', 7000);
             return false;
         }
         const now = await localforage.getItem(current.id);
@@ -371,7 +371,7 @@ export async function markSettingsApplied(key) {
 
 /** Pide confirmación (y que se escriba DESVINCULAR) y desvincula. Devuelve true si se desvinculó. */
 export async function confirmAndUnlink() {
-    const ok = await customConfirm(`¿Desvincular la tablet de ${device?.displayName || 'este usuario'}? Los tableros dejan de estar en este dispositivo (siguen en la cuenta de la profesional).`);
+    const ok = await customConfirm(`¿Desvincular la tablet de ${device?.displayName || 'este usuario'}? Los tableros dejan de estar en este dispositivo (siguen en la cuenta registrada).`);
     if (!ok) return false;
     const left = await flushCopies();
     const warn = left ? `\nOJO: ${left} tablero(s) tienen cambios que no se pudieron subir y se van a perder.` : '';

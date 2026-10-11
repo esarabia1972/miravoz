@@ -976,7 +976,7 @@ async function enterDeviceMode() {
     if (res === 'unlinked') {
         await calibration.clearScope(profileScope());
         await deviceMod.unlink();
-        await customAlert('Esta tablet fue desvinculada por la profesional.');
+        await customAlert('Esta tablet fue desvinculada desde la cuenta registrada.');
         window.location.reload();
         return;
     }
@@ -989,7 +989,7 @@ async function enterDeviceMode() {
 window.addEventListener('miravoz:device-unlinked', async () => {
     await calibration.clearScope(profileScope());
     await deviceMod.unlink();
-    await customAlert('Esta tablet fue desvinculada por la profesional.');
+    await customAlert('Esta tablet fue desvinculada desde la cuenta registrada.');
     window.location.reload();
 });
 

@@ -647,7 +647,7 @@ function renderHomeCards() {
         const p = document.createElement('p');
         p.className = homeReadOnly ? 'home-empty device-empty' : 'home-empty';
         p.textContent = homeReadOnly
-            ? 'Todavía no hay tableros en esta tablet. La profesional tiene que asignarle uno a este usuario.'
+            ? 'Todavía no hay tableros en esta tablet. Hay que asignarle uno a este usuario desde la cuenta registrada.'
             : 'Todavía no hay tableros. Creá uno nuevo o importá uno para empezar.';
         boardList.appendChild(p);
         return;

@@ -24,10 +24,10 @@
         })();
     </script>
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <title>Miravoz - Tu mirada ya tiene voz</title>
-    <meta name="description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
-    <meta property="og:title" content="Miravoz - Tu mirada ya tiene voz">
-    <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
+    <title>MiraVoz — Comunicación aumentativa y alternativa</title>
+    <meta name="description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
+    <meta property="og:title" content="MiraVoz — Comunicación aumentativa y alternativa">
+    <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=45">
@@ -219,20 +219,20 @@
         <main class="landing">
         <section class="landing-hero" aria-labelledby="landing-title">
             <img class="landing-logo" src="logo.png" alt="MiraVoz" />
-            <h1 id="landing-title">Tu mirada ya tiene voz</h1>
-            <p class="landing-lead">MiraVoz es una plataforma gratuita de comunicación aumentativa y alternativa (CAA) que funciona en el navegador de una tablet o una computadora. Está pensada para personas con discapacidad motora que no pueden acceder a un dispositivo especializado de seguimiento ocular.</p>
+            <h1 id="landing-title">Una voz para cada persona</h1>
+            <p class="landing-lead">MiraVoz es una plataforma de comunicación aumentativa y alternativa (CAA) que funciona en el navegador de una tablet o una computadora. Está pensada para personas con discapacidad motora o con dificultades para comunicarse con el habla.</p>
             <ul class="landing-features">
-                <li><strong>Un acceso para cada persona.</strong> Tocando la pantalla, con barrido y un pulsador, o con la cámara siguiendo el rostro (el seguimiento de la mirada está en evaluación).</li>
-                <li><strong>Tableros con pictogramas.</strong> Pictogramas de ARASAAC, voz en español y tableros compatibles con Asterics Grid (.grd) y Open Board (.obz).</li>
-                <li><strong>La profesional organiza, el usuario comunica.</strong> Se crean y asignan tableros desde la cuenta profesional; la tablet del usuario se vincula con un código, sin cuenta ni contraseña.</li>
+                <li><strong>Un acceso para cada persona.</strong> Tocando la pantalla, con barrido y un pulsador, o con la cámara siguiendo el rostro.</li>
+                <li><strong>Tableros con pictogramas.</strong> Pictogramas de ARASAAC, voz en español y tableros compatibles con Asterics Grid.</li>
+                <li><strong>Una cuenta registrada organiza, el usuario comunica.</strong> Desde una cuenta registrada se crean, asignan y ajustan los tableros; la tablet del usuario se vincula con un código, sin cuenta ni contraseña.</li>
                 <li><strong>Privacidad.</strong> La imagen de la cámara se procesa en el propio dispositivo y nunca se envía. Una vez preparada, la app funciona sin conexión.</li>
             </ul>
         </section>
         <div class="auth-box glass-box">
             
             <div id="auth-step-email">
-                <h2>Ingreso para profesionales</h2>
-                <p class="auth-desc">Entrá con tu cuenta de Google para crear tableros, gestionar a tus usuarios y asignarles tableros.</p>
+                <h2>Cuenta registrada</h2>
+                <p class="auth-desc">Ingresá con tu cuenta registrada para crear tableros, gestionar usuarios y asignarles tableros.</p>
                 <button id="btn-google" class="btn google-btn" style="margin-top: 15px;">
                     <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
                     <span>Ingresar con Google</span>
@@ -242,10 +242,10 @@
                 <button id="btn-show-link" class="btn auth-btn-secondary">Vincular esta tablet con un código</button>
             </div>
 
-            <!-- F4-4: vincular la tablet del chico con el código que genera la profesional -->
+            <!-- F4-4: vincular la tablet del chico con el código que se genera desde la cuenta registrada -->
             <div id="auth-step-link" style="display: none;">
                 <h2>Vincular tablet</h2>
-                <p class="auth-desc">Ingresá el código que te dio la profesional (8 caracteres). Se hace una sola vez: después la tablet abre directo en los tableros del usuario.</p>
+                <p class="auth-desc">Ingresá el código de vinculación (8 caracteres) que se genera desde la cuenta registrada. Se hace una sola vez: después la tablet abre directo en los tableros del usuario.</p>
                 <div class="input-group">
                     <label for="link-code-input" class="sr-only">Código de vinculación</label>
                     <input type="text" id="link-code-input" class="glass-input auth-input link-code-input" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" />
@@ -505,6 +505,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=60"></script>
+    <script type="module" src="js/main.js?v=61"></script>
 </body>
 </html>
