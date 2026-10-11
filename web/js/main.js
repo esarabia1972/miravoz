@@ -69,10 +69,18 @@ async function onProfessionalSession(user) {
     openFromLink();
 }
 
-/** 1.7.0: ?tablero=<id>&pagina=<id> (enlace "abrir en MiraVoz" que devuelve Claude) abre ese tablero y página. */
+/** 1.7.0: ?tablero=<id>&pagina=<id> (enlace "abrir en MiraVoz" que devuelve Claude) abre ese tablero y página; 1.8.0: ?copia=<asignación>. */
 async function openFromLink() {
     const url = new URL(window.location.href);
     const id = url.searchParams.get('tablero');
+    const copia = url.searchParams.get('copia');
+    if (copia) {
+        // Copia de un usuario (enlace de Claude, etapa 3): se abre para editar, como desde "Mis usuarios"
+        url.searchParams.delete('copia');
+        window.history.replaceState(null, '', url.toString());
+        window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: copia } }));
+        return;
+    }
     if (!id) return;
     const page = url.searchParams.get('pagina');
     url.searchParams.delete('tablero'); url.searchParams.delete('pagina');

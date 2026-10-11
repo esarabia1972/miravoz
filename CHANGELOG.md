@@ -2,6 +2,15 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.8.0] - 2026-10-11
+
+- **Added**: **usuarios y asignaciones desde Claude** (servidor MCP, etapa 3): `crear_usuario` (con su código de vinculación), `generar_codigo`, `asignar_tablero` (una copia por usuario, con permiso y opción de tablero de inicio), `quitar_asignacion`, `cambiar_permiso`, `elegir_tablero_inicio`, `actualizar_copia` (manda la versión nueva del original) y `borrar_tablero` (las copias se conservan; se puede recuperar con `restaurar_version`).
+  - Las herramientas de páginas y celdas, `ver_tablero`, `revisar_tablero`, `historial_tablero` y `restaurar_version` aceptan `asignacion` para trabajar sobre la **copia de un usuario** sin tocar el original.
+  - Antes de cambiar o quitar una copia se guarda su versión (`supabase/08_versiones_de_copias.sql`). Escritura de copias con concurrencia optimista sobre `copy_updated_at` (la tablet detecta el cambio igual que hoy).
+  - No se pueden borrar usuarios ni desvincular tablets desde Claude. Las acciones que cambian lo que ve un usuario están marcadas para confirmar.
+- **Added**: enlace `?copia=<asignación>` abre la copia de un usuario para editarla en MiraVoz.
+- **Changed**: pantalla de autorización y política de privacidad describen el alcance nuevo.
+
 ## [1.7.0] - 2026-10-11
 
 - **Added**: **edición de tableros desde Claude** (servidor MCP, etapa 2). Herramientas nuevas: `crear_tablero`, `duplicar_tablero`, `editar_tablero` (nombre y etiquetas), `agregar_pagina`, `editar_pagina` (nombre, tamaño, página de inicio), `borrar_pagina`, `poner_celdas` (en lote: texto, pictograma de ARASAAC por id o por palabra, color Fitzgerald, voz propia, silenciosa, navegación a otra página / volver / inicio / página nueva, tamaño), `mover_celda`, `borrar_celdas`, `revisar_tablero` (vínculos rotos, páginas sueltas, sin pictograma, repetidas, lugares libres), `historial_tablero` y `restaurar_version`.

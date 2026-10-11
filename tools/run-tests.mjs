@@ -6,7 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const UNIT = ['test-headpose', 'test-gaze', 'test-calibration', 'test-pages', 'test-sync', 'test-asterics', 'test-selection', 'test-profiles', 'test-contexts', 'test-offline', 'test-vision', 'test-speech', 'test-practice', 'test-blink', 'test-align', 'test-mcp', 'test-edit'];
+const UNIT = ['test-headpose', 'test-gaze', 'test-calibration', 'test-pages', 'test-sync', 'test-asterics', 'test-selection', 'test-profiles', 'test-contexts', 'test-offline', 'test-vision', 'test-speech', 'test-practice', 'test-blink', 'test-align', 'test-mcp', 'test-edit', 'test-mcp-users'];
 const DOM = ['test-boot', 'test-device'];
 const only = process.argv.includes('--unit') ? UNIT : [...UNIT, ...DOM];
 

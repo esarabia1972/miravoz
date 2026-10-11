@@ -14,7 +14,7 @@ import { labelText, navInfo } from '../js/asterics.js';
 import { pageOrder, gridName, arasaacIdFromUrl, pickArasaacKeyword } from '../js/pages.js';
 import * as E from './_edit.js';
 
-export const SERVER_INFO = { name: 'miravoz', title: 'MiraVoz', version: '1.7.0' };
+export const SERVER_INFO = { name: 'miravoz', title: 'MiraVoz', version: '1.8.0' };
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const MAX_CELLS = 400; // por respuesta de ver_tablero (las páginas grandes se paginan)
 
@@ -28,7 +28,8 @@ export const INSTRUCTIONS = [
     'Buenas prácticas de CAA: vocabulario núcleo (palabras de alta frecuencia) en lugares fijos; colores Fitzgerald (amarillo personas/pronombres, verde verbos, azul descriptores, naranja sustantivos, rosa expresiones sociales, violeta lugares, rojo importante/urgente, gris otros); texto corto en cada celda; un pictograma de ARASAAC por celda; "volver" e "inicio" para navegar entre páginas.',
     'Para armar un tablero: crear_tablero → poner_celdas (en lote, con pictograma como palabra o id de ARASAAC) → revisar_tablero. Filas y columnas se cuentan desde 1. Cada cambio guarda antes una versión: con historial_tablero y restaurar_version se puede deshacer.',
     'Después de cambiar algo, ofrecer el enlace "abrir_en_miravoz" para que la cuenta lo vea y lo ajuste en la app (los cambios aparecen solos en unos segundos si MiraVoz está abierto).',
-    'Antes de borrar páginas o celdas, confirmar con la persona.'
+    'Usuarios: asignar_tablero da a cada usuario una COPIA (el original sigue siendo de la cuenta); para cambiar lo que ve un usuario se edita su copia (parámetro asignacion en las herramientas de páginas y celdas) o se le manda la versión nueva del original con actualizar_copia. La tablet recibe los cambios al abrirse o al recuperar la conexión.',
+    'Antes de borrar páginas, celdas o tableros, quitar asignaciones, actualizar copias o cambiar lo que ve un usuario, confirmar con la persona. Mostrar códigos de vinculación solo si se pidieron.'
 ].join(' ');
 
 const CELL_SCHEMA = {
@@ -53,6 +54,9 @@ const POS = { type: 'object', properties: { fila: { type: 'integer', minimum: 1 
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const T_ID = { type: 'string', description: 'Id del tablero (de listar_tableros).' };
 const T_PAGE = { type: 'string', description: 'Nombre o id de la página (sin indicar = la de inicio).' };
+const T_ASG = { type: 'string', description: 'En lugar de un tablero propio: id de la asignación (la COPIA de un usuario, de ver_usuario). Cambia solo la copia de ese usuario; el original no cambia.' };
+const T_USER = { type: 'string', description: 'Id del usuario (de listar_usuarios).' };
+const PERM = { type: 'string', enum: ['solo_uso', 'editable'], description: '"solo_uso": el usuario no puede cambiarlo; "editable": en su tablet se puede editar.' };
 
 export const WRITE_TOOLS = [
     { name: 'crear_tablero', title: 'Crear tablero', annotations: RW,
@@ -66,31 +70,56 @@ export const WRITE_TOOLS = [
       inputSchema: obj({ id: T_ID, nombre: { type: 'string' }, etiquetas: { type: 'array', items: { type: 'string' } } }, ['id']) },
     { name: 'agregar_pagina', title: 'Agregar página', annotations: RW,
       description: 'Agrega una página al tablero (por defecto del mismo tamaño que la de inicio). Para vincularla, usar navega_a en poner_celdas.',
-      inputSchema: obj({ tablero: T_ID, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 } }, ['tablero']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 } }, []) },
     { name: 'editar_pagina', title: 'Editar página', annotations: RW,
       description: 'Renombra una página, cambia su tamaño (filas/columnas) o la hace página de inicio.',
-      inputSchema: obj({ tablero: T_ID, pagina: T_PAGE, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 }, inicio: { type: 'boolean' } }, ['tablero', 'pagina']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 }, inicio: { type: 'boolean' } }, ['pagina']) },
     { name: 'borrar_pagina', title: 'Borrar página', annotations: RWD,
       description: 'Borra una página (las celdas que llevaban a ella quedan sin ese vínculo). Confirmar antes con la persona. Se puede deshacer con restaurar_version.',
-      inputSchema: obj({ tablero: T_ID, pagina: T_PAGE }, ['tablero', 'pagina']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE }, ['pagina']) },
     { name: 'poner_celdas', title: 'Poner celdas', annotations: RW,
       description: 'Crea o modifica celdas de una página, en lote (hasta 120 por llamada). En una celda existente solo cambia lo indicado. Si una celda queda fuera de la grilla, la grilla se agranda.',
-      inputSchema: obj({ tablero: T_ID, pagina: T_PAGE, celdas: { type: 'array', items: CELL_SCHEMA, minItems: 1, maxItems: 120 } }, ['tablero', 'celdas']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, celdas: { type: 'array', items: CELL_SCHEMA, minItems: 1, maxItems: 120 } }, ['celdas']) },
     { name: 'mover_celda', title: 'Mover celda', annotations: RW,
       description: 'Mueve una celda a otra posición de la misma página; si el destino tiene una celda del mismo tamaño, las intercambia.',
-      inputSchema: obj({ tablero: T_ID, pagina: T_PAGE, desde: POS, hasta: POS }, ['tablero', 'desde', 'hasta']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, desde: POS, hasta: POS }, ['desde', 'hasta']) },
     { name: 'borrar_celdas', title: 'Borrar celdas', annotations: RWD,
       description: 'Borra celdas de una página. Confirmar antes con la persona. Se puede deshacer con restaurar_version.',
-      inputSchema: obj({ tablero: T_ID, pagina: T_PAGE, celdas: { type: 'array', items: POS, minItems: 1, maxItems: 120 } }, ['tablero', 'celdas']) },
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, celdas: { type: 'array', items: POS, minItems: 1, maxItems: 120 } }, ['celdas']) },
     { name: 'revisar_tablero', title: 'Revisar tablero', annotations: RO,
       description: 'Revisa la calidad de un tablero: vínculos rotos, páginas a las que no se llega, celdas sin pictograma o vacías, palabras repetidas y lugares libres.',
-      inputSchema: obj({ id: T_ID }, ['id']) },
+      inputSchema: obj({ id: T_ID, asignacion: T_ASG }) },
     { name: 'historial_tablero', title: 'Historial del tablero', annotations: RO,
-      description: 'Lista las versiones guardadas antes de cada cambio hecho desde Claude (las más nuevas primero).',
-      inputSchema: obj({ id: T_ID }, ['id']) },
+      description: 'Lista las versiones guardadas antes de cada cambio hecho desde Claude (las más nuevas primero), de un tablero o de la copia de un usuario.',
+      inputSchema: obj({ id: T_ID, asignacion: T_ASG }) },
     { name: 'restaurar_version', title: 'Restaurar versión', annotations: RW,
       description: 'Vuelve el tablero a una versión anterior (de historial_tablero). Antes guarda la versión actual, así también se puede deshacer.',
-      inputSchema: obj({ id: T_ID, version: { type: 'integer', description: 'Número de versión de historial_tablero.' } }, ['id', 'version']) }
+      inputSchema: obj({ id: T_ID, asignacion: T_ASG, version: { type: 'integer', description: 'Número de versión de historial_tablero.' } }, ['version']) },
+    // --- Etapa 3: usuarios, asignaciones y borrar tableros (cambian lo que ve un usuario: confirmar antes) ---
+    { name: 'crear_usuario', title: 'Crear usuario', annotations: RW,
+      description: 'Da de alta un usuario (persona que se comunica con MiraVoz) y devuelve su código para vincular la tablet (vence en 7 días).',
+      inputSchema: obj({ nombre: { type: 'string' } }, ['nombre']) },
+    { name: 'generar_codigo', title: 'Generar código de vinculación', annotations: RW,
+      description: 'Genera un código nuevo para vincular la tablet de un usuario (invalida el anterior no usado; vence en 7 días). Mostrarlo solo si la persona lo pidió.',
+      inputSchema: obj({ usuario: T_USER }, ['usuario']) },
+    { name: 'asignar_tablero', title: 'Asignar tablero', annotations: RW,
+      description: 'Le da a uno o más usuarios una COPIA de un tablero (el original queda libre para seguir editándolo). Confirmar antes con la persona.',
+      inputSchema: obj({ tablero: T_ID, usuarios: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 30 }, permiso: PERM, inicio: { type: 'boolean', description: 'true = que sea su tablero de inicio.' } }, ['tablero', 'usuarios']) },
+    { name: 'quitar_asignacion', title: 'Quitar asignación', annotations: RWD,
+      description: 'Le saca a un usuario su copia de un tablero (se guarda una versión antes). Confirmar antes con la persona.',
+      inputSchema: obj({ asignacion: { type: 'string', description: 'Id de la asignación (de ver_usuario).' } }, ['asignacion']) },
+    { name: 'cambiar_permiso', title: 'Cambiar permiso', annotations: RW,
+      description: 'Cambia si la copia de un usuario se puede editar en su tablet.',
+      inputSchema: obj({ asignacion: { type: 'string' }, permiso: PERM }, ['asignacion', 'permiso']) },
+    { name: 'elegir_tablero_inicio', title: 'Elegir tablero de inicio', annotations: RW,
+      description: 'Define cuál de sus copias abre la tablet del usuario al empezar (o ninguna).',
+      inputSchema: obj({ usuario: T_USER, asignacion: { type: ['string', 'null'], description: 'Id de la asignación, o null para ninguna.' } }, ['usuario', 'asignacion']) },
+    { name: 'actualizar_copia', title: 'Actualizar copia del usuario', annotations: RWD,
+      description: 'Reemplaza la copia de un usuario por la versión actual del tablero original (después de mejorarlo). Si la copia era editable, se pierden los cambios hechos en ella (quedan en historial_tablero con la asignación). Confirmar antes con la persona.',
+      inputSchema: obj({ asignacion: { type: 'string' } }, ['asignacion']) },
+    { name: 'borrar_tablero', title: 'Borrar tablero', annotations: RWD,
+      description: 'Borra un tablero de la cuenta (se guarda una versión antes). Los usuarios que tenían una copia la conservan. Confirmar antes con la persona.',
+      inputSchema: obj({ id: T_ID }, ['id']) }
 ];
 
 export const TOOLS = [
@@ -123,9 +152,9 @@ export const TOOLS = [
             type: 'object',
             properties: {
                 id: { type: 'string', description: 'Id del tablero (de listar_tableros).' },
+                asignacion: { type: 'string', description: 'En lugar de id: la copia de un usuario (id de asignación de ver_usuario).' },
                 pagina: { type: 'string', description: 'Nombre o id de una página para ver solo esa (opcional).' }
             },
-            required: ['id'],
             additionalProperties: false
         },
         annotations: RO
@@ -299,6 +328,12 @@ export async function callTool(name, args, ctx) {
             return toolText({ cantidad: list.length, tableros: list });
         }
         case 'ver_tablero': {
+            if (args.asignacion) {
+                const a = await db.select('assignments', `select=id,copy_bundle,copy_updated_at&id=eq.${encodeURIComponent(args.asignacion)}`);
+                if (!a.length) return toolError('No hay una asignación con ese id en esta cuenta.');
+                const d = describeBoard({ id: a[0].id, name: a[0].copy_bundle?.name, updated_at: a[0].copy_updated_at, bundle: a[0].copy_bundle || {} }, { pagina: args.pagina });
+                return toolText({ ...d, es_copia_de_usuario: true, abrir_en_miravoz: `${ctx.base}/?copia=${encodeURIComponent(a[0].id)}` });
+            }
             if (!args.id) return toolError('Falta el id del tablero.');
             const rows = await db.select('boards', `select=id,name,updated_at,bundle&id=eq.${encodeURIComponent(args.id)}`);
             if (!rows.length) return toolError('No hay un tablero con ese id en esta cuenta.');
@@ -382,6 +417,38 @@ async function mutateBoard(ctx, id, note, fn) {
     throw new E.EditError('El tablero se estaba guardando desde otro dispositivo. Probá de nuevo en unos segundos.');
 }
 
+// --- Etapa 3: copias de usuarios (assignments.copy_bundle) ---
+const COPY_META = ['assignmentId', 'permission', 'copyUpdatedAt', 'dirty', 'bundleId', 'profEdit', 'ownerLabel', 'ownerId', 'syncedAt', '__predExtra'];
+export function cleanCopy(bundle) { const out = JSON.parse(JSON.stringify(bundle || {})); COPY_META.forEach(k => delete out[k]); return out; }
+const tgt = (args) => (args.asignacion ? { kind: 'copy', id: String(args.asignacion) } : { kind: 'board', id: String(args.tablero ?? args.id ?? '') });
+const versionKey = (t) => (t.kind === 'copy' ? `copia:${t.id}` : t.id);
+const openTarget = (base, t, page) => (t.kind === 'copy' ? `${base}/?copia=${encodeURIComponent(t.id)}` : openUrl(base, t.id, page));
+
+async function mutateCopy(ctx, asgId, note, fn) {
+    const { db } = ctx;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const rows = await db.select('assignments', `select=id,copy_bundle,copy_updated_at&id=eq.${encodeURIComponent(asgId)}`);
+        if (!rows.length) throw new E.EditError('No hay una asignación con ese id en esta cuenta.');
+        const row = rows[0];
+        const bundle = JSON.parse(JSON.stringify(row.copy_bundle || {}));
+        if (!bundle.boards) throw new E.EditError('La copia no tiene páginas.');
+        const result = await fn(bundle);
+        try { await db.insert('board_versions', { board_id: `copia:${asgId}`, bundle: row.copy_bundle, source: 'claude', note }); }
+        catch { throw new E.EditError('No se pudo guardar la versión de respaldo de la copia, así que no se hizo el cambio. ¿Falta correr supabase/08_versiones_de_copias.sql?'); }
+        const stamp = new Date(Math.max(Date.now(), Date.parse(row.copy_updated_at || 0) + 1)).toISOString();
+        const written = await db.patch('assignments', `id=eq.${encodeURIComponent(asgId)}&copy_updated_at=eq.${encodeURIComponent(row.copy_updated_at)}`,
+            { copy_bundle: cleanCopy(bundle), copy_updated_at: stamp });
+        if (written.length) return { result, bundle };
+    }
+    throw new E.EditError('La copia se estaba guardando desde la tablet del usuario. Probá de nuevo en unos segundos.');
+}
+const mutate = (ctx, t, note, fn) => {
+    if (!t.id) throw new E.EditError('Falta indicar el tablero (o la asignación).');
+    return t.kind === 'copy' ? mutateCopy(ctx, t.id, note, fn) : mutateBoard(ctx, t.id, note, fn);
+};
+const permValue = (p) => (p === 'editable' ? 'editable' : 'read_only');
+const formatCode = (c) => (c && c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c);
+
 async function writeTool(name, args, ctx) {
     const { db, user, base } = ctx;
     try {
@@ -412,16 +479,16 @@ async function writeTool(name, args, ctx) {
                 return toolText({ ok: true, ...result, abrir_en_miravoz: openUrl(base, args.id) });
             }
             case 'agregar_pagina': {
-                const { result } = await mutateBoard(ctx, args.tablero, 'agregar página', (b) => E.addPage(b, args));
-                return toolText({ ok: true, pagina: result, abrir_en_miravoz: openUrl(base, args.tablero, result.id) });
+                const { result } = await mutate(ctx, tgt(args), 'agregar página', (b) => E.addPage(b, args));
+                return toolText({ ok: true, pagina: result, abrir_en_miravoz: openTarget(base, tgt(args), result.id) });
             }
             case 'editar_pagina': {
                 let pid;
-                const { result } = await mutateBoard(ctx, args.tablero, 'editar página', (b) => { pid = E.resolvePage(b, args.pagina); return E.editPage(b, pid, args); });
-                return toolText({ ok: true, pagina: pid, ...result, abrir_en_miravoz: openUrl(base, args.tablero, pid) });
+                const { result } = await mutate(ctx, tgt(args), 'editar página', (b) => { pid = E.resolvePage(b, args.pagina); return E.editPage(b, pid, args); });
+                return toolText({ ok: true, pagina: pid, ...result, abrir_en_miravoz: openTarget(base, tgt(args), pid) });
             }
             case 'borrar_pagina': {
-                const { result } = await mutateBoard(ctx, args.tablero, 'borrar página', (b) => E.deletePage(b, E.resolvePage(b, args.pagina)));
+                const { result } = await mutate(ctx, tgt(args), 'borrar página', (b) => E.deletePage(b, E.resolvePage(b, args.pagina)));
                 return toolText({ ok: true, ...result, se_puede_deshacer: 'historial_tablero + restaurar_version' });
             }
             case 'poner_celdas': {
@@ -430,44 +497,125 @@ async function writeTool(name, args, ctx) {
                 if (cells.length > E.LIMITS.maxCellsPerCall) return toolError(`Hasta ${E.LIMITS.maxCellsPerCall} celdas por llamada.`);
                 const pics = await resolvePictograms(cells, db);
                 let pid;
-                const { result } = await mutateBoard(ctx, args.tablero, `poner ${cells.length} celda(s)`, (b) => {
+                const { result } = await mutate(ctx, tgt(args), `poner ${cells.length} celda(s)`, (b) => {
                     pid = E.resolvePage(b, args.pagina);
                     return cells.map(c => E.setCell(b, pid, c));
                 });
                 const nuevas = result.filter(r => r.pagina_nueva).map(r => r.pagina_nueva);
                 return toolText({ ok: true, pagina: pid, creadas: result.filter(r => r.creada).length, modificadas: result.filter(r => !r.creada).length,
                     grilla_ampliada: result.some(r => r.grilla_ampliada), ...(nuevas.length ? { paginas_nuevas: nuevas } : {}), ...(pics.length ? { pictogramas: pics } : {}),
-                    abrir_en_miravoz: openUrl(base, args.tablero, pid) });
+                    abrir_en_miravoz: openTarget(base, tgt(args), pid) });
             }
             case 'mover_celda': {
                 let pid;
-                const { result } = await mutateBoard(ctx, args.tablero, 'mover celda', (b) => { pid = E.resolvePage(b, args.pagina); return E.moveCell(b, pid, args.desde, args.hasta); });
-                return toolText({ ok: true, ...result, abrir_en_miravoz: openUrl(base, args.tablero, pid) });
+                const { result } = await mutate(ctx, tgt(args), 'mover celda', (b) => { pid = E.resolvePage(b, args.pagina); return E.moveCell(b, pid, args.desde, args.hasta); });
+                return toolText({ ok: true, ...result, abrir_en_miravoz: openTarget(base, tgt(args), pid) });
             }
             case 'borrar_celdas': {
                 let pid;
-                const { result } = await mutateBoard(ctx, args.tablero, `borrar ${args.celdas?.length || 0} celda(s)`, (b) => { pid = E.resolvePage(b, args.pagina); return (args.celdas || []).map(c => E.clearCell(b, pid, c.fila, c.columna)); });
-                return toolText({ ok: true, borradas: result.map(r => r.borrada), se_puede_deshacer: 'historial_tablero + restaurar_version', abrir_en_miravoz: openUrl(base, args.tablero, pid) });
+                const { result } = await mutate(ctx, tgt(args), `borrar ${args.celdas?.length || 0} celda(s)`, (b) => { pid = E.resolvePage(b, args.pagina); return (args.celdas || []).map(c => E.clearCell(b, pid, c.fila, c.columna)); });
+                return toolText({ ok: true, borradas: result.map(r => r.borrada), se_puede_deshacer: 'historial_tablero + restaurar_version', abrir_en_miravoz: openTarget(base, tgt(args), pid) });
             }
             case 'revisar_tablero': {
-                const rows = await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(args.id)}`);
-                if (!rows.length) return toolError('No hay un tablero con ese id en esta cuenta.');
-                return toolText({ tablero: rows[0].name, ...E.reviewBundle(rows[0].bundle || {}), abrir_en_miravoz: openUrl(base, args.id) });
+                const t = tgt(args);
+                const rows = t.kind === 'copy'
+                    ? (await db.select('assignments', `select=id,copy_bundle&id=eq.${encodeURIComponent(t.id)}`)).map(r => ({ name: r.copy_bundle?.name, bundle: r.copy_bundle }))
+                    : await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(t.id)}`);
+                if (!rows.length) return toolError('No hay un tablero (o copia) con ese id en esta cuenta.');
+                return toolText({ tablero: rows[0].name, ...E.reviewBundle(rows[0].bundle || {}), abrir_en_miravoz: openTarget(base, t) });
             }
             case 'historial_tablero': {
-                const v = await db.select('board_versions', `select=id,created_at,source,note&board_id=eq.${encodeURIComponent(args.id)}&order=created_at.desc&limit=30`);
+                const v = await db.select('board_versions', `select=id,created_at,source,note&board_id=eq.${encodeURIComponent(versionKey(tgt(args)))}&order=created_at.desc&limit=30`);
                 return toolText({ cantidad: v.length, versiones: v.map(x => ({ version: x.id, fecha: x.created_at, origen: x.source, cambio_que_vino_despues: x.note })) });
             }
             case 'restaurar_version': {
-                const v = await db.select('board_versions', `select=id,bundle&board_id=eq.${encodeURIComponent(args.id)}&id=eq.${Number(args.version)}`);
+                const t = tgt(args);
+                const v = await db.select('board_versions', `select=id,bundle&board_id=eq.${encodeURIComponent(versionKey(t))}&id=eq.${Number(args.version)}`);
                 if (!v.length) return toolError('No hay esa versión para este tablero.');
                 const old = v[0].bundle;
-                await mutateBoard(ctx, args.id, `restaurar versión ${args.version}`, (b) => {
+                if (t.kind === 'board' && !(await db.select('boards', `select=id&id=eq.${encodeURIComponent(t.id)}`)).length) {
+                    // El tablero se había borrado: se vuelve a crear desde esa versión
+                    const now = Date.now();
+                    const b = { ...cleanCopy(old), id: t.id, ownerId: user.id, updatedAt: now, syncedAt: now };
+                    await db.insert('boards', { id: t.id, owner_professional_id: user.id, name: b.name || 'Tablero recuperado', bundle: b, updated_at: new Date(now).toISOString() });
+                    return toolText({ ok: true, recuperado: b.name, abrir_en_miravoz: openUrl(base, t.id) });
+                }
+                await mutate(ctx, t, `restaurar versión ${args.version}`, (b) => {
                     for (const k of Object.keys(b)) delete b[k];
                     Object.assign(b, JSON.parse(JSON.stringify(old)));
                     return {};
                 });
-                return toolText({ ok: true, restaurada: Number(args.version), abrir_en_miravoz: openUrl(base, args.id) });
+                return toolText({ ok: true, restaurada: Number(args.version), abrir_en_miravoz: openTarget(base, t) });
+            }
+            case 'crear_usuario': {
+                const n = String(args.nombre || '').trim().slice(0, 60);
+                if (!n) return toolError('Falta el nombre del usuario.');
+                const [u] = await db.insertReturning('aac_users', { professional_id: user.id, display_name: n });
+                let code = null;
+                try { code = await db.rpc('create_access_code', { p_aac_user_id: u.id }); } catch { /* el usuario queda creado igual */ }
+                return toolText({ creado: true, id: u.id, nombre: n, ...(code ? { codigo_de_vinculacion: formatCode(code.code), vence: code.expires_at } : { aviso: 'No se pudo generar el código: usar generar_codigo.' }) });
+            }
+            case 'generar_codigo': {
+                const c = await db.rpc('create_access_code', { p_aac_user_id: args.usuario }).catch(() => null);
+                if (!c || !c.code) return toolError('No se pudo generar el código (¿el usuario es de esta cuenta?).');
+                return toolText({ codigo_de_vinculacion: formatCode(c.code), vence: c.expires_at, como_usar: 'En la tablet: www.miravoz.com.ar → "Vincular esta tablet con un código".' });
+            }
+            case 'asignar_tablero': {
+                const rows = await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(args.tablero)}`);
+                if (!rows.length) return toolError('No hay un tablero con ese id en esta cuenta.');
+                const ids = [...new Set((args.usuarios || []).map(String))];
+                const users = await db.select('aac_users', `select=id,display_name&id=in.(${ids.map(encodeURIComponent).join(',')})`);
+                if (users.length !== ids.length) return toolError('Alguno de esos usuarios no es de esta cuenta.');
+                const already = await db.select('assignments', `select=aac_user_id&board_id=eq.${encodeURIComponent(args.tablero)}`);
+                const dup = users.filter(u => already.some(a => a.aac_user_id === u.id));
+                if (dup.length) return toolError(`${dup.map(u => u.display_name).join(', ')} ya tiene una copia de «${rows[0].name}». Para darle la versión nueva usar actualizar_copia.`);
+                const copy = cleanCopy(rows[0].bundle);
+                const created = await db.insertReturning('assignments', ids.map(id => ({ board_id: args.tablero, aac_user_id: id, copy_bundle: copy, permission: permValue(args.permiso) })), 'id,aac_user_id');
+                if (args.inicio) for (const a of created) await db.patch('aac_users', `id=eq.${encodeURIComponent(a.aac_user_id)}`, { home_board_id: a.id });
+                return toolText({ ok: true, tablero: rows[0].name, permiso: permValue(args.permiso) === 'editable' ? 'editable' : 'solo uso',
+                    asignaciones: created.map(a => ({ usuario: users.find(u => u.id === a.aac_user_id)?.display_name, asignacion: a.id, inicio: !!args.inicio })),
+                    nota: 'La tablet del usuario lo recibe al abrirse o al recuperar la conexión.' });
+            }
+            case 'quitar_asignacion': {
+                const a = await db.select('assignments', `select=id,copy_bundle&id=eq.${encodeURIComponent(args.asignacion)}`);
+                if (!a.length) return toolError('No hay una asignación con ese id en esta cuenta.');
+                try { await db.insert('board_versions', { board_id: `copia:${a[0].id}`, bundle: a[0].copy_bundle, source: 'claude', note: 'quitar asignación' }); }
+                catch { return toolError('No se pudo guardar la versión de respaldo de la copia, así que no se quitó. ¿Falta correr supabase/08_versiones_de_copias.sql?'); }
+                await db.del('assignments', `id=eq.${encodeURIComponent(a[0].id)}`);
+                return toolText({ ok: true, quitado: a[0].copy_bundle?.name || 'tablero', nota: 'Si era su tablero de inicio, la tablet queda sin tablero de inicio.' });
+            }
+            case 'cambiar_permiso': {
+                const w = await db.patch('assignments', `id=eq.${encodeURIComponent(args.asignacion)}`, { permission: permValue(args.permiso) });
+                if (!w.length) return toolError('No hay una asignación con ese id en esta cuenta.');
+                return toolText({ ok: true, permiso: permValue(args.permiso) === 'editable' ? 'editable' : 'solo uso' });
+            }
+            case 'elegir_tablero_inicio': {
+                if (args.asignacion) {
+                    const a = await db.select('assignments', `select=id,aac_user_id&id=eq.${encodeURIComponent(args.asignacion)}`);
+                    if (!a.length || a[0].aac_user_id !== args.usuario) return toolError('Esa asignación no es de ese usuario.');
+                }
+                const w = await db.patch('aac_users', `id=eq.${encodeURIComponent(args.usuario)}`, { home_board_id: args.asignacion || null });
+                if (!w.length) return toolError('No hay un usuario con ese id en esta cuenta.');
+                return toolText({ ok: true, inicio: args.asignacion || null });
+            }
+            case 'actualizar_copia': {
+                const a = await db.select('assignments', `select=id,board_id&id=eq.${encodeURIComponent(args.asignacion)}`);
+                if (!a.length) return toolError('No hay una asignación con ese id en esta cuenta.');
+                if (!a[0].board_id) return toolError('El tablero original de esta copia se borró: no hay de dónde actualizarla.');
+                const o = await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(a[0].board_id)}`);
+                if (!o.length) return toolError('No se encontró el tablero original.');
+                const fresh = cleanCopy(o[0].bundle);
+                await mutateCopy(ctx, a[0].id, 'actualizar desde el original', (b) => { for (const k of Object.keys(b)) delete b[k]; Object.assign(b, fresh); return {}; });
+                return toolText({ ok: true, actualizada: o[0].name, se_puede_deshacer: 'historial_tablero y restaurar_version con la asignación', nota: 'La tablet la recibe al abrirse o al recuperar la conexión.' });
+            }
+            case 'borrar_tablero': {
+                const rows = await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(args.id)}`);
+                if (!rows.length) return toolError('No hay un tablero con ese id en esta cuenta.');
+                try { await db.insert('board_versions', { board_id: rows[0].id, bundle: rows[0].bundle, source: 'claude', note: 'borrar tablero' }); }
+                catch { return toolError('No se pudo guardar la versión de respaldo, así que no se borró.'); }
+                const copies = await db.select('assignments', `select=id&board_id=eq.${encodeURIComponent(rows[0].id)}`);
+                await db.del('boards', `id=eq.${encodeURIComponent(rows[0].id)}`);
+                return toolText({ ok: true, borrado: rows[0].name, copias_que_se_conservan: copies.length, recuperar: 'historial_tablero y restaurar_version con el mismo id lo vuelven a crear.' });
             }
         }
     } catch (e) {
@@ -494,6 +642,17 @@ export function supabaseDb({ url, anonKey, token, fetchImpl = fetch }) {
         async insert(table, row) {
             const r = await fetchImpl(`${url}/rest/v1/${table}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(row) });
             if (!r.ok) throw Object.assign(new Error(`insert ${table}`), { status: r.status });
+            return true;
+        },
+        async insertReturning(table, rows, select = 'id') {
+            const r = await fetchImpl(`${url}/rest/v1/${table}?select=${select}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify(rows) });
+            if (!r.ok) throw Object.assign(new Error(`insert ${table}`), { status: r.status });
+            const data = await r.json();
+            return Array.isArray(data) ? data : [data];
+        },
+        async del(table, filter) {
+            const r = await fetchImpl(`${url}/rest/v1/${table}?${filter}`, { method: 'DELETE', headers });
+            if (!r.ok) throw Object.assign(new Error(`delete ${table}`), { status: r.status });
             return true;
         },
         async patch(table, filter, values) {
