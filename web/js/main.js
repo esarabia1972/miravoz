@@ -668,7 +668,10 @@ function recordDiag(now) {
         const r = benchmark.currentTarget.element.getBoundingClientRect();
         target = { kind: 'bench', x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }
-    if (diagRows.length >= 20000) return; // ~10 min a 30 cps
+    // Sin objetivo y sin cara (diálogos, home) no aporta: no se graba. Se conservan los últimos 20000 cuadros
+    // (antes se cortaba al llenarse y se perdían justo las calibraciones más recientes).
+    if (!target && !tracking.currentFeatures) return;
+    if (diagRows.length >= 20000) diagRows.shift();
     diagRows.push({
         t: Math.round(now), mode: S.trackingMode,
         f: tracking.currentFeatures, pose: fd?.pose || null, iris: fd?.iris || null,

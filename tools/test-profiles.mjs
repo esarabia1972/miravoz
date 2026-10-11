@@ -51,7 +51,7 @@ await t('calibración aceptada: guarda contexto completo y verificación con mé
     const r = runSession(info => good(info.x, info.y));
     assert(r.result && r.result.validation.status === 'accepted', JSON.stringify(r.result && r.result.validation));
     const p = r.result;
-    assert(p.schema === 3 && p.revision && p.modelKind === 'poly-nose-v2', 'esquema/revisión/modelo');
+    assert(p.schema === 3 && p.revision && p.modelKind === 'poly-headangles-v1', 'esquema/revisión/modelo');
     assert(p.context.scope === 'user:ana' && p.context.deviceId === 'dev-1' && p.context.orientation === 'landscape' && p.context.viewport.w === W, 'contexto');
     assert(Number.isFinite(p.trainingError) && Number.isFinite(p.validation.metrics.medianError) && p.validation.metrics.coverage > 0.6, 'métricas');
     await new Promise(r => setTimeout(r, 0));
@@ -66,13 +66,13 @@ await t('T08 cambio de usuario: el perfil de otra persona nunca se usa', () => {
     const ana = cal.getProfile('CARA');
     assert(P.checkCompatibility(ana, P.makeContext({ ...ctx, scope: 'user:beto' }), { mode: 'CARA' }).reason === 'scope', 'scope');
 });
-await t('T08 rotación, otro dispositivo y otro motor (Iris) invalidan', () => {
+await t('T08 rotación, otro dispositivo y otro motor invalidan', () => {
     const ana = cal.getProfile('CARA');
     assert(P.checkCompatibility(ana, P.makeContext({ ...ctx, w: H, h: W }), { mode: 'CARA' }).reason === 'orientation', 'orientación');
     assert(P.checkCompatibility(ana, P.makeContext({ ...ctx, deviceId: 'dev-2' }), { mode: 'CARA' }).reason === 'device', 'dispositivo');
     const ojos = { ...ana, context: { ...ana.context, engine: 'tasks' } };
     assert(P.checkCompatibility(ojos, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'OJOS' }).reason === 'engine', 'motor en Iris');
-    assert(P.checkCompatibility(ojos, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'CARA' }).ok, 'Rostro no depende del motor');
+    assert(P.checkCompatibility(ojos, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'CARA' }).reason === 'engine', 'Rostro (ángulos) también depende del motor');
 });
 await t('T09 barras de Safari (alto ±8%) no invalidan; un cambio grande sí', () => {
     const ana = cal.getProfile('CARA');

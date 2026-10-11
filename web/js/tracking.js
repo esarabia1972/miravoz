@@ -97,12 +97,22 @@ export function applyProfile(mode, profile) {
     setWeights(profile.weightsX, profile.weightsY);
 }
 
+/**
+ * Rostro: con pose (FaceLandmarker) → [giro, cabeceo] en decenas de grados (escala cercana a 1 para la regresión);
+ * sin pose (motor legado) → posición de la nariz. Exportada para los tests.
+ */
+export function caraFeatures(fd) {
+    if (fd.pose && Number.isFinite(fd.pose.yaw) && Number.isFinite(fd.pose.pitch)) return [fd.pose.yaw / 10, fd.pose.pitch / 10];
+    if (engineName === 'tasks') return null; // cuadro sin pose con un perfil de ángulos: muestra inválida
+    return [fd.landmarks[1].x, fd.landmarks[1].y];
+}
+
 // Extrae features según el modo.
-//  CARA → [fx, fy] (nariz, landmark 1; igual que siempre)
+//  CARA → [giro, cabeceo] de la cabeza (motor legado: nariz, landmark 1)
 //  OJOS → vector crudo del modelo híbrido (necesita la pose de la cabeza: solo motor FaceLandmarker)
 function extractFeatures(fd, mode) {
     if (mode === 'OJOS') return gaze.rawFeatures(fd);
-    return [fd.landmarks[1].x, fd.landmarks[1].y];
+    return caraFeatures(fd);
 }
 
 // Modo Iris: mediana por componente de los últimos N cuadros (quita picos de parpadeos/ruido sin retrasar

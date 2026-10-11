@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.1.0] - 2026-10-11
+
+- **Changed**: el modo Rostro usa los **ángulos de la cabeza** (giro y cabeceo de FaceLandmarker) en vez de la posición de la nariz en la imagen. La nariz cambia si la persona se corre o se hunde en la silla, y en el iPad Air 4 (cámara al costado en horizontal) eso arruinaba la verificación. Con el diagnóstico real del iPad, los mismos datos dan un error mediano de 46 px con ángulos contra 131 px con la nariz. Los perfiles de Rostro anteriores quedan invalidados: hay que recalibrar una vez. El motor legado (sin pose) sigue usando la nariz.
+- **Fixed**: el diagnóstico (`?diag=1`) dejaba de grabar al llenarse y perdía las calibraciones más recientes; ahora conserva los últimos cuadros y no graba pantallas sin cara ni objetivo.
+
 ## [1.0.1] - 2026-10-11
 
 - **Fixed**: en modo Rostro, la verificación decía "mirá el punto" (invitaba a mover solo los ojos) y daba errores altos en el iPad. Ahora dice "apuntá al punto con la nariz, como en la calibración".

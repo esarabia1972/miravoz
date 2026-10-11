@@ -29,7 +29,10 @@ let contextProvider = () => ({ scope: 'prueba', deviceId: null, engine: null, vi
 export function setContextProvider(fn) { contextProvider = fn; }
 export function currentContext() { return contextProvider(); }
 
-export function modelKindFor(mode) { return mode === 'OJOS' ? gaze.MODEL_KIND : MODEL_KINDS.CARA; }
+export function modelKindFor(mode, ctx = currentContext()) {
+    if (mode === 'OJOS') return gaze.MODEL_KIND;
+    return ctx && ctx.engine === 'legacy' ? MODEL_KINDS.CARA_NOSE : MODEL_KINDS.CARA;
+}
 
 export async function loadProfiles() { await getStore().load(); }
 
