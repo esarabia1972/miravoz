@@ -285,8 +285,9 @@ function renderTablet(user) {
     // Código: solo se muestra si hay uno vigente (o si todavía no hay tablet y falló la carga)
     if (user.codesError) info.appendChild(el('span', 'user-note', 'No pudimos cargar el código de vinculación.'));
     else if (user.access_code) {
-        const days = Math.max(0, Math.ceil((new Date(user.access_code_expires) - Date.now()) / 86400000));
-        info.appendChild(el('span', 'user-code', `Código: ${user.access_code} · un solo uso · vence en ${days} ${days === 1 ? 'día' : 'días'}`));
+        const mins = Math.max(0, Math.ceil((new Date(user.access_code_expires) - Date.now()) / 60000));
+        const left = mins >= 120 ? `${Math.ceil(mins / 1440)} ${Math.ceil(mins / 1440) === 1 ? 'día' : 'días'}` : `${mins} min`;
+        info.appendChild(el('span', 'user-code', `Código: ${user.access_code} · un solo uso · vence en ${left}`));
     }
     if (user.settings?.metrics?.enabled) info.appendChild(el('span', 'user-badge', 'Registro de uso activo'));
     row.appendChild(info);
@@ -296,7 +297,7 @@ function renderTablet(user) {
         button(user.devices.length > 1 ? `Desvincular tablet ${i + 1}` : 'Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device))));
     const gen = button(user.access_code || linked ? 'Nuevo código' : 'Generar código',
         `${user.access_code || linked ? 'Nuevo código' : 'Generar código'} para la tablet de ${user.display_name}`, () => generateCode(user.id));
-    gen.title = 'Genera un código de un solo uso para vincular una tablet (vence en 7 días). El código anterior deja de servir.';
+    gen.title = 'Genera un código de 4 caracteres, de un solo uso, para vincular una tablet (vence a los 30 minutos). El código anterior deja de servir.';
     actions.appendChild(gen);
     actions.appendChild(metricsButton(user));
     row.appendChild(actions);

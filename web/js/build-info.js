@@ -1,2 +1,2 @@
 // Generado por tools/build-offline-manifest.mjs (no editar a mano)
-export const APP_VERSION = '1.9.5';
+export const APP_VERSION = '1.9.6';

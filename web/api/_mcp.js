@@ -99,10 +99,10 @@ export const WRITE_TOOLS = [
       inputSchema: obj({ id: T_ID, asignacion: T_ASG, version: { type: 'integer', description: 'Número de versión de historial_tablero.' } }, ['version']) },
     // --- Etapa 3: usuarios, asignaciones y borrar tableros (cambian lo que ve un usuario: confirmar antes) ---
     { name: 'crear_usuario', title: 'Crear usuario', annotations: RW,
-      description: 'Da de alta un usuario (persona que se comunica con MiraVoz) y devuelve su código para vincular la tablet (vence en 7 días).',
+      description: 'Da de alta un usuario (persona que se comunica con MiraVoz) y devuelve su código para vincular la tablet (4 caracteres, vence a los 30 minutos).',
       inputSchema: obj({ nombre: { type: 'string' } }, ['nombre']) },
     { name: 'generar_codigo', title: 'Generar código de vinculación', annotations: RW,
-      description: 'Genera un código nuevo para vincular la tablet de un usuario (invalida el anterior no usado; vence en 7 días). Mostrarlo solo si la persona lo pidió.',
+      description: 'Genera un código nuevo para vincular la tablet de un usuario (4 caracteres; invalida el anterior no usado; vence a los 30 minutos). Mostrarlo solo si la persona lo pidió.',
       inputSchema: obj({ usuario: T_USER }, ['usuario']) },
     { name: 'asignar_tablero', title: 'Asignar tablero', annotations: RW,
       description: 'Le da a uno o más usuarios una COPIA de un tablero (el original queda libre para seguir editándolo). Confirmar antes con la persona.',

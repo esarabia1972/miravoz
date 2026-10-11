@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.6] - 2026-10-11
+
+- **Changed**: el código para vincular una tablet pasa a tener **4 caracteres** (por ejemplo K7PX, sin letras ni números que se confundan) y vence a los **30 minutos** (`supabase/11_codigo_corto.sql`). Para que siga siendo difícil de adivinar, el límite total de intentos fallidos baja a 300 cada 10 minutos (sigue el de 10 por dispositivo). Los códigos de 8 caracteres ya emitidos sirven hasta vencer.
+
 ## [1.9.5] - 2026-10-11
 
 - **Changed**: Mis usuarios: la tarjeta de cada usuario queda en una sola fila clara: a la izquierda el estado (tablet vinculada y última conexión, código vigente si hay, etiqueta "Registro de uso activo"); a la derecha las acciones (Desvincular tablet, Nuevo código, Activar/Desactivar registro). Ya no se muestra "Sin código vigente…" ni el texto largo del registro.

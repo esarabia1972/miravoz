@@ -345,14 +345,14 @@ export function wireLinkForm({ onLinked }) {
         stepEmail.style.display = 'block';
     });
     input?.addEventListener('input', () => {
-        // Mayúsculas y guion automático: ABCD-EFGH
+        // Mayúsculas; 4 caracteres (1.9.6). Los códigos viejos de 8 (ABCD-EFGH) siguen sirviendo hasta vencer.
         const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
         input.value = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
     });
     input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } });
     if (btn) btn.onclick = async () => {
         const code = input.value.replace(/[^A-Za-z0-9]/g, '');
-        if (code.length !== 8) { err.textContent = 'El código tiene 8 caracteres (por ejemplo ABCD-EFGH).'; return; }
+        if (code.length !== 4 && code.length !== 8) { err.textContent = 'El código tiene 4 caracteres (por ejemplo K7PX).'; return; }
         btn.disabled = true; btn.textContent = 'Vinculando…'; err.textContent = '';
         const res = await linkWithCode(code);
         btn.disabled = false; btn.textContent = 'Vincular';
