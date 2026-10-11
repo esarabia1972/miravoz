@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.8.1] - 2026-10-11
+
+- **Fixed**: los errores al guardar una versión de respaldo (MCP) ahora incluyen el detalle de la base, para diagnosticar. La verificación de `08_versiones_de_copias.sql` comprueba que la política nueva esté aplicada (antes solo miraba el nombre, que ya existía desde el 07).
+
 ## [1.8.0] - 2026-10-11
 
 - **Added**: **usuarios y asignaciones desde Claude** (servidor MCP, etapa 3): `crear_usuario` (con su código de vinculación), `generar_codigo`, `asignar_tablero` (una copia por usuario, con permiso y opción de tablero de inicio), `quitar_asignacion`, `cambiar_permiso`, `elegir_tablero_inicio`, `actualizar_copia` (manda la versión nueva del original) y `borrar_tablero` (las copias se conservan; se puede recuperar con `restaurar_version`).

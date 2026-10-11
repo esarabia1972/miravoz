@@ -16,6 +16,7 @@ create policy "Versiones: guardar de tableros propios" on public.board_versions
     )
   );
 
--- Verificación: la política existe
+-- Verificación: la política nueva (la que acepta 'copia:…') está aplicada
 select count(*) = 1 as politica_ok from pg_policies
-where schemaname = 'public' and tablename = 'board_versions' and policyname = 'Versiones: guardar de tableros propios';
+where schemaname = 'public' and tablename = 'board_versions' and policyname = 'Versiones: guardar de tableros propios'
+  and with_check like '%copia:%';

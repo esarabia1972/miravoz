@@ -406,7 +406,7 @@ async function mutateBoard(ctx, id, note, fn) {
         if (!bundle.boards) throw new E.EditError('El tablero no tiene páginas.');
         const result = await fn(bundle);
         try { await db.insert('board_versions', { board_id: id, bundle: row.bundle, source: 'claude', note }); }
-        catch { throw new E.EditError('No se pudo guardar la versión de respaldo, así que no se hizo el cambio. ¿Falta correr supabase/07_versiones_de_tableros.sql?'); }
+        catch (err) { throw new E.EditError(`No se pudo guardar la versión de respaldo, así que no se hizo el cambio. ¿Falta correr supabase/07_versiones_de_tableros.sql? (detalle: ${err.message})`); }
         const now = Math.max(Date.now(), (row.bundle?.updatedAt || 0) + 1);
         Object.assign(bundle, { id, ownerId: user.id, updatedAt: now, syncedAt: now, speechModel: bundle.speechModel || 'actions' });
         delete bundle.__predExtra;
@@ -434,7 +434,7 @@ async function mutateCopy(ctx, asgId, note, fn) {
         if (!bundle.boards) throw new E.EditError('La copia no tiene páginas.');
         const result = await fn(bundle);
         try { await db.insert('board_versions', { board_id: `copia:${asgId}`, bundle: row.copy_bundle, source: 'claude', note }); }
-        catch { throw new E.EditError('No se pudo guardar la versión de respaldo de la copia, así que no se hizo el cambio. ¿Falta correr supabase/08_versiones_de_copias.sql?'); }
+        catch (err) { throw new E.EditError(`No se pudo guardar la versión de respaldo de la copia, así que no se hizo el cambio. ¿Falta correr supabase/08_versiones_de_copias.sql? (detalle: ${err.message})`); }
         const stamp = new Date(Math.max(Date.now(), Date.parse(row.copy_updated_at || 0) + 1)).toISOString();
         const written = await db.patch('assignments', `id=eq.${encodeURIComponent(asgId)}&copy_updated_at=eq.${encodeURIComponent(row.copy_updated_at)}`,
             { copy_bundle: cleanCopy(bundle), copy_updated_at: stamp });
@@ -641,7 +641,7 @@ export function supabaseDb({ url, anonKey, token, fetchImpl = fetch }) {
         },
         async insert(table, row) {
             const r = await fetchImpl(`${url}/rest/v1/${table}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(row) });
-            if (!r.ok) throw Object.assign(new Error(`insert ${table}`), { status: r.status });
+            if (!r.ok) { const t = await r.text().catch(() => ''); throw Object.assign(new Error(`insert ${table}: ${r.status} ${t.slice(0, 200)}`), { status: r.status }); }
             return true;
         },
         async insertReturning(table, rows, select = 'id') {
