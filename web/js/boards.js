@@ -831,8 +831,9 @@ function renderUserFilter() {
     } else {
         homeFilters.userId = '';
     }
-    // La barra (pestañas, buscador y orden) se ve siempre que haya tableros
-    if (filterBar) filterBar.hidden = homeBundles.length === 0;
+    // La barra se ve si hay tableros (pestañas, buscador, orden) o, en la cuenta registrada, siempre:
+    // ahí están "Nuevo" e "Importar"
+    if (filterBar) filterBar.hidden = homeBundles.length === 0 && homeReadOnly;
 }
 
 if (userFilterSelect) {

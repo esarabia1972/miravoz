@@ -25,6 +25,7 @@ import { PointerController, pauseMessage } from './selection.js';
 import { selectionContexts } from './contexts.js';
 import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
 import { failureAdvice } from './validation.js';
+import * as practice from './practice.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -201,7 +202,7 @@ const scan = new ScanEngine(selectTarget);
 let lastSwitchActivation = 0;
 function onSwitchActivate(e) {
     if (S.trackingMode !== 'SCAN') return;
-    if (S.state !== 'HOME' && S.state !== 'BOARD') return; // p. ej. con el login abierto
+    if (S.state !== 'HOME' && S.state !== 'BOARD' && S.state !== 'PRACTICE') return; // p. ej. con el login abierto
     if (e.target && e.target.closest && e.target.closest('input, textarea, select, #auth-view, #top-bar')) return;
     const now = performance.now();
     if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
@@ -231,10 +232,10 @@ window.addEventListener('pointerdown', (e) => {
 const benchmark = new Benchmark();
 
 // --- M03: contexto único de selección (tablero abajo; diálogos y superposiciones encima) ---
-const INERT_IDS = ['home-view', 'board-view', 'top-bar', 'bottom-bar', 'users-view', 'auth-view'];
+const INERT_IDS = ['home-view', 'board-view', 'top-bar', 'bottom-bar', 'users-view', 'auth-view', 'practice-view'];
 selectionContexts.configure({
     apply: (targets) => { dwell.setTargets(targets); scan.setTargets(targets); },
-    baseTargets: () => (S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements),
+    baseTargets: () => (S.state === 'PRACTICE' ? practice.targets() : S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements),
     onChange: (blocked, top) => {
         // Entrar o salir de un contexto reinicia la permanencia: lo que quedó debajo no se activa solo
         pointer.invalidate('context', performance.now());
@@ -255,8 +256,8 @@ function syncCompanionContext() {
 }
 
 // --- Hooks de boards ---
-boards.hooks.onGridRendered = (targets) => selectionContexts.setBase(targets);
 boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
+boards.hooks.onGridRendered = (targets) => { if (S.state !== 'PRACTICE') selectionContexts.setBase(targets); };
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
     // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
@@ -311,6 +312,7 @@ function beginCameraAccess() {
 /** Calibración completa, o verificación rápida de un perfil guardado ({ validateOnly: perfil }). */
 function startCalibration({ validateOnly = null } = {}) {
     if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+    if (practice.isOpen()) practice.closePractice({ silent: true }); // calibrar con Practicar abierto: se cierra (y se calla)
 
     calibration.updateCalibPoints();
     calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete, { validateOnly });
@@ -456,6 +458,7 @@ function updateModeSegmented() {
 }
 
 function applyMode(mode) {
+    if (practice.isOpen()) practice.closePractice({ silent: true });
     S.trackingMode = mode;
     pointer.invalidate('mode', performance.now());
     updateModeSegmented();
@@ -496,6 +499,7 @@ function applyMode(mode) {
 
 // --- Navegación Home/Board ---
 function goHome() {
+    if (practice.isOpen()) practice.closePractice({ silent: true });
     if (editor.isEditMode()) editor.exitEditMode();
     document.getElementById('copy-banner')?.remove();
     boards.stopMedia(); // radio o página web de un tablero de Asterics
@@ -570,8 +574,28 @@ document.getElementById('btn-close-import').addEventListener('click', () => {
     importModal.style.display = 'none';
 });
 
-document.getElementById('btn-test-board').addEventListener('click', () => {
-    boards.openBundle(boards.buildTestBundle());
+// --- Practicar (1.3.0): actividades de acceso; reemplaza al botón "Tablero de Prueba" ---
+practice.initPractice({
+    setTargets: (t) => { if (S.state === 'PRACTICE') selectionContexts.setBase(t); },
+    mode: () => S.trackingMode,
+    scope: () => profileScope(),
+    onExit: () => {
+        pointer.invalidate('context', performance.now());
+        if (S.currentBundle) { S.state = 'BOARD'; selectionContexts.setBase(boards.activeGridElements); }
+        else goHome();
+    }
+});
+document.getElementById('btn-practice').addEventListener('click', () => {
+    if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
+        showInfoToast('Para practicar con la cámara primero hay que calibrar. Después tocá Practicar otra vez.', 6000);
+        beginCameraAccess();
+        return;
+    }
+    if (editor.isEditMode()) editor.exitEditMode();
+    boards.stopMedia();
+    S.state = 'PRACTICE';
+    pointer.invalidate('context', performance.now());
+    practice.openPractice();
 });
 
 // --- Editor (Fase 3) ---
@@ -731,13 +755,17 @@ function appLoop() {
             pointer.invalidate('companion', now);
         } else if (editor.isEditMode()) {
             // En modo edición los motores de acceso quedan en pausa (se edita con mouse/touch)
-        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {
+        } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && S.trackingMode === 'SCAN') {
             scan.tick(now);
-        } else if ((S.state === 'BOARD' || S.state === 'HOME') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
+            if (S.state === 'PRACTICE') practice.tickPractice(now, null);
+        } else if (S.state === 'PRACTICE' && S.trackingMode === 'CLICKS') {
+            practice.tickPractice(now, null); // Manual: el cursor es el dedo (lo toma practice.js)
+        } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
             // M01: sin rostro, ojos cerrados, cabeza fuera de pose, cámara congelada o muestra vieja → pausa y
             // se reinicia la permanencia. El dwell solo avanza con muestras nuevas (reloj de captura).
             const r = pointer.step(tracking.latestSample, now);
             S.smoothX = r.x; S.smoothY = r.y;
+            if (S.state === 'PRACTICE') practice.tickPractice(now, r.x !== null ? { x: r.x, y: r.y } : null);
             if (r.x !== null) drawCursor(r.x, r.y);
             else if (S.isCalibrated) { const msg = pauseMessage(r.reason); if (msg) drawPauseMessage(msg); }
         }

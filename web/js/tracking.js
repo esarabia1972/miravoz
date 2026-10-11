@@ -190,7 +190,7 @@ function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
     const blink = S.trackingMode === 'OJOS' && faceData.iris && faceData.iris.open !== undefined && faceData.iris.open < gaze.BLINK_OPEN_RATIO;
     latestSample = buildSample({
         ...sampleBase, face: true, features: currentFeatures, blink, headOutOfPose,
-        active: S.state === 'BOARD' || S.state === 'HOME',
+        active: S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE',
         predict: hasWeights() ? predict : null
     });
     S.rawX = latestSample.valid ? latestSample.x : null;

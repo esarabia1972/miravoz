@@ -18,7 +18,7 @@ const WEB = path.resolve(HERE, '../web');
 // Acceso (EQUIPO.md regla 2, 10/10/2026): sin modo sin cuenta; profesionales solo con Google.
 // 'editor-local' se eliminó: sin sesión el home no es alcanzable, así que el editor siempre corre con sesión
 // (lo cubre 'editor-sesion').
-const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss'];
+const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss', 'practicar'];
 
 // ---------------------------------------------------------------- orquestador
 const caseArg = process.argv.find(a => a.startsWith('--case='))?.slice(7);
@@ -78,7 +78,7 @@ for (const key of ['window', 'document', 'navigator', 'localStorage', 'location'
 }
 // jsdom no implementa innerText: se emula con textContent (para poder leer los diálogos)
 Object.defineProperty(win.HTMLElement.prototype, 'innerText', { get() { return this.textContent; }, set(v) { this.textContent = v; }, configurable: true });
-win.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+win.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => ({ addColorStop() {} })), set: (t, k, v) => { t[k] = v; return true; } });
 let rafCount = 0;
 globalThis.requestAnimationFrame = win.requestAnimationFrame = (fn) => (++rafCount < 5 ? setTimeout(() => fn(performance.now()), 16) : 0);
 globalThis.cancelAnimationFrame = win.cancelAnimationFrame = () => {};
@@ -120,7 +120,7 @@ const BUNDLE = { id: 'bundle_1', name: 'Prueba', type: 'grd', mainBoard: 'g1', b
 const CLOUD = { id: 'bundle_cloud', name: 'Nube', type: 'grd', mainBoard: 'gc', updatedAt: 1000, boards: { gc: { id: 'gc', label: { es: 'Nube' }, rowCount: 1, minColumnCount: 1, gridElements: [] } } };
 // En editor-sesion el tablero ya es de la cuenta y está sincronizado (en local y en la nube)
 const OWNED = { ...clone(BUNDLE), ownerId: 'u1', updatedAt: 500, syncedAt: 500 };
-const ownedCase = caseArg === 'editor-sesion' || caseArg === 'paginas' || caseArg === 'asterics';
+const ownedCase = caseArg === 'editor-sesion' || caseArg === 'paginas' || caseArg === 'asterics' || caseArg === 'practicar';
 store.set('bundle_1', ownedCase ? clone(OWNED) : clone(BUNDLE));
 
 // Stub de supabase-js
@@ -160,7 +160,7 @@ function makeSupabase({ user = null, tables = {} } = {}) {
 
 const USER = { id: 'u1', email: 'a@b.c' };
 const XSS = '<img src=x onerror=alert(1)>';
-const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss'].includes(caseArg);
+const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss', 'practicar'].includes(caseArg);
 if (caseArg !== 'sin-cdn') {
     win.supabase = makeSupabase(withSession ? {
         user: USER,
@@ -491,6 +491,47 @@ if (caseArg === 'xss') {
     const users = await import(pathToFileURL(path.join(WEB, 'js/users.js')).href);
     users.renderUsersList();
     check('renderUsersList directo tampoco crea <img>', !list.querySelector('img'), list.innerHTML.slice(0, 300));
+}
+
+if (caseArg === 'practicar') {
+    const { S } = await import(pathToFileURL(path.join(WEB, 'js/state.js')).href);
+    const { selectionContexts } = await import(pathToFileURL(path.join(WEB, 'js/contexts.js')).href);
+    check('"Nuevo" e "Importar" están en la barra del home (arriba)', $('home-filters') && !$('home-filters').hidden && $('home-filters').contains($('btn-new-board')) && $('home-filters').contains($('btn-open-import')), $('home-filters')?.hidden);
+    check('"Tablero de Prueba" ya no está; "Practicar" sí', !$('btn-test-board') && !!$('btn-practice'), '');
+    check('Mis usuarios es pantalla completa', $('users-view').classList.contains('fullscreen-panel'), $('users-view').className);
+    $('btn-practice').click();
+    await sleep(50);
+    const pv = $('practice-view');
+    check('Practicar abre su pantalla y el estado PRACTICE', pv && !pv.hidden && S.state === 'PRACTICE', `${S.state}`);
+    const cardsP = [...pv.querySelectorAll('.practice-card')];
+    check('5 niveles en el menú', cardsP.length === 5, String(cardsP.length));
+    const base = selectionContexts.baseTargets ? selectionContexts.baseTargets() : null;
+    void base;
+    // Nivel 3: globos
+    cardsP[2].click(); await sleep(30);
+    const balloon = pv.querySelector('.practice-balloon');
+    check('nivel 3 muestra un globo seleccionable', !!balloon, '');
+    balloon.click(); await sleep(20);
+    check('reventar el globo cuenta', /Globos: 1/.test(pv.querySelector('.practice-counter').textContent), pv.querySelector('.practice-counter').textContent);
+    // Volver al menú y abrir Elegir
+    pv.querySelector('.practice-back').click(); await sleep(20);
+    check('"Actividades" vuelve al menú', pv.querySelectorAll('.practice-card').length === 5, '');
+    pv.querySelectorAll('.practice-card')[3].click(); await sleep(20);
+    const opts = pv.querySelectorAll('.practice-choice');
+    check('nivel 4 empieza con 2 opciones', opts.length === 2, String(opts.length));
+    opts[0].click(); await sleep(20);
+    check('elegir dice la opción y cuenta', /Elecciones: 1/.test(pv.querySelector('.practice-counter').textContent) && spoken.some(t => /Tambor|Campana|Melodía|Silbido/.test(t)), JSON.stringify(spoken.slice(-2)));
+    // Niveles de canvas: arrancan sin errores
+    for (const i of [0, 1, 4]) {
+        pv.querySelector('.practice-back').click(); await sleep(10);
+        pv.querySelectorAll('.practice-card')[i].click(); await sleep(60);
+    }
+    check('niveles 1, 2 y 5 arrancan sin excepciones', !errors.some(e => /practice|TypeError/.test(e)), errors.join(' | '));
+    pv.querySelector('.practice-back').click(); await sleep(10);
+    pv.querySelector('.practice-back').click(); await sleep(30);
+    check('"Salir" cierra Practicar y vuelve al inicio', pv.hidden && S.state === 'HOME' && visible($('home-view')), `${S.state}`);
+    const log = JSON.parse(win.localStorage.getItem('miravoz_practice_prueba') || '[]');
+    check('queda registro local de la práctica (sin datos personales)', Array.isArray(log), JSON.stringify(log));
 }
 
 console.error = origError;

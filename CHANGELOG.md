@@ -2,6 +2,18 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.3.0] - 2026-10-11
+
+- **Added**: sección **Practicar** (reemplaza al botón "Tablero de Prueba"): cinco actividades de acceso en orden de dificultad, con aprendizaje sin error y todo sintetizado en el dispositivo (funciona sin conexión).
+  1. *Pintar con sonido* (causa y efecto): cualquier movimiento pinta y suena (escala pentatónica).
+  2. *Descubrir* (explorar): recorrer toda la pantalla para destapar un dibujo hecho con código.
+  3. *Globos* (apuntar): se revientan con permanencia; se achican al acertar y crecen solos si cuesta.
+  4. *Elegir*: 2, después 3 y 4 opciones de sonidos; todas las respuestas valen.
+  5. *Seguir*: acompañar una luciérnaga lenta; acelera de a poco.
+  Usa el mismo cursor, permanencia, barrido y calibración que los tableros (en Barrido: niveles 3 y 4; en Manual: con el dedo). Guarda un registro local por persona (sin textos) para la futura pestaña "Progreso".
+- **Changed**: "Nuevo" e "Importar" pasan a la barra del inicio, arriba a la izquierda.
+- **Changed**: "Mis usuarios" se abre a pantalla completa.
+
 ## [1.2.1] - 2026-10-11
 
 - **Fixed**: sin internet en el iPad la voz decía la primera celda y después quedaba muda (Safari dejaba una frase "en curso" que nunca empezaba y todo se encolaba detrás). Ahora cada frase cancela la anterior, si una frase no empieza en 1,5 s se libera y se reintenta con la voz del sistema, y se prefieren voces locales.
