@@ -225,10 +225,13 @@ export function relativeTime(iso, now = Date.now()) {
     return `el ${shortDate(iso)}`;
 }
 
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 function shortDate(iso) {
     const d = new Date(iso);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
+    return `${d.getDate()}/${MONTHS[d.getMonth()]}`;
 }
+let userQuery = ''; // 1.9.7: buscador de Mis usuarios
+const normName = (t) => String(t || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 // ---------------------------------------------------------------- render
 
@@ -269,30 +272,30 @@ function metricsButton(user) {
     return b;
 }
 
-/** 1.9.5: una sola fila clara — estado de la tablet a la izquierda; acciones (desvincular, código, registro) a la derecha. */
-function renderTablet(user) {
-    const box = el('div', 'user-tablet');
-    const row = el('div', 'user-row user-tablet-row');
+/** 1.9.7: estado de la tablet (debajo del nombre): última conexión, código vigente y registro. */
+function renderTabletInfo(user) {
     const info = el('div', 'user-tablet-info');
     const linked = !user.devicesError && user.devices.length > 0;
     if (user.devicesError) info.appendChild(el('span', 'user-device', 'No pudimos ver si tiene una tablet vinculada.'));
-    else if (!linked) info.appendChild(el('span', 'user-device', 'Sin tablet vinculada'));
+    else if (!linked) info.appendChild(el('span', 'user-device user-device-off', 'Sin tablet vinculada'));
     else user.devices.forEach((device, i) => {
-        const label = user.devices.length > 1 ? `Tablet ${i + 1} vinculada` : 'Tablet vinculada';
-        const seen = device.last_seen_at ? ` · última conexión ${shortDate(device.last_seen_at)}` : '';
-        info.appendChild(el('span', 'user-device', device.created_at ? `${label} desde el ${shortDate(device.created_at)}${seen}` : label));
+        const prefix = user.devices.length > 1 ? `Tablet ${i + 1}: ` : '';
+        info.appendChild(el('span', 'user-device', device.last_seen_at ? `${prefix}última conexión ${shortDate(device.last_seen_at)}` : `${prefix}tablet vinculada`));
     });
-    // Código: solo se muestra si hay uno vigente (o si todavía no hay tablet y falló la carga)
     if (user.codesError) info.appendChild(el('span', 'user-note', 'No pudimos cargar el código de vinculación.'));
     else if (user.access_code) {
         const mins = Math.max(0, Math.ceil((new Date(user.access_code_expires) - Date.now()) / 60000));
         const left = mins >= 120 ? `${Math.ceil(mins / 1440)} ${Math.ceil(mins / 1440) === 1 ? 'día' : 'días'}` : `${mins} min`;
-        info.appendChild(el('span', 'user-code', `Código: ${user.access_code} · un solo uso · vence en ${left}`));
+        info.appendChild(el('span', 'user-code', `Código: ${user.access_code} · vence en ${left}`));
     }
     if (user.settings?.metrics?.enabled) info.appendChild(el('span', 'user-badge', 'Registro de uso activo'));
-    row.appendChild(info);
+    return info;
+}
 
-    const actions = el('div', 'user-tablet-actions');
+/** 1.9.7: acciones de la tablet, apiladas a la derecha. */
+function renderTabletActions(user) {
+    const actions = el('div', 'user-side-actions');
+    const linked = !user.devicesError && user.devices.length > 0;
     if (linked) user.devices.forEach((device, i) => actions.appendChild(
         button(user.devices.length > 1 ? `Desvincular tablet ${i + 1}` : 'Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device))));
     const gen = button(user.access_code || linked ? 'Nuevo código' : 'Generar código',
@@ -300,9 +303,7 @@ function renderTablet(user) {
     gen.title = 'Genera un código de 4 caracteres, de un solo uso, para vincular una tablet (vence a los 30 minutos). El código anterior deja de servir.';
     actions.appendChild(gen);
     actions.appendChild(metricsButton(user));
-    row.appendChild(actions);
-    box.appendChild(row);
-    return box;
+    return actions;
 }
 
 
@@ -384,14 +385,33 @@ export function renderUsersList(focusKey = null) {
         return;
     }
 
-    users.forEach(user => {
+    const q = normName(userQuery.trim());
+    const shown = q ? users.filter(u => normName(u.display_name).includes(q)) : users;
+    if (!shown.length) listEl.appendChild(el('p', 'user-note', `Ningún usuario coincide con «${userQuery.trim()}».`));
+
+    shown.forEach(user => {
         const card = el('div', 'glass-box user-card');
+        const main = el('div', 'user-main');
 
-        // Cabecera: nombre + Ver tableros + eliminar
-        const head = el('div', 'user-row user-head');
-        head.appendChild(el('strong', 'user-name', user.display_name)); // nunca innerHTML (XSS)
+        // Nombre destacado + estado de la tablet + Ver tableros / Ver progreso
+        const nameRow = el('div', 'user-name-row');
+        nameRow.appendChild(el('h3', 'user-name', user.display_name)); // nunca innerHTML (XSS)
+        const deleteBtn = el('button', 'btn-icon user-btn-icon user-delete');
+        deleteBtn.type = 'button';
+        deleteBtn.style.color = 'var(--danger-text)';
+        // SVG fijo (sin datos de personas)
+        deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+        deleteBtn.title = 'Eliminar usuario';
+        deleteBtn.setAttribute('aria-label', `Eliminar a ${user.display_name}`);
+        deleteBtn.addEventListener('click', async () => {
+            const confirmed = await customConfirm(`¿Eliminar a ${user.display_name}? Se borran también sus copias de tableros y su tablet queda desvinculada. No se puede deshacer.`);
+            if (confirmed) await deleteUser(user.id);
+        });
+        nameRow.appendChild(deleteBtn);
+        main.appendChild(nameRow);
+        main.appendChild(renderTabletInfo(user));
 
-        const headActions = el('div', 'user-row');
+        const links = el('div', 'user-row user-links');
         const panelId = `user-copies-${user.id}`;
         const open = expandedUsers.has(user.id);
         const count = Array.isArray(user.copies) ? user.copies.length : 0;
@@ -403,30 +423,18 @@ export function renderUsersList(focusKey = null) {
         toggle.setAttribute('aria-expanded', String(open));
         toggle.setAttribute('aria-controls', panelId);
         toggle.dataset.focusKey = `toggle:${user.id}`;
-        headActions.appendChild(toggle);
-        headActions.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
+        links.appendChild(toggle);
+        links.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
+        main.appendChild(links);
 
-        const deleteBtn = el('button', 'btn-icon user-btn-icon');
-        deleteBtn.type = 'button';
-        deleteBtn.style.color = 'var(--danger-text)';
-        // SVG fijo (sin datos de personas)
-        deleteBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
-        deleteBtn.title = 'Eliminar usuario';
-        deleteBtn.setAttribute('aria-label', `Eliminar a ${user.display_name}`);
-        deleteBtn.addEventListener('click', async () => {
-            const confirmed = await customConfirm(`¿Eliminar a ${user.display_name}? Se borran también sus copias de tableros y su tablet queda desvinculada. No se puede deshacer.`);
-            if (confirmed) await deleteUser(user.id);
-        });
-        headActions.appendChild(deleteBtn);
-        head.appendChild(headActions);
-        card.appendChild(head);
-
-        card.appendChild(renderTablet(user));
+        const top = el('div', 'user-top');
+        top.append(main, renderTabletActions(user));
+        card.appendChild(top);
 
         const panel = el('div', 'user-copies');
         panel.id = panelId;
         panel.hidden = !open;
-        if (open) renderCopies(user, panel);
+        if (open) { renderCopies(user, panel); card.classList.add('is-open'); }
         card.appendChild(panel);
 
         listEl.appendChild(card);
@@ -439,6 +447,8 @@ export function renderUsersList(focusKey = null) {
 }
 
 export function initUsers() {
+    const search = document.getElementById('users-search');
+    if (search) search.addEventListener('input', () => { userQuery = search.value; renderUsersList(); });
     // Nuevo usuario (1.3.1): botón arriba a la derecha que abre un modal con el nombre
     const modal = document.getElementById('new-user-modal');
     const form = document.getElementById('new-user-form');
