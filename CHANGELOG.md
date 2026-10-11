@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.4.2] - 2026-10-11
+
+- **Changed**: Practicar → Globos en **Barrido** es un juego propio de tiempo: 2 a 5 globos en fila y uno dorado; hay que elegir justo cuando se ilumina el dorado. Elegir otro no es error (se sacude). Suma un globo cada 4 aciertos. Antes era igual a "Parpadear" (un solo globo).
+
 ## [1.4.1] - 2026-10-11
 
 - **Added**: sonido de "click" cuando se reconoce un parpadeo voluntario (sintetizado, funciona sin conexión).

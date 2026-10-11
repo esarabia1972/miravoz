@@ -8,7 +8,7 @@
 //  - Sin emojis; los textos los fija el código (textContent).
 
 import { LEVELS, CoverageGrid, noteForY, nextBalloonSize, balloonPosition, BALLOON, optionCount, pickOptions,
-    followPosition, nextLoopSeconds, FOLLOW, appendLog, summarize, hintFor } from './practice-logic.js';
+    followPosition, nextLoopSeconds, FOLLOW, appendLog, summarize, hintFor, scanBalloonCount } from './practice-logic.js';
 import { speak } from './speech.js';
 
 let deps = { setTargets() {}, mode: () => 'CLICKS', scope: () => 'prueba', onExit() {}, blinkInfo: () => ({ available: false, mode: 'off', value: null, threshold: 0.5 }) };
@@ -384,6 +384,7 @@ const ACTIVITIES = {
 
     // 3. Apuntar: globos que se achican si acierta y crecen si cuesta
     balloon() {
+        if (deps.mode() === 'SCAN') return scanBalloons();
         let layer, el, size, pos, appearedAt = 0, popping = false, done = 0, w, h;
         const times = [];
         const COLORS = ['#ff5d73', '#ffb547', '#4cc9f0', '#7bd389', '#b28dff'];
@@ -559,6 +560,63 @@ function burst(layer, cx, cy, size, color) {
     }
     layer.appendChild(b);
     setTimeout(() => b.remove(), 900);
+}
+
+// --- 3 en Barrido: la habilidad clave del barrido es el TIEMPO — esperar a que se resalte lo que quiero y
+// recién ahí activar. Hay 2 a 5 globos en fila y uno dorado; elegir otro no es error: el globo se sacude y sigue.
+function scanBalloons() {
+    let layer, done = 0, misses = 0, busy = false, roundAt = 0;
+    const times = [], timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(() => { if (activity && layer.isConnected) fn(); }, ms));
+    const COLORS = ['#ff5d73', '#4cc9f0', '#7bd389', '#b28dff', '#ff8fab'];
+    function round() {
+        layer.replaceChildren();
+        const n = scanBalloonCount(done);
+        const goal = Math.floor(Math.random() * n);
+        const r = stage.getBoundingClientRect();
+        const size = Math.min((r.width - 40) / n * 0.72, r.height * 0.5);
+        const btns = [];
+        for (let i = 0; i < n; i++) {
+            const isGoal = i === goal;
+            const b = makeButton(`practice-balloon${isGoal ? ' is-goal' : ''}`, isGoal ? 'Globo dorado' : 'Globo', () => pick(b, isGoal));
+            b.style.setProperty('--balloon', isGoal ? '#ffc93c' : COLORS[i % COLORS.length]);
+            const slot = (r.width - 40) / n;
+            Object.assign(b.style, { left: `${20 + slot * i + (slot - size) / 2}px`, top: `${(r.height - size) / 2 - 10}px`, width: `${size}px`, height: `${size}px` });
+            btns.push(b);
+        }
+        layer.append(...btns);
+        roundAt = performance.now(); busy = false;
+        setTargets([...btns.map(asTarget), asTarget(backBtn)]);
+    }
+    function pick(b, isGoal) {
+        if (busy) return;
+        if (!isGoal) {
+            misses++;
+            b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope');
+            tone(220, { dur: 0.15, gain: 0.06 });
+            return;
+        }
+        busy = true; done++;
+        times.push(performance.now() - roundAt);
+        popSound();
+        b.classList.add('pop');
+        const r = b.getBoundingClientRect(), lr = layer.getBoundingClientRect();
+        burst(layer, r.left - lr.left + r.width / 2, r.top - lr.top + r.height / 2, r.width, '#ffc93c');
+        counterEl.textContent = `Globos: ${done}`;
+        if (done % 4 === 0) praise(done < 13 ? '¡Muy bien! Ahora hay un globo más' : '¡Muy bien!');
+        later(round, 750);
+    }
+    return {
+        start() {
+            canvas.style.display = 'none';
+            setHeader(level.title, hintFor(level, 'SCAN'), 'Globos: 0');
+            layer = document.createElement('div'); layer.className = 'practice-layer practice-balloons';
+            stage.appendChild(layer);
+            round();
+        },
+        tick() {},
+        stop() { timers.forEach(clearTimeout); const s = [...times].sort((a, b) => a - b); return { done, misses, medianMs: s.length ? Math.round(s[Math.floor(s.length / 2)]) : null, variant: 'scan' }; }
+    };
 }
 
 // --- 6. Parpadear: un globo grande en el centro; el parpadeo voluntario lo revienta ---

@@ -1514,3 +1514,11 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .practice-blink-fill.is-closed { background: var(--accent); }
 .practice-blink-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; background: var(--pr-fg); opacity: 0.7; border-radius: 2px; }
 .practice-blink-cap { position: absolute; right: 0; top: -24px; font-size: 0.85rem; color: var(--pr-muted); }
+
+/* Globos en Barrido (1.4.2): el dorado brilla; elegir otro lo sacude (sin error) */
+.practice-balloon.is-goal { box-shadow: 0 0 0 6px rgba(255, 201, 60, 0.55), 0 0 40px rgba(255, 201, 60, 0.6); animation: practice-goal 1.6s ease-in-out infinite; }
+@keyframes practice-goal { 50% { box-shadow: 0 0 0 10px rgba(255, 201, 60, 0.35), 0 0 60px rgba(255, 201, 60, 0.8); } }
+.practice-balloon.nope { animation: practice-nope 0.4s ease; }
+@keyframes practice-nope { 20%, 60% { transform: translateX(-10px) rotate(-4deg); } 40%, 80% { transform: translateX(10px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .practice-balloon.is-goal, .practice-balloon.nope { animation: none; } }
+.practice-balloon.is-goal.pop, .practice-balloon.nope.pop { animation: practice-pop 0.14s ease-out forwards; }

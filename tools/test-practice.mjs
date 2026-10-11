@@ -1,5 +1,5 @@
 // Tests de practice-logic.js (Practicar, 1.3.0). Correr: node tools/test-practice.mjs
-import { LEVELS, CoverageGrid, noteForY, nextBalloonSize, balloonPosition, BALLOON, optionCount, pickOptions,
+import { scanBalloonCount, LEVELS, CoverageGrid, noteForY, nextBalloonSize, balloonPosition, BALLOON, optionCount, pickOptions,
     followPosition, nextLoopSeconds, FOLLOW, appendLog, LOG_MAX, summarize } from '../web/js/practice-logic.js';
 let pass = 0, fail = 0;
 const t = (n, f) => { try { f(); pass++; console.log('  ✓', n); } catch (e) { fail++; console.log('  ✗', n, '\n     ', e.message); } };
@@ -56,6 +56,9 @@ t('registro: se acota y resume sin textos personales', () => {
     assert(summarize({ level: 3, done: 7 }) === '7 globo(s)', summarize({ level: 3, done: 7 }));
     assert(/40%/.test(summarize({ level: 5, onTargetFrac: 0.4 })), 'seguir');
     assert(appendLog(null, { level: 1 }).length === 1, 'lista rota → nueva');
+});
+t('globos en barrido: 2 → 3 → 4 → 5 a medida que acierta', () => {
+    assert([0, 3, 4, 7, 8, 12, 40].map(scanBalloonCount).join() === '2,2,3,3,4,5,5', [0, 3, 4, 7, 8, 12, 40].map(scanBalloonCount).join());
 });
 console.log(`\n${pass} ok, ${fail} fallidos`);
 process.exit(fail ? 1 : 0);

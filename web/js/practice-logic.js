@@ -14,7 +14,7 @@ export const LEVELS = [
     { id: 2, key: 'reveal',  title: 'Descubrir',         skill: 'Explorar',       pointerOnly: true,
       hint: 'Recorré toda la pantalla para descubrir el dibujo.', hintTouch: 'Pasá el dedo por toda la pantalla para descubrir el dibujo.' },
     { id: 3, key: 'balloon', title: 'Globos',            skill: 'Apuntar',        pointerOnly: false,
-      hint: 'Llevá el cursor al globo y quedate ahí hasta que explote.', hintTouch: 'Tocá el globo para que explote.', hintScan: 'Cuando se ilumine el globo, tocá la pantalla o el pulsador.' },
+      hint: 'Llevá el cursor al globo y quedate ahí hasta que explote.', hintTouch: 'Tocá el globo para que explote.', hintScan: 'Esperá a que se ilumine el globo dorado y ahí elegí.' },
     { id: 4, key: 'choose',  title: 'Elegir',            skill: 'Elegir',         pointerOnly: false,
       hint: 'Elegí qué querés escuchar.', hintScan: 'Elegí qué querés escuchar: cuando se ilumine, tocá la pantalla o el pulsador.' },
     { id: 5, key: 'follow',  title: 'Seguir',            skill: 'Seguir',         pointerOnly: true,
@@ -84,6 +84,9 @@ export function balloonPosition(d, w, h, rnd = Math.random, prev = null) {
     }
     return best;
 }
+
+// --- Nivel 3 en Barrido: varios globos y uno dorado; hay que elegir JUSTO cuando se ilumina (timing) ---
+export function scanBalloonCount(popped) { return popped >= 12 ? 5 : popped >= 8 ? 4 : popped >= 4 ? 3 : 2; }
 
 // --- Nivel 4: cuántas opciones (2 → 3 → 4 a medida que elige) ---
 export const CHOICES = [
