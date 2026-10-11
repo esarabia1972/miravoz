@@ -44,22 +44,36 @@ function pickVoice(lang) {
         || es[0];
 }
 
+// 1.9.1: iPad no deja hablar hasta un primer gesto. Si una frase se pidió antes (por ejemplo, eligiendo con la
+// cabeza recién abierta la app) y no arrancó, se guarda y se dice apenas alguien toca la pantalla.
+let pendingSpeech = null; // { text, opts, at }
+
 /** Desbloquea la voz en iOS: debe llamarse dentro de un gesto (toque o tecla). */
 export function unlockSpeech() {
-    if (!synth || unlocked) return;
-    unlocked = true;
-    try {
-        const u = new SpeechSynthesisUtterance(' ');
-        u.volume = 0;
-        u.lang = 'es-ES';
-        synth.speak(u);
-    } catch { /* sin soporte */ }
+    if (!synth) return;
+    if (!unlocked || !startEvents) {
+        unlocked = true;
+        try {
+            if (synth.paused) synth.resume();
+            const u = new SpeechSynthesisUtterance('.');
+            u.volume = 0.01; u.rate = 2; u.lang = 'es-ES';
+            u.onstart = () => { startEvents = true; };
+            synth.speak(u);
+        } catch { /* sin soporte */ }
+    }
+    if (pendingSpeech && Date.now() - pendingSpeech.at < 15000) {
+        const p = pendingSpeech; pendingSpeech = null;
+        speak(p.text, { ...p.opts, cancelPrevious: false, _retry: true });
+    } else pendingSpeech = null;
 }
-// Primer toque o tecla en cualquier parte de la app (antes que cualquier otro manejador)
+// Cada toque o tecla (antes que cualquier otro manejador) hasta que la voz haya demostrado que funciona
 if (typeof window !== 'undefined') {
-    const once = () => { unlockSpeech(); window.removeEventListener('pointerdown', once, true); window.removeEventListener('keydown', once, true); };
-    window.addEventListener('pointerdown', once, true);
-    window.addEventListener('keydown', once, true);
+    const onGesture = () => {
+        unlockSpeech();
+        if (startEvents) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); }
+    };
+    window.addEventListener('pointerdown', onGesture, true);
+    window.addEventListener('keydown', onGesture, true);
 }
 
 export function isSpeechSupported() { return !!synth; }
@@ -107,6 +121,12 @@ export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, 
     const go = () => {
         synth.speak(utterance);
         setTimeout(() => {
+            if (!startEvents && !started && !finished) {
+                // Nunca arrancó una frase en esta sesión: el navegador espera un toque. Se guarda para decirla entonces.
+                pendingSpeech = { text, opts: { volume, lang }, at: Date.now() };
+                if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-blocked'));
+                return;
+            }
             if (!startEvents || started || finished || !alive.has(utterance)) return;
             // Trabada: no empezó. Se libera la cola y se reintenta una vez con la voz por defecto del sistema.
             alive.delete(utterance);

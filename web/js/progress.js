@@ -50,17 +50,26 @@ export async function openProgress(user) {
 async function load(user, days) {
     const body = document.getElementById('progress-body');
     body.replaceChildren(el('p', 'user-note', 'Cargando…'));
-    if (!user.settings?.metrics?.enabled) body.replaceChildren(el('p', 'user-note', 'El registro de uso no está activado para este usuario. Se activa en Mis usuarios, con el consentimiento de la persona o su familia.'));
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const [evRes, asgRes] = await Promise.all([
-        supabaseClient.from('usage_events').select('ts,kind,session_id,board_id,assignment_id,page_id,cell_id,label,method,duration_ms,data')
-            .eq('aac_user_id', user.id).gte('ts', since).order('ts', { ascending: false }).limit(20000),
-        supabaseClient.from('assignments').select('id,copy_bundle').eq('aac_user_id', user.id)
-    ]);
-    if (evRes.error) { body.replaceChildren(el('p', 'user-note', 'No se pudo cargar el registro (¿falta correr supabase/10_metricas_de_uso.sql?).')); return; }
-    const boards = (asgRes.data || []).map(a => ({ name: a.copy_bundle?.name, bundle: a.copy_bundle || {}, assignment_id: a.id }));
-    const s = summarizeUsage(evRes.data || [], { boards, recentPhrases: 30 });
-    render(body, s, user);
+    try {
+        const since = new Date(Date.now() - days * 86400000).toISOString();
+        const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('la consulta tardó demasiado')), ms));
+        const [evRes, asgRes] = await Promise.race([Promise.all([
+            supabaseClient.from('usage_events').select('ts,kind,session_id,board_id,assignment_id,page_id,cell_id,label,method,duration_ms,data')
+                .eq('aac_user_id', user.id).gte('ts', since).order('ts', { ascending: false }).limit(20000),
+            supabaseClient.from('assignments').select('id,copy_bundle').eq('aac_user_id', user.id)
+        ]), timeout(15000)]);
+        if (evRes.error) {
+            body.replaceChildren(el('p', 'user-note', `No se pudo cargar el registro (${evRes.error.message || evRes.error.code || 'error'}). ¿Ya se corrió supabase/10_metricas_de_uso.sql?`));
+            return;
+        }
+        const boards = (asgRes.data || []).map(a => ({ name: a.copy_bundle?.name, bundle: a.copy_bundle || {}, assignment_id: a.id }));
+        const s = summarizeUsage(evRes.data || [], { boards, recentPhrases: 30 });
+        render(body, s, user);
+        if (!user.settings?.metrics?.enabled) body.prepend(el('p', 'user-note', 'El registro de uso está desactivado para este usuario: se activa en Mis usuarios, con el consentimiento de la persona o su familia.'));
+    } catch (e) {
+        console.error('Progreso:', e);
+        body.replaceChildren(el('p', 'user-note', `No se pudo mostrar el progreso: ${e?.message || e}`));
+    }
 }
 
 function card(label, value, note) {

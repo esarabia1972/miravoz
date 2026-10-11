@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.1] - 2026-10-11
+
+- **Fixed**: en el iPad, la primera frase no sonaba hasta tocar la pantalla (el navegador exige un primer gesto). Ahora, si una frase no arranca por eso, se guarda y se dice al primer toque, y se avisa "Tocá la pantalla una vez para habilitar la voz". El desbloqueo se reintenta en cada toque hasta que la voz funciona.
+- **Fixed**: Progreso quedaba en "Cargando…" si algo fallaba; ahora muestra el motivo (y corta a los 15 s).
+
 ## [1.9.0] - 2026-10-11
 
 - **Added**: **registro de uso granular** de la tablet (decisión de Esteban: eventos, no solo resúmenes). Cada selección (celda, página, momento, tiempo desde la anterior, método: fijación/parpadeo/barrido/toque), selecciones abandonadas, frases dichas (con su texto), borrar, páginas y tableros, pausas sin cara, calibraciones, alineaciones, cambios de modo y actividades de Practicar.

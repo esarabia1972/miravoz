@@ -937,6 +937,14 @@ function wireScanSetting(id, key, isNumber = false) {
     });
 }
 
+// 1.9.1: la voz del iPad espera un primer toque: se avisa a la persona de apoyo (la frase se dice al tocar)
+let speechBlockedShownAt = 0;
+window.addEventListener('miravoz:speech-blocked', () => {
+    if (Date.now() - speechBlockedShownAt < 15000) return;
+    speechBlockedShownAt = Date.now();
+    showInfoToast('Tocá la pantalla una vez para habilitar la voz (el iPad lo pide al abrir la app).', 6000);
+});
+
 // --- Registro de uso en la tablet (1.9.0): visible solo si la cuenta lo activó; se puede pausar ---
 function refreshMetricsSetting() {
     const sec = document.getElementById('setting-metrics');
