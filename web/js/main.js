@@ -221,10 +221,36 @@ tracking.setFaceListener((fd, t) => {
     const r = blink.push(c, t);
     if (r.fire) onBlinkFire(r.closedAt);
 });
+// "Click" corto al reconocer el parpadeo (WebAudio sintetizado: funciona sin conexión). El contexto de audio se
+// habilita con el primer toque en la app (iPad no deja sonar sin un gesto previo).
+let clickAudio = null;
+function audioCtx() {
+    try {
+        if (!clickAudio) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; clickAudio = new C(); }
+        if (clickAudio.state !== 'running') clickAudio.resume().catch(() => {});
+        return clickAudio;
+    } catch { return null; }
+}
+window.addEventListener('pointerdown', () => audioCtx(), { once: true, capture: true });
+function playClick() {
+    const a = audioCtx(); if (!a) return;
+    const t0 = a.currentTime;
+    const len = Math.floor(a.sampleRate * 0.03);
+    const buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+    const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = buf; f.type = 'highpass'; f.frequency.value = 1800; g.gain.value = 0.6;
+    src.connect(f).connect(g).connect(a.destination); src.start(t0);
+    const o = a.createOscillator(), og = a.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(2200, t0); o.frequency.exponentialRampToValueAtTime(900, t0 + 0.025);
+    og.gain.setValueAtTime(0.08, t0); og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+    o.connect(og).connect(a.destination); o.start(t0); o.stop(t0 + 0.05);
+}
 function onBlinkFire(closedAt) {
     const now = performance.now();
     if (calibSession || editor.isEditMode() || selectionContexts.isPaused() || blinkCalib) return;
     if (!['HOME', 'BOARD', 'PRACTICE'].includes(S.state)) return;
+    playClick(); // confirma que el parpadeo se reconoció, haya o no algo para elegir
     if (S.state === 'PRACTICE' && practice.wantsBlink()) { practice.onBlink(); return; }
     if (S.trackingMode === 'SCAN') {
         if (scan.activate()) blinkFlash = { x: canvasUI.width / 2, y: 70, t: now };

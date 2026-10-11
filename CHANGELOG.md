@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.4.1] - 2026-10-11
+
+- **Added**: sonido de "click" cuando se reconoce un parpadeo voluntario (sintetizado, funciona sin conexión).
+- **Added**: opción de parpadeo largo más corta: 0,3 segundos (rápido).
+
 ## [1.4.0] - 2026-10-11
 
 - **Added**: **parpadeo para elegir** (Configuración → Parpadeo), con la cámara y los blendshapes de FaceLandmarker (`web/js/blink.js`, puro y testeado).
