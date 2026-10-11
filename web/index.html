@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=54">
+    <link rel="stylesheet" href="style.css?v=55">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -474,9 +474,8 @@
                 <div class="settings-col">
             <section class="settings-section" id="setting-dwell">
                 <h3>Modo Rostro</h3>
-                <p class="settings-help"><strong>Rostro</strong>: el cursor sigue la punta de la nariz, así que hace falta poder mover un poco la cabeza. <strong>Iris</strong> (experimental, en evaluación): sigue los ojos con la cabeza quieta; no se debe usar como única vía de comunicación hasta validarlo con cada persona.</p>
-                <label for="dwell-select">Tiempo de fijación</label>
-                <p class="settings-help">Cuánto tiempo hay que mantener el cursor sobre una celda para elegirla.</p>
+                <p class="settings-help">El cursor sigue la nariz. <strong>Iris</strong> (experimental) sigue los ojos con la cabeza quieta: no usarlo como única vía de comunicación.</p>
+                <label for="dwell-select" title="Cuánto tiempo hay que mantener el cursor sobre una celda para elegirla">Tiempo de fijación</label>
                 <select id="dwell-select" class="glass-select">
                     <option value="800">0,8 segundos</option>
                     <option value="1200" selected>1,2 segundos</option>
@@ -487,10 +486,10 @@
             </section>
             <section class="settings-section" id="setting-blink">
                 <h3>Parpadeo</h3>
-                <p class="settings-help">Elegir parpadeando, con la cámara. En Barrido reemplaza al pulsador; en Rostro e Iris elige lo que está bajo el cursor. Los parpadeos comunes no cuentan.</p>
-                <div class="settings-grid">
+                <p class="settings-help">En Barrido es el pulsador; en Rostro e Iris elige lo que está bajo el cursor. Los parpadeos comunes no cuentan.</p>
+                <div class="settings-grid settings-grid-3">
                     <div>
-                        <label for="blink-mode">Usar el parpadeo</label>
+                        <label for="blink-mode">Usar</label>
                         <select id="blink-mode" class="glass-select">
                             <option value="off" selected>No</option>
                             <option value="long">Parpadeo largo</option>
@@ -498,7 +497,7 @@
                         </select>
                     </div>
                     <div id="blink-hold-wrap" hidden>
-                        <label for="blink-hold">Ojos cerrados durante</label>
+                        <label for="blink-hold" title="Cuánto tiempo hay que cerrar los ojos">Duración</label>
                         <select id="blink-hold" class="glass-select">
                             <option value="300">0,3 segundos (rápido)</option>
                             <option value="400">0,4 segundos</option>
@@ -509,24 +508,24 @@
                         </select>
                     </div>
                     <div>
-                        <label for="blink-select">En Rostro e Iris, elegir con</label>
+                        <label for="blink-select">En Rostro e Iris</label>
                         <select id="blink-select" class="glass-select">
                             <option value="both" selected>Parpadeo o permanencia</option>
                             <option value="blink">Solo parpadeo</option>
                         </select>
                     </div>
                 </div>
-                <div id="blink-options" hidden>
+                <div id="blink-options" class="settings-inline" hidden>
                     <button type="button" class="btn btn-secondary" id="btn-blink-adjust">Ajustar a esta persona</button>
-                    <p class="settings-help" id="blink-status" role="status" aria-live="polite">Conviene ajustarlo una vez con cada persona: tarda unos 8 segundos.</p>
+                    <p class="settings-help" id="blink-status" role="status" aria-live="polite">Una vez con cada persona (8 s).</p>
                 </div>
             </section>
                 </div>
                 <div class="settings-col">
             <section class="settings-section" id="setting-scan">
                 <h3>Modo Barrido</h3>
-                <p class="settings-help">Las opciones se resaltan de a una y se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
-                <div class="settings-grid">
+                <p class="settings-help">Se resalta de a una opción; se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+                <div class="settings-grid settings-grid-3">
                     <div>
                         <label for="scan-pattern">Patrón</label>
                         <select id="scan-pattern" class="glass-select">
@@ -557,29 +556,27 @@
                 </div>
             </section>
             <section class="settings-section" id="setting-voice">
-                <button type="button" class="btn btn-secondary" id="btn-test-voice">Probar voz</button>
-                <p class="settings-help" id="voice-status" role="status"></p>
-            </section>
-            <section class="settings-section" id="setting-offline">
-                <h3>Uso sin conexión</h3>
+                <h3>Voz y uso sin conexión</h3>
                 <p class="settings-help" id="offline-status" role="status">Revisando…</p>
-                <button type="button" class="btn btn-secondary" id="btn-prepare-offline">Preparar para usar sin conexión</button>
-                <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
-                <p class="settings-help">Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo. La voz sin conexión depende del iPad: probala con el modo avión.</p>
+                <div class="settings-inline">
+                    <button type="button" class="btn btn-secondary" id="btn-test-voice">Probar voz</button>
+                    <button type="button" class="btn btn-secondary" id="btn-prepare-offline" title="Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo">Preparar sin conexión</button>
+                    <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
+                </div>
+                <p class="settings-help" id="voice-status" role="status">La voz sin conexión depende del iPad: probala con el modo avión.</p>
             </section>
                 </div>
             </div>
-            <p class="settings-help" id="app-version" style="text-align:right; opacity:0.7;"></p>
-
             <div class="modal-footer settings-footer">
                 <!-- Acciones de sesión (1.3.2): abajo a la izquierda, en rojo, lejos de "Listo" -->
                 <button type="button" id="btn-account" class="btn btn-danger-outline">Cerrar sesión</button>
                 <button type="button" id="btn-unlink-device" class="btn btn-danger-outline" style="display: none;">Desvincular tablet</button>
+                <p class="settings-help settings-version" id="app-version"></p>
                 <button type="button" class="btn btn-primary" id="btn-settings-done">Listo</button>
             </div>
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=82"></script>
+    <script type="module" src="js/main.js?v=83"></script>
 </body>
 </html>

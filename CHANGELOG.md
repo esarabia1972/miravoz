@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.5.1] - 2026-10-11
+
+- **Changed**: Configuración compacta: textos más cortos, tres opciones por fila en Barrido y Parpadeo, "Voz" y "Sin conexión" juntas, versión en el pie. Entra sin scroll en el iPad horizontal y en ventanas de laptop chicas.
+
 ## [1.5.0] - 2026-10-11
 
 - **Added**: **Alinear la cara** "tipo antena Starlink" (`web/js/align.js`, puro y testeado). La calibración de Rostro guarda la posición de la cabeza respecto de la cámara (distancia y corrimiento) y hacia dónde apunta al mirar el centro.
