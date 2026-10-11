@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.0.1] - 2026-10-11
+
+- **Fixed**: en modo Rostro, la verificación decía "mirá el punto" (invitaba a mover solo los ojos) y daba errores altos en el iPad. Ahora dice "apuntá al punto con la nariz, como en la calibración".
+
 ## [1.0.0] - 2026-10-11
 
 Primera versión numerada, publicada en www.miravoz.com.ar. Incluye todo lo listado abajo (fases 0 a 4, M01–M08, compatibilidad con Asterics Grid, landing con ingreso por Google) y:

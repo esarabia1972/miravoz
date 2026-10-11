@@ -377,7 +377,7 @@ export class CalibrationSession {
             index: validating ? this.vIdx : this.currentIdx,
             stage: this.stage,
             label: validating ? `V${this.vIdx + 1}/${this.vTargets.length}` : `${this.currentIdx + 1}/${this.points.length}`,
-            hint: validating ? 'Verificación: mirá el punto'
+            hint: validating ? (this.mode === 'OJOS' ? 'Verificación: mirá el punto, con la cabeza quieta' : 'Verificación: apuntá al punto con la nariz, como en la calibración')
                 : (this.mode === 'OJOS' ? 'Mirá el punto, con la cabeza quieta' : null),
             sampling: this.phase === 'SAMPLING',
             countdownProgress: this.phase === 'COUNTDOWN' ? Math.min((now - this.phaseStart) / CONFIG.COUNTDOWN_MS, 1) : null
