@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "a76128229709",
+ "version": "656132db50fe",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -19,8 +19,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "657430f1d242e4fdfa3dd8d2df702c2d5d9a2558a0319cac3df984f99ddeaf15",
-   "bytes": 34587
+   "sha256": "6beea278fc35e11e21b09dc3c501aa0c03e6ad097a3247bd86206af8b0a602f0",
+   "bytes": 35527
   },
   {
    "url": "/js/asterics.js",
@@ -44,8 +44,8 @@
   },
   {
    "url": "/js/calibration.js",
-   "sha256": "7d71846a65754c7b18a390a45afe566c38de1a7ce9798f1b440defdc5a55d252",
-   "bytes": 15851
+   "sha256": "7565aeb27d2337c6d0bd91a52092dc1115bd79a781abc8af76b82380993ca3e4",
+   "bytes": 20431
   },
   {
    "url": "/js/colors.js",
@@ -94,8 +94,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "c83c0f15a0376eb20ad03f2a41d4e8e4750902d93d5d3582344cb312edf32a5d",
-   "bytes": 48046
+   "sha256": "43393714fa8cea59fd740418e326c50ffdbaabf5465952f24e22d4c08ba724b2",
+   "bytes": 53944
   },
   {
    "url": "/js/media.js",
@@ -104,8 +104,8 @@
   },
   {
    "url": "/js/offline.js",
-   "sha256": "30980568c688cefb8e6e7b1c413d2557f8d8d5553d3ab8e0ecf490ac605b2faa",
-   "bytes": 6733
+   "sha256": "dbf24cd079a4c57a161a5e00d51809ea9ae1dcfd664d7c9d313af416d77f83b3",
+   "bytes": 7603
   },
   {
    "url": "/js/pages.js",
@@ -119,8 +119,8 @@
   },
   {
    "url": "/js/profiles.js",
-   "sha256": "163f667712cc8dd92ecf9900e0cb8af4b540a775666f9770096d6cd5fa8c243c",
-   "bytes": 8165
+   "sha256": "a517ef74ad2ba81699e7e009f75e2be869548d11cadd7a56cc71abd77e62cd8c",
+   "bytes": 8567
   },
   {
    "url": "/js/regression.js",
@@ -139,8 +139,8 @@
   },
   {
    "url": "/js/speech.js",
-   "sha256": "4031998e58882b9e4e0fe6e57789ec25877058d198d1eb4e796a5305cc50a109",
-   "bytes": 3729
+   "sha256": "b2a40585f7cb24f69c5b6d28b73840e80ec7a05ee659a4beec21e6d14f08356f",
+   "bytes": 4020
   },
   {
    "url": "/js/state.js",
@@ -164,13 +164,13 @@
   },
   {
    "url": "/js/tracking.js",
-   "sha256": "a19fe8c46d76699fcda992926fad5bff53eb6b8c1798027f0db5598ffea065ae",
-   "bytes": 24423
+   "sha256": "c3a43697bdb17b637b2085c46060f4d790ff645a6ee3110081c8c43cf371ccd2",
+   "bytes": 25500
   },
   {
    "url": "/js/ui.js",
-   "sha256": "a2b54dd9865f391e2b4b242088188f19326e732a7e01b5098fa13373bb54518a",
-   "bytes": 10239
+   "sha256": "53b3f71a8a2b35097bf12eb978e872e0920b6eb98c6aa0500b543fb32934ee2f",
+   "bytes": 10064
   },
   {
    "url": "/js/users.js",
@@ -359,5 +359,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28727437
+ "totalBytes": 28741320
 }

@@ -10,13 +10,14 @@
 //  - guardar nunca destruye lo último persistido: si la escritura falla, el perfil nuevo queda solo en memoria
 //    y se avisa.
 // Regla de geometría (documentada y testeada): cambiar la orientación siempre invalida. Un cambio de ancho
-// > 15% o de alto > 25% también. Variaciones menores (barras de Safari que aparecen y desaparecen, ~5-10%
-// del alto) NO invalidan, para no entrar en un bucle de recalibración.
+// > 12% o de alto > 15% también. Variaciones menores (barras de Safari que aparecen y desaparecen, ~5-10%
+// del alto) NO invalidan, para no entrar en un bucle de recalibración; igual cada arranque hace la
+// verificación rápida, que detecta un desajuste real.
 
 export const SCHEMA = 3;
 export const STORAGE_KEY = 'miravoz_calibration_v3';
 export const LEGACY_KEY = 'miravoz_calibration_v2';
-export const GEOMETRY_RULE = { widthFrac: 0.15, heightFrac: 0.25 };
+export const GEOMETRY_RULE = { widthFrac: 0.12, heightFrac: 0.15 };
 
 /** Tipo de modelo por modo (si cambia el modelo o las features, los perfiles viejos dejan de servir) */
 export const MODEL_KINDS = { CARA: 'poly-nose-v2' }; // OJOS: gaze.MODEL_KIND (lo agrega calibration.js)
@@ -100,6 +101,7 @@ export class ProfileStore {
         this.storage = storage;
         this.data = { schema: SCHEMA, scopes: {} };
         this.unsaved = false;     // true = el último guardado falló: el perfil activo vive solo en memoria
+        this.loadFailed = false;  // true = no se pudo leer: antes de escribir se reintenta leer (no pisar otros ámbitos)
     }
 
     async load() {
@@ -111,8 +113,10 @@ export class ProfileStore {
                 const v2 = await this.storage.getItem(LEGACY_KEY);
                 if (v2 && (v2.CARA || v2.OJOS)) this.data.legacy = { ...v2, migratedAt: Date.now() };
             }
+            this.loadFailed = false;
         } catch (e) {
             console.error('Error al cargar perfiles de calibración:', e);
+            this.loadFailed = true;
         }
         return this.data;
     }
@@ -123,6 +127,7 @@ export class ProfileStore {
 
     /** Guarda sin destruir lo persistido si la escritura falla. Devuelve true si quedó persistido. */
     async put(scope, mode, profile) {
+        if (this.loadFailed) await this.load(); // nunca escribir sobre una lectura fallida (borraría a otras personas)
         const next = JSON.parse(JSON.stringify(this.data));
         next.scopes[scope] = { ...(next.scopes[scope] || {}), [mode]: profile };
         try {

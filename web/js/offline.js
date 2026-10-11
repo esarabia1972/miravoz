@@ -9,7 +9,8 @@
 
 let registration = null;
 let updateReady = false;
-let pendingReload = false;
+let userRequested = false;
+let startupApply = true; // se desactiva apenas la app entra en uso
 let safeMoment = () => false;
 let onUpdate = () => {};
 
@@ -41,6 +42,9 @@ export function statusText(st) {
     return `Preparado para usar sin conexión (versión ${st.version}).`;
 }
 
+/** Llamar cuando la app ya está en uso: a partir de ahí nada se aplica solo. */
+export function markInUse() { startupApply = false; }
+
 export function configureUpdates({ isSafeMoment, onUpdateReady } = {}) {
     if (isSafeMoment) safeMoment = isSafeMoment;
     if (onUpdateReady) onUpdate = onUpdateReady;
@@ -68,30 +72,38 @@ export async function registerOffline() {
     const watch = (sw) => {
         if (!sw) return;
         const check = () => {
-            if (sw.state === 'installed' && navigator.serviceWorker.controller) { updateReady = true; onUpdate(); applyUpdateIfSafe(); }
+            // Nunca se recarga sola en pleno uso (alguien que solo usa la mirada quedaría frente a una pantalla
+            // que pide un toque). Se aplica al próximo arranque o con "Actualizar ahora" en Configuración.
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) { updateReady = true; onUpdate(); }
         };
         sw.addEventListener('statechange', check);
         check();
     };
-    if (registration.waiting) watch(registration.waiting);
+    // Al ARRANCAR (antes de entrar a un modo con cámara), una versión ya descargada se aplica en el acto
+    if (registration.waiting && navigator.serviceWorker.controller && startupApply) {
+        updateReady = true; userRequested = true;
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else if (registration.waiting) watch(registration.waiting);
     registration.addEventListener('updatefound', () => watch(registration.installing));
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!updateReady) return; // primera instalación: no hace falta recargar
-        if (safeMoment()) window.location.reload(); else pendingReload = true;
+        if (!updateReady || !userRequested) return; // primera instalación o activación ajena: no recargar
+        window.location.reload();
     });
     return registration;
 }
 
-/** Llamar en momentos seguros (al volver al inicio): aplica una actualización descargada. */
-export function applyUpdateIfSafe() {
-    if (!safeMoment()) return false;
-    if (pendingReload) { window.location.reload(); return true; }
-    if (updateReady && registration && registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        return true;
-    }
-    return false;
+/** ¿Hay una versión nueva descargada esperando? */
+export function hasUpdate() { return updateReady && !!(registration && registration.waiting); }
+
+/** "Actualizar ahora" (lo toca la persona de apoyo): aplica la versión descargada y recarga. */
+export function applyUpdateNow() {
+    if (!hasUpdate() || !safeMoment()) return false;
+    userRequested = true;
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    return true;
 }
+/** Compatibilidad: ya no aplica nada automáticamente durante el uso. */
+export function applyUpdateIfSafe() { return false; }
 
 function ask(msg, timeoutMs = 120000) {
     const sw = (navigator.serviceWorker && navigator.serviceWorker.controller) || (registration && registration.active);

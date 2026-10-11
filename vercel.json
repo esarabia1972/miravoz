@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": null,
+  "buildCommand": "node tools/build-offline-manifest.mjs --check",
   "outputDirectory": "web",
   "installCommand": "echo \"MiraVoz no tiene dependencias de producción\"",
   "headers": [

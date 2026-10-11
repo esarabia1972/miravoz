@@ -138,8 +138,8 @@ await t('persistencia: miravoz_calibration_v3 (ámbito "prueba") con ambos perfi
     await new Promise(r => setTimeout(r, 0));
     const st = store.get('miravoz_calibration_v3');
     const sc = st && st.scopes && st.scopes.prueba;
-    assert(sc && sc.CARA && sc.OJOS, `guardado: ${st && JSON.stringify(Object.keys(st))}`);
-    assert(sc.OJOS.kind === 'gaze-v3' && sc.CARA.weightsX && sc.CARA.schema === 3 && sc.CARA.context, 'contenido');
+    assert(sc && sc['CARA@landscape'] && sc['OJOS@landscape'], `guardado: ${st && JSON.stringify(Object.keys(st))}`);
+    assert(sc['OJOS@landscape'].kind === 'gaze-v3' && sc['CARA@landscape'].weightsX && sc['CARA@landscape'].schema === 3 && sc['CARA@landscape'].context, 'contenido');
     cal._setStorage(globalThis.localforage);
     await loadProfiles();
     assert(isUsableProfile('OJOS', cal.getProfile('OJOS')) && isUsableProfile('CARA', cal.getProfile('CARA')), 'no recuperó');
@@ -156,7 +156,7 @@ await t('sin rostro: 3 puntos seguidos con features null → onComplete(null), s
     assert(r2.done && r2.result === null, `OJOS done=${r2.done}`);
     const pts = new Set(r.log.map(e => e.index));
     assert(pts.size === 1 && r.s.phase === 'DONE', `puntos mostrados ${[...pts]}`);
-    const expected = 3 * (CONFIG.COUNTDOWN_MS + CONFIG.SAMPLING_MS + CONFIG.SAMPLE_WARMUP_MS);
+    const expected = 3 * (CONFIG.COUNTDOWN_MS + 3000 + CONFIG.SAMPLE_WARMUP_MS); // tope de 3 s por punto si no llegan cuadros
     assert(r.now < expected + 500, `tardó ${r.now} ms`);
 });
 await t('sin rostro intermitente (cara aparece y desaparece) no aborta si un punto sale bien', () => {
@@ -171,19 +171,39 @@ const implicitBatch = () => {
     const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H, h = still(); // cabeza quieta (como pide el modo Iris v3)
     return Array.from({ length: CONFIG.IMPLICIT_SAMPLES_PER_SELECT }, () => ({ target: [tx, ty], raw: observe(tx, ty, h) }));
 };
-await t('implícito: 4 llamadas → null; la 5ª re-entrena (model nuevo) y acumula implicit', async () => {
-    const before = JSON.stringify(cal.getProfile('OJOS').model);
+await t('implícito (M07): cada 5 selecciones prueba un candidato; nunca queda peor que la base sobre la evidencia reservada', async () => {
+    const { calibrationError } = await import('../web/js/gaze-model.js');
+    const base = cal.getProfile('OJOS');
+    assert(base.baseModel && base.validationSamples && base.validationSamples.length === 5, 'falta base o evidencia reservada');
     for (let i = 0; i < CONFIG.IMPLICIT_RETRAIN_EVERY - 1; i++) {
-        const r = await addImplicitSamples('OJOS', implicitBatch());
-        assert(r === null, `llamada ${i + 1} devolvió perfil`);
+        assert(await addImplicitSamples('OJOS', implicitBatch()) === null, `llamada ${i + 1} devolvió perfil`);
     }
-    assert(JSON.stringify(cal.getProfile('OJOS').model) === before, 'cambió el modelo antes de la 5ª');
-    const r = await addImplicitSamples('OJOS', implicitBatch());
-    assert(r && r.kind === 'gaze-v3', '5ª no devolvió perfil');
-    assert(JSON.stringify(r.model) !== before, 'modelo igual');
-    const n = CONFIG.IMPLICIT_RETRAIN_EVERY * CONFIG.IMPLICIT_SAMPLES_PER_SELECT;
-    assert(r.implicit.length === n, `implicit ${r.implicit.length} ≠ ${n}`);
-    assert(store.get('miravoz_calibration_v3').scopes.prueba.OJOS.implicit.length === n, 'no persistió implicit');
+    assert(JSON.stringify(cal.getProfile('OJOS').model) === JSON.stringify(base.model), 'cambió el modelo antes de la 5ª');
+    await addImplicitSamples('OJOS', implicitBatch());
+    const p = cal.getProfile('OJOS');
+    assert(calibrationError(p.model, p.validationSamples) <= calibrationError(p.baseModel, p.validationSamples) + 1e-9, 'quedó peor que la base');
+    assert(p.implicit.every(x => x.source === 'implicit' && x.ts), 'sin procedencia');
+    assert(store.get('miravoz_calibration_v3').scopes.prueba['OJOS@landscape'].baseModel, 'no persistió la base');
+});
+await t('implícito (M07): un candidato entrenado con selecciones erróneas se rechaza y la base no cambia', async () => {
+    const before = cal.getProfile('OJOS');
+    // "selecciones" donde la persona miraba otro lado (objetivo desplazado 300 px): aprendizaje sesgado
+    const wrong = () => { const tx = (0.2 + 0.6 * rnd()) * W, ty = (0.2 + 0.6 * rnd()) * H, h = still();
+        return Array.from({ length: CONFIG.IMPLICIT_SAMPLES_PER_SELECT }, () => ({ target: [Math.min(W, tx + 300), ty], raw: observe(tx, ty, h) })); };
+    let accepted = null;
+    for (let i = 0; i < CONFIG.IMPLICIT_RETRAIN_EVERY; i++) accepted = await addImplicitSamples('OJOS', wrong());
+    const after = cal.getProfile('OJOS');
+    assert(accepted === null, 'aceptó un candidato sesgado');
+    assert(JSON.stringify(after.model) === JSON.stringify(before.model), 'cambió el modelo activo');
+});
+await t('T17 re-entrenamiento pendiente de otro perfil (revisión distinta) → no escribe ni activa nada', async () => {
+    const before = JSON.stringify(cal.getProfile('OJOS'));
+    const r = await addImplicitSamples('OJOS', implicitBatch(), 'rev-de-otra-persona');
+    assert(r === null && JSON.stringify(cal.getProfile('OJOS')) === before, 'escribió con una revisión ajena');
+});
+await t('rollback: vuelve al modelo base verificado', async () => {
+    const r = await cal.rollbackModel('OJOS');
+    assert(r && JSON.stringify(r.model) === JSON.stringify(r.baseModel) && r.implicit.length === 0, 'rollback');
 });
 await t('implícito: respeta IMPLICIT_MAX_SAMPLES', async () => {
     const calls = Math.ceil(CONFIG.IMPLICIT_MAX_SAMPLES / CONFIG.IMPLICIT_SAMPLES_PER_SELECT) + 10;
@@ -204,9 +224,10 @@ await t('implícito: modo CARA, sin perfil o samples vacío → null sin romper'
 await t('implícito: el contador se reinicia al recalibrar (una nueva sesión OJOS)', async () => {
     await addImplicitSamples('OJOS', implicitBatch()); // contador ≠ 0
     const r = runSession('OJOS', ojosFeat);
+    await new Promise(res => setTimeout(res, 0));
     assert(r.result && r.result.implicit.length === 0, 'perfil nuevo');
-    for (let i = 0; i < CONFIG.IMPLICIT_RETRAIN_EVERY - 1; i++) assert(await addImplicitSamples('OJOS', implicitBatch()) === null, `llamada ${i + 1}`);
-    assert(await addImplicitSamples('OJOS', implicitBatch()), '5ª no re-entrenó');
+    for (let i = 0; i < CONFIG.IMPLICIT_RETRAIN_EVERY - 1; i++) await addImplicitSamples('OJOS', implicitBatch());
+    assert(cal.getProfile('OJOS').implicit.length === (CONFIG.IMPLICIT_RETRAIN_EVERY - 1) * CONFIG.IMPLICIT_SAMPLES_PER_SELECT, 'no reinició el contador');
 });
 
 origLog(`\n${pass} ok, ${fail} fallidos`);

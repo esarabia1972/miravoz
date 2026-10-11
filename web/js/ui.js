@@ -42,7 +42,6 @@ function showAlert(message) {
     dialog.style.display = 'flex';
     // M03: mientras el diálogo está abierto, la mirada y el barrido apuntan solo a sus botones
     const token = selectionContexts.push('dialog', () => buttonTargets([btnOk]), { element: dialog });
-    try { btnOk.focus({ preventScroll: true }); } catch { /* sin foco */ }
 
     return new Promise(resolve => {
         btnOk.onclick = () => { dialog.style.display = 'none'; selectionContexts.pop(token); resolve(); };
@@ -59,7 +58,6 @@ function showConfirm(message) {
     btnCancel.style.display = 'inline-block';
     dialog.style.display = 'flex';
     const token = selectionContexts.push('dialog', () => buttonTargets([btnCancel, btnOk]), { element: dialog });
-    try { btnCancel.focus({ preventScroll: true }); } catch { /* sin foco */ } // lo seguro primero
 
     return new Promise(resolve => {
         btnOk.onclick = () => { dialog.style.display = 'none'; selectionContexts.pop(token); resolve(true); };

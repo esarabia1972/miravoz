@@ -46,16 +46,27 @@ async function precache(manifest) {
         ...manifest.files.map(f => ({ url: f.url === '/index.html' ? '/index.html' : f.url, sha256: f.sha256, local: true })),
         ...manifest.remote.map(r => ({ url: r.url, sha256: r.sha256, local: false }))
     ];
+    // Lo que no cambió (mismo sha256 que en la versión activa) se copia del caché anterior: una actualización
+    // no vuelve a descargar los ~30 MB de MediaPipe en cada deploy.
+    const prevCache = await activeCache();
+    const prevStored = prevCache && await prevCache.match('/offline-manifest.json');
+    const prev = prevStored ? await prevStored.json() : null;
+    const prevHash = new Map(prev ? [...prev.files, ...prev.remote].map(x => [x.url, x.sha256]) : []);
     const fetched = [];
     for (const e of entries) {
+        if (prevCache && e.sha256 && prevHash.get(e.url) === e.sha256) {
+            const old = await prevCache.match(e.url);
+            if (old) { fetched.push([e.url, old]); continue; }
+        }
         const resp = await fetch(e.url, { cache: 'no-store', mode: e.local ? 'same-origin' : 'cors', credentials: 'omit' });
         if (!resp.ok) throw new Error(`No se pudo descargar ${e.url} (${resp.status})`);
-        const buf = await resp.clone().arrayBuffer();
+        const buf = await resp.arrayBuffer();
         if (e.sha256) {
             const h = await sha256Hex(buf);
             if (h !== e.sha256) throw new Error(`Contenido inesperado en ${e.url}: deploy a medio publicar o archivo alterado`);
         }
-        fetched.push([e.url, resp]);
+        const type = resp.headers.get('Content-Type');
+        fetched.push([e.url, new Response(buf, { status: 200, headers: type ? { 'Content-Type': type } : {} })]); // una sola copia en memoria
     }
     const cache = await caches.open(APP_PREFIX + manifest.version);
     for (const [url, resp] of fetched) await cache.put(url, resp);
@@ -98,6 +109,17 @@ self.addEventListener('fetch', (event) => {
     const req = event.request;
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
+    // Imágenes guardadas con "Preparar para usar sin conexión" (de cualquier origen): primero el caché de imágenes
+    if (req.destination === 'image' && url.origin !== self.location.origin) {
+        event.respondWith((async () => {
+            const hit = await (await caches.open(IMAGES_CACHE)).match(req.url);
+            if (hit) return hit;
+            const resp = await fetch(req);
+            if (isArasaacImage(url) && (resp.ok || resp.type === 'opaque')) (await caches.open(IMAGES_CACHE)).put(req.url, resp.clone()).catch(() => {});
+            return resp;
+        })());
+        return;
+    }
     if (isPrivate(url)) return; // cuentas, tokens y datos: siempre la red, nunca el caché
 
     if (url.origin === self.location.origin) {

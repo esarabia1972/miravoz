@@ -82,6 +82,7 @@ function loadSW(version, caches, net) {
         install: () => run('install'),
         activate: () => run('activate'),
         fetch: (url, mode = 'no-cors') => run('fetch', { request: { method: 'GET', url: new URL(url, ORIGIN).href, mode } }),
+        fetchReq: (request) => run('fetch', { request }),
         message: (data) => new Promise(async (resolve) => {
             const port = { postMessage: (d) => resolve(d) };
             await run('message', { data, ports: [port] });
@@ -127,7 +128,7 @@ await t('T18 preparación completa → sin red abre la app, sus módulos, MediaP
     assert(wasm && wasm.status === 200, 'WASM sin red');
     const model = await sw.fetch(manifest.remote[0].url, 'cors');
     assert(model && (await model.text()) === 'modelo-de-prueba', 'modelo sin red');
-    const pic = await sw.fetch('https://api.arasaac.org/api/pictograms/6981?download=false');
+    const pic = await sw.fetchReq({ method: 'GET', url: 'https://api.arasaac.org/api/pictograms/6981?download=false', mode: 'no-cors', destination: 'image' });
     assert(pic && pic.status === 200, 'pictograma sin red');
 });
 await t('los pedidos privados (Supabase, autenticación) nunca se interceptan ni se guardan', async () => {
@@ -155,6 +156,8 @@ await t('T19 actualización con un archivo alterado (deploy a medio publicar) �
     await v1.install(); await v1.activate();
     // Se publica una "versión 2" cuyo main.js no coincide con su manifiesto
     const m2 = JSON.parse(JSON.stringify(manifest)); m2.version = 'v2-prueba';
+    const nodeCrypto = await import('node:crypto');
+    m2.files.find(f => f.url === '/js/main.js').sha256 = nodeCrypto.createHash('sha256').update('// lo que debería haber').digest('hex');
     net.files.set('/offline-manifest.json', Buffer.from(JSON.stringify(m2)));
     net.files.set('/js/main.js', Buffer.from('// otro contenido'));
     const v2 = loadSW('v2-prueba', caches, net);
@@ -176,7 +179,11 @@ await t('T19 actualización válida: espera a la app (sin mezclar versiones) y a
     net.files.set('/offline-manifest.json', Buffer.from(JSON.stringify(m2)));
     net.files.set('/js/main.js', newMain);
     const v2 = loadSW('v2-buena', caches, net);
+    const before = net.requests.length;
     await v2.install();
+    const fetchedNow = net.requests.slice(before);
+    assert(!fetchedNow.some(u => /vision_wasm_internal\.wasm$/.test(u)), 'volvió a descargar el WASM que no cambió');
+    assert(fetchedNow.some(u => u.endsWith('/js/main.js')), 'no descargó lo que cambió');
     assert(!v2.self.skipped, 'una actualización no debe activarse sola (podría cortar una frase)');
     const during = await v1.fetch('/js/main.js');
     assert((await during.text()) !== '// main v2', 'mezcló la versión nueva antes de activarse');

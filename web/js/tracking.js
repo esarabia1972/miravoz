@@ -493,6 +493,26 @@ export function startMediaPipe() {
     })();
 }
 
+// --- Recuperación de la cámara (pista terminada, congelada o tomada por otra app) ---
+// Con la página visible y sin cuadros nuevos por más de 2,5 s, se reinicia la cámara con espera creciente
+// (2, 4, 8… hasta 30 s). Mientras tanto la mirada está inválida (M01): nunca se selecciona con datos viejos.
+let lastRestart = 0, restartDelay = 2000;
+if (typeof window !== 'undefined' && typeof setInterval === 'function') {
+    setInterval(() => {
+        if (!running || waitingFirstFrame || (typeof document !== 'undefined' && document.hidden)) return;
+        const now = performance.now();
+        const age = latestSample ? now - latestSample.receivedAt : Infinity;
+        if (latestSample && latestSample.reason === 'starting') return;
+        if (age < 2500) { restartDelay = 2000; return; }
+        if (now - lastRestart < restartDelay) return;
+        lastRestart = now;
+        restartDelay = Math.min(restartDelay * 2, 30000);
+        console.warn('La cámara no envía cuadros: reinicio');
+        stopMediaPipe();
+        startMediaPipe();
+    }, 1000);
+}
+
 export function stopMediaPipe() {
     generation++; // invalida cualquier arranque en curso
     if (waitingFirstFrame) { waitingFirstFrame = false; hideSyncToast(); }

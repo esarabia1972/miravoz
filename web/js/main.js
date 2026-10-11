@@ -144,7 +144,9 @@ const implicitEnabled = isImplicitEnabled();
 let pendingImplicit = null;
 
 function recordImplicitSelection(rect) {
+    // M07: nunca de benchmark, verificación, señal inválida, diálogos, edición o calibración
     if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || pointer.invalid || !rect || !rect.width) return;
+    if (selectionContexts.isBlocked() || editor.isEditMode() || calibSession || S.state !== 'BOARD') return;
     const ojosProfile = calibration.getProfile('OJOS');
     if (!calibration.isUsableProfile('OJOS', ojosProfile)) return;
     const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
@@ -156,7 +158,7 @@ function recordImplicitSelection(rect) {
     const target = [rect.left + rect.width / 2, rect.top + rect.height / 2];
     const samples = feats.filter((_, i) => i % step === 0).slice(0, CONFIG.IMPLICIT_SAMPLES_PER_SELECT).map(raw => ({ target, raw }));
     commitPendingImplicit(); // la anterior ya pasó su ventana de corrección implícitamente
-    const entry = { samples, timer: null };
+    const entry = { samples, timer: null, revision: ojosProfile.revision, scope: profileScope() };
     entry.timer = setTimeout(() => { if (pendingImplicit === entry) commitPendingImplicit(); }, CONFIG.IMPLICIT_CONFIRM_MS);
     pendingImplicit = entry;
 }
@@ -171,8 +173,9 @@ async function commitPendingImplicit() {
     if (!entry) return;
     clearTimeout(entry.timer);
     pendingImplicit = null;
-    const updated = await calibration.addImplicitSamples('OJOS', entry.samples);
-    if (updated && S.trackingMode === 'OJOS') tracking.applyProfile('OJOS', updated);
+    if (entry.scope !== profileScope()) return; // cambió la persona: se descarta
+    const updated = await calibration.addImplicitSamples('OJOS', entry.samples, entry.revision);
+    if (updated && S.trackingMode === 'OJOS' && profileScope() === entry.scope) tracking.applyProfile('OJOS', updated);
 }
 
 // --- Dwell engine (F0-6, F1-6) ---
@@ -216,7 +219,9 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('pointerdown', (e) => {
     // En modo barrido, tocar CUALQUIER parte de la pantalla es la activación
     // (excepto la barra inferior de controles, para poder salir del modo)
-    if (S.trackingMode === 'SCAN' && !e.target.closest('#bottom-bar') && !e.target.closest('.modal-overlay')) {
+    // En un diálogo, tocar el fondo también activa el barrido (tocar un botón lo elige directamente).
+    const inDialog = e.target.closest('#custom-dialog');
+    if (S.trackingMode === 'SCAN' && !e.target.closest('#bottom-bar') && (inDialog ? !e.target.closest('button') : !e.target.closest('.modal-overlay'))) {
         onSwitchActivate(e);
     }
 });
@@ -311,6 +316,11 @@ function startCalibration({ validateOnly = null } = {}) {
     if (btnCalibText()) btnCalibText().textContent = validateOnly
         ? 'Verificación rápida: presioná y mirá 5 puntos'
         : 'Presioná para iniciar calibración';
+    // M08: ayuda de colocación para la persona de apoyo (nunca pide mover la cabeza)
+    const help = document.getElementById('calib-help');
+    if (help) help.textContent = S.trackingMode === 'OJOS'
+        ? 'Iris (experimental): colocá el iPad frente a la cara, a la altura de los ojos y a unos 40-60 cm, con luz de frente y sin contraluz. No hace falta mover la cabeza: solo mirar cada punto.'
+        : 'Rostro: el cursor sigue la nariz. Colocá el iPad frente a la cara, con luz de frente, y seguí cada punto con la cabeza.';
     S.state = 'CALIBRATING_PENDING';
 
     boardView.style.opacity = '0';
@@ -375,6 +385,15 @@ function onCalibrationComplete(profile) {
     showInfoToast(`Calibración ${profile.quality}${detail ? ` · ${detail}` : ''}${calibration.isUnsaved() ? ' · no se pudo guardar: vale solo para esta sesión' : ''}`, 6000);
     instructionBox.style.display = 'none';
 }
+
+// Salida de la pantalla de calibración (para la persona de apoyo): vuelve a Manual sin perder nada
+document.getElementById('btn-cancelar-calibracion')?.addEventListener('click', () => {
+    calibSession = null;
+    instructionBox.style.display = 'none';
+    modeSelect.value = 'CLICKS';
+    modeSelect.dispatchEvent(new Event('change'));
+    if (S.currentBundle) { S.state = 'BOARD'; boardView.style.display = 'flex'; boardView.style.opacity = '1'; }
+});
 
 btnIniciarCalibracion.addEventListener('click', () => {
     if (!calibSession) return;
@@ -488,7 +507,6 @@ function goHome() {
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
     selectionContexts.setBase(boards.activeHomeElements);
-    offline.applyUpdateIfSafe(); // M05: una versión nueva ya descargada se aplica acá, en un momento seguro
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
@@ -573,6 +591,11 @@ if (btnSettings && settingsModal) {
         e.preventDefault();
         settingsModal.style.display = 'flex';
         refreshOfflineStatus();
+        const up = document.getElementById('btn-apply-update');
+        if (up) up.hidden = !offline.hasUpdate();
+    });
+    document.getElementById('btn-apply-update')?.addEventListener('click', () => {
+        if (!offline.applyUpdateNow()) showInfoToast('Terminá o borrá la frase en curso y volvé a intentar.', 4000);
     });
     document.getElementById('btn-prepare-offline')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
@@ -669,6 +692,12 @@ if (diag) {
     };
     const group = document.querySelector('.bottom-group.group-right .control-group');
     if (group) group.prepend(btn);
+    const perf = document.createElement('button');
+    perf.className = 'btn btn-secondary';
+    perf.textContent = 'Rendimiento';
+    perf.title = 'Descarga solo métricas agregadas del motor (sin video ni datos personales)';
+    perf.onclick = () => downloadPerfReport();
+    if (group) group.prepend(perf);
 }
 
 // --- Loop principal ---
@@ -912,8 +941,11 @@ function onGeometryChange() {
             // Se giró (o cambió mucho la pantalla) en plena calibración: los puntos ya no corresponden → de nuevo.
             // Un cambio chico (barras de Safari) no la interrumpe.
             const v = calibSession.viewport;
-            if (v && geometryChanged(v, { w: window.innerWidth, h: window.innerHeight }) || (v && orientationOf(v.w, v.h) !== orientationOf(window.innerWidth, window.innerHeight))) {
-                startCalibration();
+            if (v && (geometryChanged(v, { w: window.innerWidth, h: window.innerHeight }) || orientationOf(v.w, v.h) !== orientationOf(window.innerWidth, window.innerHeight))) {
+                // Se cancela y se vuelve a decidir con la geometría nueva: si hay un perfil para esta orientación,
+                // alcanza con la verificación rápida
+                calibSession = null;
+                beginCameraAccess();
             }
             return;
         }
@@ -942,6 +974,7 @@ async function enterDeviceMode() {
     // Refrescar desde la nube en segundo plano (la tablet ya es usable con lo local)
     const res = await deviceMod.pullCopies();
     if (res === 'unlinked') {
+        await calibration.clearScope(profileScope());
         await deviceMod.unlink();
         await customAlert('Esta tablet fue desvinculada por la profesional.');
         window.location.reload();
@@ -959,6 +992,57 @@ window.addEventListener('miravoz:device-unlinked', async () => {
     await customAlert('Esta tablet fue desvinculada por la profesional.');
     window.location.reload();
 });
+
+// --- M08: voz que falla: la frase se conserva y se puede reintentar ---
+window.addEventListener('miravoz:speech-error', () => {
+    showInfoToast('No se pudo decir la frase. Sigue en pantalla: tocá reproducir para intentar de nuevo (revisá volumen y modo silencio).', 6000);
+});
+
+// --- M08: versión real de lo publicado (hash del contenido, ver tools/build-offline-manifest.mjs) ---
+let appVersion = null;
+fetch('/version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
+    appVersion = v && v.version;
+    const el = document.getElementById('app-version');
+    if (el && appVersion) el.textContent = `Versión ${appVersion}`;
+}).catch(() => {});
+
+// --- M08: panel de diagnóstico SOLO para desarrollo (?diag=1): métricas técnicas, sin video ni textos ---
+const perfSnapshots = [];
+if (urlParams.get('diag') === '1') {
+    const panel = document.createElement('div');
+    panel.id = 'diag-panel';
+    panel.setAttribute('aria-hidden', 'true');
+    panel.style.cssText = 'position:fixed; left:8px; top:8px; z-index:40000; background:rgba(0,0,0,0.75); color:#9f9; font:12px/1.35 monospace; padding:8px 10px; border-radius:8px; pointer-events:none; white-space:pre;';
+    document.body.appendChild(panel);
+    setInterval(() => {
+        const v = tracking.visionStats();
+        const s = tracking.latestSample;
+        const prof = (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') ? calibration.getProfile(S.trackingMode) : null;
+        panel.textContent = [
+            `versión ${appVersion || '?'} · modo ${S.trackingMode} · motor ${v.engine || '-'} (${v.mode}${v.delegate ? ', ' + v.delegate : ''})`,
+            `inferencia p50/p95 ${v.inferP50 ?? '-'}/${v.inferP95 ?? '-'} ms · captura→resultado ${v.latencyP50 ?? '-'}/${v.latencyP95 ?? '-'} ms`,
+            `resultados/s ${v.resultsPerSec} · descartados ${v.dropped} · antigüedad muestra ${v.sampleAgeMs ?? '-'} ms`,
+            `muestra ${s ? (s.valid ? 'válida' : 'inválida: ' + s.reason) : '-'} · puntero ${pointer.invalid ? 'en pausa (' + pointer.reason + ')' : 'activo'}`,
+            `perfil ${prof ? `${prof.validation?.status || 'sin verificar'} rev ${prof.revision || '-'}` : '-'} · contexto ${selectionContexts.top()?.name || 'tablero'}`
+        ].join('\n');
+    }, 500);
+    setInterval(() => { if (perfSnapshots.length < 720) perfSnapshots.push({ t: Math.round(performance.now() / 1000), ...tracking.visionStats() }); }, 10000);
+}
+
+/** Reporte de rendimiento: solo métricas agregadas (sin video, fotos, textos comunicados, tokens ni nombres). */
+function downloadPerfReport() {
+    const prof = calibration.getProfile(S.trackingMode);
+    const report = {
+        kind: 'miravoz-rendimiento', version: appVersion, ua: navigator.userAgent, viewport: [innerWidth, innerHeight],
+        mode: S.trackingMode, vision: tracking.visionStats(), snapshots: perfSnapshots,
+        profileValidation: prof && prof.validation ? { status: prof.validation.status, rules: prof.validation.rules, metrics: { ...prof.validation.metrics, perPoint: undefined } } : null
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(report, null, 1)], { type: 'application/json' }));
+    a.download = `miravoz-rendimiento-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 
 // --- M05: uso sin conexión ---
 async function refreshOfflineStatus() {
@@ -981,10 +1065,11 @@ async function localBundlesForOffline() {
     initTheme();
     await initSettings();
     offline.configureUpdates({
-        isSafeMoment: () => S.state === 'HOME' && !calibSession && getSentence().length === 0,
-        onUpdateReady: () => showInfoToast('Se descargó una versión nueva: se aplica al volver al inicio.', 5000)
+        isSafeMoment: () => !calibSession && getSentence().length === 0,
+        onUpdateReady: () => { const b = document.getElementById('btn-apply-update'); if (b) b.hidden = false; }
     });
-    offline.registerOffline();
+    await offline.registerOffline(); // al arrancar, una versión ya descargada se aplica acá (antes de usar la cámara)
+    offline.markInUse();
     renderModeSegmented();
     if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
     wireScanSetting('scan-pattern', 'pattern');

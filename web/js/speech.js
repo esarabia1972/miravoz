@@ -75,7 +75,14 @@ export function speak(text, { cancelPrevious = false, volume = 1.0, lang = null 
     alive.add(utterance);
     const done = () => alive.delete(utterance);
     utterance.onend = done;
-    utterance.onerror = (e) => { done(); if (e && e.error && e.error !== 'interrupted' && e.error !== 'canceled') console.warn('Voz:', e.error); };
+    utterance.onerror = (e) => {
+        done();
+        if (e && e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
+            console.warn('Voz:', e.error);
+            // M08: la frase NO se borra; la app avisa y se puede reintentar con el botón de reproducir
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-error', { detail: { error: e.error } }));
+        }
+    };
 
     // Después de cancel(), Safari a veces ignora el speak inmediato: se difiere un instante
     if (cancelPrevious) setTimeout(() => synth.speak(utterance), 30);

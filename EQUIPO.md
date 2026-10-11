@@ -69,6 +69,11 @@
 | `tools/test-device.mjs` | Tablet vinculada (F4-4) y profesional editando copias (F4-3): vincular con código (válido/inválido), arranque con y sin casita, desvinculación remota, guardado de copia editable vs solo lectura, edición de copia por la profesional con concurrencia optimista |
 | `tools/test-headpose.mjs` | Matemática del motor FaceLandmarker: pose de la cabeza desde la matriz (yaw/pitch/roll/traslación), blendshapes de mirada, iris normalizado por ojo |
 | `tools/test-gaze.mjs` | Modelo híbrido del modo Iris con simulador geométrico (test de humo, NO evidencia de precisión real): híbrido vs solo-iris con movimiento de cabeza, aprendizaje implícito, salvaguardas (rechazo de modelos sesgados, tope 30% implícito, parpadeo, selección confiable) |
+| `tools/test-selection.mjs` | M01/M07: muestras inválidas o viejas nunca seleccionan (T01–T07), aprendizaje implícito apagado (T16) |
+| `tools/test-profiles.mjs` | M02/M04: perfiles por persona, orientación y geometría, migración y escritura segura (T08–T10); verificación independiente, cuadros duplicados o tardíos, benchmark con omisiones (T13–T15) |
+| `tools/test-contexts.mjs` | M03: diálogos sobre el tablero, redibujado detrás, anidados, cierre por tiempo (T11–T12) |
+| `tools/test-offline.mjs` | M05: Service Worker real en navegador simulado: arranque sin red, descarga incompleta, archivo alterado, actualización sin mezclar versiones (T18–T19) |
+| `tools/test-vision.mjs` | M06: cola de cuadros acotada, descarte por sesión, caída del motor, métricas |
 | `tools/test-asterics.mjs` | Compatibilidad con Asterics Grid: textos en varios idiomas, navegación (volver, inicio, rota, búsqueda), teclas y páginas de teclado, celdas especiales y no disponibles, respaldos completos (inicio, tablero global, miniaturas, diccionarios), informe de importación y predicción de palabras |
 | `tools/test-pages.mjs` | Tableros de varias páginas: orden de páginas, agregar/borrar/inicio, separar al importar, nombre de respaldos de Asterics, textos de ARASAAC (con fallas de red), qué se dice al navegar, migración a voz por acciones |
 | `tools/test-calibration.mjs` | Calibración real (CARA 9 puntos y OJOS 9+5) con stubs mínimos: perfiles, abortos sin rostro, aprendizaje implícito y persistencia |

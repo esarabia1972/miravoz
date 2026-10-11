@@ -381,3 +381,33 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
 - **Added (M06)**: mediciones del motor, sin video ni datos personales: inferencia p50 y p95, captura→resultado p50 y p95, resultados por segundo, cuadros descartados y antigüedad de la muestra (`tracking.visionStats()`). Se guardan con cada benchmark para comparar el hilo principal con el worker. Las metas provisorias (≥15 resultados/s, p95 captura→resultado <200 ms) se revisan con datos del iPad.
 - Tests: `tools/test-vision.mjs` (5): cola acotada en una sesión larga con un motor lento, descarte por sesión y secuencia (T07), caída por falta de respuesta y métricas.
 - Pendiente de dispositivo: que el worker funcione en Safari del iPad (GPU, `OffscreenCanvas`), su latencia frente al hilo principal y su consumo en una sesión de 20 minutos.
+
+### Etapa G — M07 completo, M08 y cierre (informe, protocolo y revisión)
+- **Changed (M07)**: el aprendizaje implícito (experimental, solo con `?implicit=1`) ahora trabaja así:
+  - el **modelo base verificado es inmutable**;
+  - un re-entrenamiento produce un candidato, que se acepta solo si no empeora sobre la **evidencia reservada** (las muestras de la verificación, que nunca se entrenan). Siempre se compara contra la base, así que no hay degradación acumulativa;
+  - cada muestra guarda su procedencia, y hay historial y `rollbackModel()`;
+  - excluye benchmark, verificación, diálogos, edición, calibración y señal inválida;
+  - si cambió la persona o la revisión del perfil, no se escribe nada (T17).
+- **Added (M08)**:
+  - explicación de Rostro e Iris en Configuración;
+  - ayuda de colocación del iPad en la pantalla de calibración, sin pedir mover la cabeza;
+  - si la voz falla, la frase se conserva y se avisa cómo reintentar;
+  - **panel de diagnóstico** solo con `?diag=1` (versión, modo, motor, latencias, antigüedad de la muestra, motivo de pausa, verificación del perfil);
+  - botón **"Rendimiento"**, que descarga solo métricas agregadas;
+  - **identificador de entrega** = hash del contenido (`web/version.json`), visible en Configuración.
+- **Fixed (revisión del equipo)**:
+  - una actualización ya **no recarga la app en pleno uso**: se aplica al arrancar o con "Actualizar ahora";
+  - una verificación rápida sin cuadros (cámara o modelo cargando) no cuenta, y una fallida no pisa el perfil aceptado (`lastQuickCheck`);
+  - la calibración junta cuadros únicos hasta 3 s por punto (iPad lento) y la cobertura se mide sobre lo que entrega el motor;
+  - se agregó el botón "Cancelar y usar Manual" en la pantalla de calibración;
+  - hay un perfil **por orientación**, y girar en plena calibración vuelve a decidir con la geometría nueva;
+  - la cámara se recupera sola si deja de enviar cuadros, con espera creciente;
+  - las imágenes guardadas para usar sin conexión se sirven desde su caché;
+  - una actualización reutiliza lo que no cambió en lugar de volver a bajar unos 30 MB;
+  - Vercel no publica si el manifiesto quedó desactualizado (`buildCommand`);
+  - en Barrido, tocar el fondo de un diálogo activa el pulsador;
+  - los diálogos ya no toman foco automático (el Espacio del pulsador podía responderlos);
+  - al desvincular por servidor se borran los perfiles de ese usuario;
+  - la regla de geometría pasa a 12% de ancho y 15% de alto.
+- **Docs**: `INFORME_M01-M08.md` (estado por requisito con evidencia, migración, actualizaciones, diagnóstico, publicación, licencias y lo que NO se afirma) y `PROTOCOLO_VALIDACION_IPAD.md` (planilla y recorrido para el iPad).

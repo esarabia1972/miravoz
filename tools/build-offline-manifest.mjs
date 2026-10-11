@@ -51,12 +51,17 @@ export function buildManifest() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
     const m = buildManifest();
     const text = JSON.stringify(m, null, 1) + '\n';
+    // M08: identificador de entrega = hash del contenido publicado (no un commit que podría no describir los archivos)
+    const VERSION_FILE = path.join(WEB, 'version.json');
+    const versionText = JSON.stringify({ version: m.version, files: m.files.length, note: 'Hash del contenido de web/ (tools/build-offline-manifest.mjs). Describe exactamente los archivos publicados.' }, null, 2) + '\n';
     if (process.argv.includes('--check')) {
         const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
-        if (cur !== text) { console.error('offline-manifest.json desactualizado: correr node tools/build-offline-manifest.mjs'); process.exit(1); }
+        const curV = fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf8') : '';
+        if (cur !== text || curV !== versionText) { console.error('offline-manifest.json o version.json desactualizados: correr node tools/build-offline-manifest.mjs'); process.exit(1); }
         console.log(`offline-manifest.json al día (versión ${m.version}, ${m.files.length} archivos)`);
     } else {
         fs.writeFileSync(OUT, text);
+        fs.writeFileSync(VERSION_FILE, versionText);
         console.log(`offline-manifest.json: versión ${m.version}, ${m.files.length} archivos locales (${(m.totalBytes / 1e6).toFixed(1)} MB) + ${m.remote.length} externos`);
     }
 }
