@@ -2,7 +2,7 @@
 // Regla: todo texto que escribe una persona (nombres de usuarios y de tableros) va con textContent.
 
 import { supabaseClient } from './auth.js';
-import { customAlert, customConfirm } from './ui.js';
+import { customAlert, customConfirm, customChoice } from './ui.js';
 import { openProgress } from './progress.js';
 
 export let users = [];
@@ -249,10 +249,10 @@ function button(text, ariaLabel, onClick, className = 'btn btn-secondary user-bt
 
 // 1.9.0: registro de uso (granular) con consentimiento + pestaña Progreso
 async function setMetrics(user, enabled) {
-    if (enabled && !(await customConfirm(
+    if (enabled && !(await customChoice(
         `Al activar el registro, la tablet de ${user.display_name} guarda cada selección, las frases que arma y los tiempos, para analizar su progreso (incluso con Claude, si lo conectaste).\n\n` +
-        'Hace falta el consentimiento de la persona o de su familia/responsables. ¿Lo tenés?'))) return;
-    if (!enabled && !(await customConfirm(`¿Dejar de registrar el uso de ${user.display_name}? Lo ya registrado se conserva (se puede borrar desde Progreso).`))) return;
+        'Hace falta el consentimiento de la persona o de su familia/responsables. ¿Lo tenés?', 'Sí, activar', 'Cancelar'))) return;
+    if (!enabled && !(await customChoice(`¿Desactivar el registro de uso de ${user.display_name}?\n\nDesde la próxima conexión de su tablet no se guarda nada más. Lo ya registrado se conserva (se puede borrar desde Ver progreso).`, 'Desactivar', 'Cancelar'))) return;
     const prev = (user.settings && typeof user.settings === 'object') ? user.settings : {};
     const settings = { ...prev, metrics: { ...(prev.metrics || {}), enabled, ...(enabled ? { consent_at: new Date().toISOString() } : { disabled_at: new Date().toISOString() }) } };
     const { error } = await supabaseClient.from('aac_users').update({ settings }).eq('id', user.id);
@@ -270,7 +270,6 @@ function renderMetrics(user) {
     const toggle = button(on ? 'Desactivar registro' : 'Activar registro', `${on ? 'Desactivar' : 'Activar'} el registro de uso de ${user.display_name}`, () => setMetrics(user, !on));
     toggle.dataset.focusKey = `metrics:${user.id}`;
     row.appendChild(toggle);
-    row.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
     return row;
 }
 
@@ -413,6 +412,7 @@ export function renderUsersList(focusKey = null) {
         toggle.setAttribute('aria-controls', panelId);
         toggle.dataset.focusKey = `toggle:${user.id}`;
         headActions.appendChild(toggle);
+        headActions.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
 
         const deleteBtn = el('button', 'btn-icon user-btn-icon');
         deleteBtn.type = 'button';

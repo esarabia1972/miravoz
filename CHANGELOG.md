@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.2] - 2026-10-11
+
+- **Changed**: Mis usuarios: "Ver progreso" pasa al lado de "Ver tableros"; activar y desactivar el registro piden confirmación con botones claros ("Sí, activar" / "Desactivar" / "Cancelar").
+
 ## [1.9.1] - 2026-10-11
 
 - **Fixed**: en el iPad, la primera frase no sonaba hasta tocar la pantalla (el navegador exige un primer gesto). Ahora, si una frase no arranca por eso, se guarda y se dice al primer toque, y se avisa "Tocá la pantalla una vez para habilitar la voz". El desbloqueo se reintenta en cada toque hasta que la voz funciona.
