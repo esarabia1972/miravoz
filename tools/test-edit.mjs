@@ -125,6 +125,12 @@ function fakeDb() {
             boards.set(id, { ...row, ...values });
             return [{ id }];
         },
+        rpc: async (fn, body) => {
+            if (fn !== 'save_board_version') throw Object.assign(new Error('404'), { status: 404 });
+            if (db.noVersions) throw Object.assign(new Error('42883 no existe'), { status: 404 }); // sin 09 → cae al INSERT, que también falla
+            versions.push({ board_id: body.p_board_id, bundle: body.p_bundle, note: body.p_note, id: versions.length + 1, created_at: 'ahora' });
+            return versions.length;
+        },
         arasaac: async (w) => (w === 'nada' ? [] : [{ _id: w === 'agua' ? 2248 : 999, keywords: [{ keyword: w }] }])
     };
     return db;
@@ -165,7 +171,7 @@ await t('sin tabla de versiones no se escribe nada (ningún dato se pierde)', as
     db.noVersions = true;
     const before = JSON.stringify(db.boards.get(id));
     const r = await call('poner_celdas', { tablero: id, celdas: [{ fila: 1, columna: 1, texto: 'Hola' }] });
-    assert(/07_versiones/.test(r.err) && JSON.stringify(db.boards.get(id)) === before, r.err);
+    assert(/versión de respaldo/.test(r.err) && JSON.stringify(db.boards.get(id)) === before, r.err);
 });
 await t('historial y restaurar: deshace un cambio (y se puede volver a deshacer)', async () => {
     const db = fakeDb(), call = callWith(db);

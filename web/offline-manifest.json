@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "1434523e9751",
- "appVersion": "1.8.1",
+ "version": "21cd48b14177",
+ "appVersion": "1.8.2",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,7 +20,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "ac5316e3f3215c0de86388409113ecd81e76c0f8a61dd9457aa55f06402f1ad3",
+   "sha256": "89772b080552901afb821bcec647bd32e301b9efb6c76316d46eb09383c876ef",
    "bytes": 42644
   },
   {
@@ -55,7 +55,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "4adf514be1723fd0a2a280f2a46be848eea915135f228ab6291a6fa37ca5de23",
+   "sha256": "1ba266bf87e8b3884a7438f338420d358abf239960585d27daedd17f0c31f367",
    "bytes": 104
   },
   {

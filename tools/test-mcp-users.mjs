@@ -34,7 +34,14 @@ function fakeDb() {
             T[table].set(id, { ...row, ...values }); return [{ id }];
         },
         del: async (table, filter) => { T[table].delete(val(filter, 'id')); return true; },
-        rpc: async (fn, body) => (fn === 'create_access_code' && T.aac_users.has(body.p_aac_user_id) ? { code: 'ABCD2345', expires_at: 'en 7 días' } : null),
+        rpc: async (fn, body) => {
+            if (fn === 'save_board_version') {
+                if (db.noVersions) throw Object.assign(new Error('42501 rls'), { status: 403 });
+                T.board_versions.push({ board_id: body.p_board_id, bundle: body.p_bundle, note: body.p_note, id: T.board_versions.length + 1, created_at: iso() });
+                return T.board_versions.length;
+            }
+            return fn === 'create_access_code' && T.aac_users.has(body.p_aac_user_id) ? { code: 'ABCD2345', expires_at: 'en 7 días' } : null;
+        },
         arasaac: async () => [{ _id: 7, keywords: [{ keyword: 'x' }] }]
     };
     return db;
@@ -105,7 +112,7 @@ await t('permiso, inicio y quitar asignación (con respaldo)', async () => {
     assert(!(await call('elegir_tablero_inicio', { usuario: u1, asignacion: asg })).err && db.T.aac_users.get(u1).home_board_id === asg, 'inicio');
     assert((await call('elegir_tablero_inicio', { usuario: u2, asignacion: asg })).err, 'asignación de otro usuario');
     db.noVersions = true;
-    assert(/08_versiones/.test((await call('quitar_asignacion', { asignacion: asg })).err) && db.T.assignments.has(asg), 'sin respaldo no se quita');
+    assert(/09_guardar_version/.test((await call('quitar_asignacion', { asignacion: asg })).err) && db.T.assignments.has(asg), 'sin respaldo no se quita');
     db.noVersions = false;
     const r = await call('quitar_asignacion', { asignacion: asg });
     assert(!r.err && !db.T.assignments.has(asg) && db.T.board_versions.some(v => v.board_id === `copia:${asg}`), 'quitada con respaldo');

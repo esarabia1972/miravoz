@@ -396,6 +396,13 @@ async function resolvePictograms(cells, db) {
     return chosen;
 }
 
+/** Guarda la versión anterior: primero con la función del servidor (09), si no existe con INSERT directo (07/08). */
+async function saveVersion(db, boardId, bundle, note) {
+    try { await db.rpc('save_board_version', { p_board_id: boardId, p_bundle: bundle, p_note: note }); return; }
+    catch (err) { if (err.status !== 404) throw err; }
+    await db.insert('board_versions', { board_id: boardId, bundle, source: 'claude', note });
+}
+
 async function mutateBoard(ctx, id, note, fn) {
     const { db, user } = ctx;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -405,7 +412,7 @@ async function mutateBoard(ctx, id, note, fn) {
         const bundle = JSON.parse(JSON.stringify(row.bundle || {}));
         if (!bundle.boards) throw new E.EditError('El tablero no tiene páginas.');
         const result = await fn(bundle);
-        try { await db.insert('board_versions', { board_id: id, bundle: row.bundle, source: 'claude', note }); }
+        try { await saveVersion(db, id, row.bundle, note); }
         catch (err) { throw new E.EditError(`No se pudo guardar la versión de respaldo, así que no se hizo el cambio. ¿Falta correr supabase/07_versiones_de_tableros.sql? (detalle: ${err.message})`); }
         const now = Math.max(Date.now(), (row.bundle?.updatedAt || 0) + 1);
         Object.assign(bundle, { id, ownerId: user.id, updatedAt: now, syncedAt: now, speechModel: bundle.speechModel || 'actions' });
@@ -433,8 +440,8 @@ async function mutateCopy(ctx, asgId, note, fn) {
         const bundle = JSON.parse(JSON.stringify(row.copy_bundle || {}));
         if (!bundle.boards) throw new E.EditError('La copia no tiene páginas.');
         const result = await fn(bundle);
-        try { await db.insert('board_versions', { board_id: `copia:${asgId}`, bundle: row.copy_bundle, source: 'claude', note }); }
-        catch (err) { throw new E.EditError(`No se pudo guardar la versión de respaldo de la copia, así que no se hizo el cambio. ¿Falta correr supabase/08_versiones_de_copias.sql? (detalle: ${err.message})`); }
+        try { await saveVersion(db, `copia:${asgId}`, row.copy_bundle, note); }
+        catch (err) { throw new E.EditError(`No se pudo guardar la versión de respaldo de la copia, así que no se hizo el cambio. ¿Falta correr supabase/09_guardar_version_rpc.sql? (detalle: ${err.message})`); }
         const stamp = new Date(Math.max(Date.now(), Date.parse(row.copy_updated_at || 0) + 1)).toISOString();
         const written = await db.patch('assignments', `id=eq.${encodeURIComponent(asgId)}&copy_updated_at=eq.${encodeURIComponent(row.copy_updated_at)}`,
             { copy_bundle: cleanCopy(bundle), copy_updated_at: stamp });
@@ -579,8 +586,8 @@ async function writeTool(name, args, ctx) {
             case 'quitar_asignacion': {
                 const a = await db.select('assignments', `select=id,copy_bundle&id=eq.${encodeURIComponent(args.asignacion)}`);
                 if (!a.length) return toolError('No hay una asignación con ese id en esta cuenta.');
-                try { await db.insert('board_versions', { board_id: `copia:${a[0].id}`, bundle: a[0].copy_bundle, source: 'claude', note: 'quitar asignación' }); }
-                catch { return toolError('No se pudo guardar la versión de respaldo de la copia, así que no se quitó. ¿Falta correr supabase/08_versiones_de_copias.sql?'); }
+                try { await saveVersion(db, `copia:${a[0].id}`, a[0].copy_bundle, 'quitar asignación'); }
+                catch { return toolError('No se pudo guardar la versión de respaldo de la copia, así que no se quitó. ¿Falta correr supabase/09_guardar_version_rpc.sql?'); }
                 await db.del('assignments', `id=eq.${encodeURIComponent(a[0].id)}`);
                 return toolText({ ok: true, quitado: a[0].copy_bundle?.name || 'tablero', nota: 'Si era su tablero de inicio, la tablet queda sin tablero de inicio.' });
             }
@@ -611,7 +618,7 @@ async function writeTool(name, args, ctx) {
             case 'borrar_tablero': {
                 const rows = await db.select('boards', `select=id,name,bundle&id=eq.${encodeURIComponent(args.id)}`);
                 if (!rows.length) return toolError('No hay un tablero con ese id en esta cuenta.');
-                try { await db.insert('board_versions', { board_id: rows[0].id, bundle: rows[0].bundle, source: 'claude', note: 'borrar tablero' }); }
+                try { await saveVersion(db, rows[0].id, rows[0].bundle, 'borrar tablero'); }
                 catch { return toolError('No se pudo guardar la versión de respaldo, así que no se borró.'); }
                 const copies = await db.select('assignments', `select=id&board_id=eq.${encodeURIComponent(rows[0].id)}`);
                 await db.del('boards', `id=eq.${encodeURIComponent(rows[0].id)}`);
@@ -663,7 +670,7 @@ export function supabaseDb({ url, anonKey, token, fetchImpl = fetch }) {
         },
         async rpc(fn, body = {}) {
             const r = await fetchImpl(`${url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            if (!r.ok) throw Object.assign(new Error(`rpc ${fn}`), { status: r.status });
+            if (!r.ok) { const t = await r.text().catch(() => ''); throw Object.assign(new Error(`rpc ${fn}: ${r.status} ${t.slice(0, 200)}`), { status: r.status }); }
             return r.json();
         },
         async arasaac(word) {

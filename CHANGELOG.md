@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.8.2] - 2026-10-11
+
+- **Fixed**: guardar la versión de respaldo de una copia de usuario fallaba en producción por la política de RLS (42501). Ahora el servidor MCP usa la función `save_board_version()` (`supabase/09_guardar_version_rpc.sql`), que verifica en la base que el tablero o la asignación sea de la cuenta (también por el usuario dueño de la copia) y guarda. Si la función no está, se usa el INSERT directo como antes.
+
 ## [1.8.1] - 2026-10-11
 
 - **Fixed**: los errores al guardar una versión de respaldo (MCP) ahora incluyen el detalle de la base, para diagnosticar. La verificación de `08_versiones_de_copias.sql` comprueba que la política nueva esté aplicada (antes solo miraba el nombre, que ya existía desde el 07).
