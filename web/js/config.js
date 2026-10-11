@@ -66,7 +66,9 @@ export const settings = {
         intervalMs: 1200,        // 500-4000
         cycles: 3,               // vueltas sin activación antes de pausar
         audio: 'none'            // none | beep | speak
-    }
+    },
+    // 1.4.0: parpadeo para elegir (blink.js). mode: off | long | double · selectWith (Rostro/Iris): both | blink
+    blink: { mode: 'off', holdMs: 600, threshold: 0.5, selectWith: 'both' }
 };
 
 // Carga settings desde localforage, migrando la clave vieja de localStorage si existe (F0.1 pendiente)
@@ -82,9 +84,10 @@ export async function initSettings() {
         if (legacy) localStorage.removeItem('miravoz_dwell');
 
         if (stored && typeof stored === 'object') {
-            const scanDefaults = { ...settings.scan };
+            const scanDefaults = { ...settings.scan }, blinkDefaults = { ...settings.blink };
             Object.assign(settings, stored);
             settings.scan = { ...scanDefaults, ...(stored.scan || {}) }; // merge profundo de scan
+            settings.blink = { ...blinkDefaults, ...(stored.blink || {}) };
         }
     } catch (e) {
         console.error('Error cargando settings:', e);

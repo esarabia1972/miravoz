@@ -7,9 +7,10 @@ const assert = (c, m) => { if (!c) throw new Error(m); };
 let seed = 3; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
 
 console.log('practicar');
-t('cinco niveles en orden de dificultad; en barrido solo los que tienen botones', () => {
-    assert(LEVELS.map(l => l.id).join() === '1,2,3,4,5', 'orden');
-    assert(LEVELS.filter(l => !l.pointerOnly).map(l => l.id).join() === '3,4', 'sin puntero: 3 y 4');
+t('seis niveles en orden de dificultad; en barrido solo los que tienen botones', () => {
+    assert(LEVELS.map(l => l.id).join() === '1,2,3,4,5,6', 'orden');
+    assert(LEVELS.filter(l => !l.pointerOnly && !l.needsBlink).map(l => l.id).join() === '3,4', 'sin puntero: 3 y 4');
+    assert(LEVELS.find(l => l.id === 6).needsBlink, 'el 6 necesita el parpadeo');
 });
 t('cobertura: un pincel marca celdas una sola vez y llega a los bordes', () => {
     const g = new CoverageGrid(8, 6);

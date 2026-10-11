@@ -26,6 +26,7 @@ import { selectionContexts } from './contexts.js';
 import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
 import { failureAdvice } from './validation.js';
 import * as practice from './practice.js';
+import { BlinkDetector, eyeClosure, calibrateThreshold } from './blink.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -194,6 +195,70 @@ const pointer = new PointerController({
 document.addEventListener('visibilitychange', () => pointer.invalidate(document.hidden ? 'hidden' : 'resumed', performance.now()));
 window.addEventListener('pagehide', () => pointer.invalidate('hidden', performance.now()));
 window.addEventListener('pageshow', () => pointer.invalidate('resumed', performance.now()));
+
+// --- Parpadeo para elegir (1.4.0, blink.js) ---
+// En Barrido es el pulsador; en Rostro/Iris elige lo que estaba bajo el cursor JUSTO ANTES de cerrar los ojos
+// (al cerrar, la cara cambia un poco y en Iris el cursor se pausa: se usa la posición previa).
+const blink = new BlinkDetector();
+const cursorTrail = []; // últimas posiciones del cursor { t, x, y } (1,5 s)
+let blinkFlash = null;  // { x, y, t } para dibujar la confirmación
+let blinkCalib = null;  // muestras durante "Ajustar a esta persona"
+const blinkOn = () => settings.blink && settings.blink.mode !== 'off';
+function applyBlinkMode() {
+    blink.configure(settings.blink || {});
+    if (!blinkOn()) blink.reset();
+    // "Solo parpadeo" (Rostro/Iris): la permanencia resalta pero no elige
+    dwell.selectEnabled = !(blinkOn() && settings.blink.selectWith === 'blink' && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS'));
+}
+function cursorBefore(t) {
+    for (let i = cursorTrail.length - 1; i >= 0; i--) if (cursorTrail[i].t <= t - 60) return cursorTrail[i];
+    return cursorTrail[0] || null;
+}
+tracking.setFaceListener((fd, t) => {
+    const c = fd ? eyeClosure(fd.eyes) : null;
+    if (blinkCalib && c !== null) blinkCalib.push(c);
+    if (!blinkOn()) return;
+    const r = blink.push(c, t);
+    if (r.fire) onBlinkFire(r.closedAt);
+});
+function onBlinkFire(closedAt) {
+    const now = performance.now();
+    if (calibSession || editor.isEditMode() || selectionContexts.isPaused() || blinkCalib) return;
+    if (!['HOME', 'BOARD', 'PRACTICE'].includes(S.state)) return;
+    if (S.state === 'PRACTICE' && practice.wantsBlink()) { practice.onBlink(); return; }
+    if (S.trackingMode === 'SCAN') {
+        if (scan.activate()) blinkFlash = { x: canvasUI.width / 2, y: 70, t: now };
+        return;
+    }
+    if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+    // Si la permanencia acaba de elegir (mismo gesto largo sobre la celda), no se elige dos veces
+    if (now - dwell.lastClickTime < CONFIG.DWELL_COOLDOWN_MS + 400) return;
+    const p = cursorBefore(closedAt);
+    if (!p) return;
+    const target = dwell.targetAt(p.x, p.y);
+    blinkFlash = { x: p.x, y: p.y, t: now };
+    if (!target) return;
+    dwell.markSelected(now);
+    selectTarget(target);
+}
+function drawBlink(now) {
+    if (!blinkOn()) return;
+    const prog = blink.progress(now);
+    const scanning = S.trackingMode === 'SCAN';
+    const last = cursorTrail[cursorTrail.length - 1];
+    const at = scanning ? { x: canvasUI.width / 2, y: 70 } : (blink.closed ? cursorBefore(blink.closedAt) : null) || last;
+    if (prog > 0 && at) {
+        ctxUI.beginPath();
+        ctxUI.arc(at.x, at.y, 30, -Math.PI / 2, -Math.PI / 2 + prog * 2 * Math.PI);
+        ctxUI.lineWidth = 7; ctxUI.strokeStyle = '#4fc3f7'; ctxUI.stroke();
+    }
+    if (blinkFlash && now - blinkFlash.t < 450) {
+        const k = (now - blinkFlash.t) / 450;
+        ctxUI.beginPath();
+        ctxUI.arc(blinkFlash.x, blinkFlash.y, 20 + 30 * k, 0, 2 * Math.PI);
+        ctxUI.lineWidth = 6 * (1 - k); ctxUI.strokeStyle = '#4fc3f7'; ctxUI.stroke();
+    }
+}
 
 // --- Motor de barrido (F2) ---
 const scan = new ScanEngine(selectTarget);
@@ -472,6 +537,9 @@ function applyMode(mode) {
     if (S.trackingMode === 'CLICKS' || S.trackingMode === 'SCAN') {
         S.isCalibrated = false;
         tracking.stopMediaPipe();
+        // 1.4.0: en Barrido con parpadeo, la cámara queda encendida solo para el pulsador (sin cursor ni calibración)
+        tracking.setScanCamera(S.trackingMode === 'SCAN' && blinkOn());
+        if (S.trackingMode === 'SCAN' && blinkOn()) tracking.startMediaPipe();
         resetFilters();
         dwell.reset();
         ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
@@ -495,6 +563,7 @@ function applyMode(mode) {
         tracking.startMediaPipe();
         beginCameraAccess();
     }
+    applyBlinkMode();
 }
 
 // --- Navegación Home/Board ---
@@ -579,6 +648,7 @@ practice.initPractice({
     setTargets: (t) => { if (S.state === 'PRACTICE') selectionContexts.setBase(t); },
     mode: () => S.trackingMode,
     scope: () => profileScope(),
+    blinkInfo: () => ({ available: blinkOn() && tracking.isRunning(), mode: settings.blink.mode, value: blink.value, threshold: blink.threshold }),
     onExit: () => {
         pointer.invalidate('context', performance.now());
         if (S.currentBundle) { S.state = 'BOARD'; selectionContexts.setBase(boards.activeGridElements); }
@@ -662,6 +732,55 @@ function wireScanSetting(id, key, isNumber = false) {
     el.addEventListener('change', (e) => {
         const value = isNumber ? parseInt(e.target.value, 10) : e.target.value;
         saveSettings({ scan: { ...settings.scan, [key]: value } });
+    });
+}
+
+// --- Configuración del parpadeo (1.4.0) ---
+function wireBlinkSettings() {
+    const mode = document.getElementById('blink-mode'), hold = document.getElementById('blink-hold'), sel = document.getElementById('blink-select');
+    const status = document.getElementById('blink-status'), adjust = document.getElementById('btn-blink-adjust');
+    if (!mode) return;
+    const refresh = () => {
+        mode.value = settings.blink.mode; hold.value = String(settings.blink.holdMs); sel.value = settings.blink.selectWith;
+        document.getElementById('blink-hold-wrap').hidden = settings.blink.mode !== 'long';
+        document.getElementById('blink-options').hidden = settings.blink.mode === 'off';
+    };
+    refresh();
+    const save = async (patch) => {
+        await saveSettings({ blink: { ...settings.blink, ...patch } });
+        refresh();
+        // Barrido: encender o apagar la cámara del pulsador según corresponda
+        if (S.trackingMode === 'SCAN' && 'mode' in patch) applyMode('SCAN'); else applyBlinkMode();
+    };
+    mode.addEventListener('change', () => save({ mode: mode.value }));
+    hold.addEventListener('change', () => save({ holdMs: parseInt(hold.value, 10) }));
+    sel.addEventListener('change', () => save({ selectWith: sel.value }));
+    adjust.addEventListener('click', async () => {
+        if (!tracking.isRunning()) {
+            status.textContent = 'Para ajustar, la cámara tiene que estar encendida: elegí Rostro, o Barrido con el parpadeo activado.';
+            return;
+        }
+        adjust.disabled = true;
+        const phase = async (text, ms) => {
+            status.textContent = text; speak(text, { cancelPrevious: true });
+            await new Promise(r => setTimeout(r, 900)); // tiempo de reacción: no se mide
+            blinkCalib = [];
+            await new Promise(r => setTimeout(r, ms));
+            const got = blinkCalib; blinkCalib = null; return got;
+        };
+        const open = await phase('Mirá la pantalla con los ojos abiertos. Mirá también la parte de abajo.', 4000);
+        const closed = await phase('Ahora cerrá los ojos.', 2500);
+        speak('Listo, ya podés abrir los ojos.', { cancelPrevious: true });
+        const r = calibrateThreshold(open, closed);
+        if (r.ok) {
+            await save({ threshold: r.threshold });
+            status.textContent = `Listo: ajustado a esta persona (umbral ${r.threshold.toFixed(2)}).`;
+        } else {
+            status.textContent = r.reason === 'pocas-muestras'
+                ? 'No se vio bien la cara durante el ajuste. Revisá la luz y probá de nuevo.'
+                : 'Los ojos abiertos y cerrados se parecen demasiado para la cámara: probá con más luz, sin anteojos con reflejo, o usá permanencia.';
+        }
+        adjust.disabled = false;
     });
 }
 
@@ -766,9 +885,14 @@ function appLoop() {
             const r = pointer.step(tracking.latestSample, now);
             S.smoothX = r.x; S.smoothY = r.y;
             if (S.state === 'PRACTICE') practice.tickPractice(now, r.x !== null ? { x: r.x, y: r.y } : null);
+            if (r.x !== null) {
+                cursorTrail.push({ t: now, x: r.x, y: r.y });
+                while (cursorTrail.length && cursorTrail[0].t < now - 1500) cursorTrail.shift();
+            }
             if (r.x !== null) drawCursor(r.x, r.y);
             else if (S.isCalibrated) { const msg = pauseMessage(r.reason); if (msg) drawPauseMessage(msg); }
         }
+        if (!calibSession) drawBlink(now);
     } catch (e) {
         console.error('Error en appLoop (el loop continúa):', e);
     }
@@ -1054,7 +1178,8 @@ if (urlParams.get('diag') === '1') {
             `inferencia p50/p95 ${v.inferP50 ?? '-'}/${v.inferP95 ?? '-'} ms · captura→resultado ${v.latencyP50 ?? '-'}/${v.latencyP95 ?? '-'} ms`,
             `resultados/s ${v.resultsPerSec} · descartados ${v.dropped} · antigüedad muestra ${v.sampleAgeMs ?? '-'} ms`,
             `muestra ${s ? (s.valid ? 'válida' : 'inválida: ' + s.reason) : '-'} · puntero ${pointer.invalid ? 'en pausa (' + pointer.reason + ')' : 'activo'}`,
-            `perfil ${prof ? `${prof.validation?.status || 'sin verificar'} rev ${prof.revision || '-'}` : '-'} · contexto ${selectionContexts.top()?.name || 'tablero'}`
+            `perfil ${prof ? `${prof.validation?.status || 'sin verificar'} rev ${prof.revision || '-'}` : '-'} · contexto ${selectionContexts.top()?.name || 'tablero'}`,
+            `parpadeo ${settings.blink.mode} · cierre ${blink.value == null ? '-' : blink.value.toFixed(2)} · umbral ${blink.threshold.toFixed(2)}${blink.closed ? ' · CERRADO' : ''}`
         ].join('\n');
     }, 500);
     setInterval(() => { if (perfSnapshots.length < 720) perfSnapshots.push({ t: Math.round(performance.now() / 1000), ...tracking.visionStats() }); }, 10000);
@@ -1108,6 +1233,7 @@ setTimeout(() => {
 (async function init() {
     initTheme();
     await withTimeout(initSettings(), 3000);
+    applyBlinkMode();
     offline.configureUpdates({
         isSafeMoment: () => !calibSession && getSentence().length === 0,
         onUpdateReady: () => { const b = document.getElementById('btn-apply-update'); if (b) b.hidden = false; }
@@ -1119,6 +1245,7 @@ setTimeout(() => {
     wireScanSetting('scan-pattern', 'pattern');
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
+    wireBlinkSettings();
     editor.initEditor();
     initUsers();
     renderSentence();

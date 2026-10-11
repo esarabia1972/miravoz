@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=51">
+    <link rel="stylesheet" href="style.css?v=52">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -504,6 +504,42 @@
                 </div>
             </section>
 
+            <section class="settings-section" id="setting-blink">
+                <h3>Parpadeo</h3>
+                <p class="settings-help">Elegir parpadeando, con la cámara. En Barrido reemplaza al pulsador; en Rostro e Iris elige lo que está bajo el cursor. Los parpadeos comunes no cuentan.</p>
+                <div class="settings-grid">
+                    <div>
+                        <label for="blink-mode">Usar el parpadeo</label>
+                        <select id="blink-mode" class="glass-select">
+                            <option value="off" selected>No</option>
+                            <option value="long">Parpadeo largo</option>
+                            <option value="double">Doble parpadeo</option>
+                        </select>
+                    </div>
+                    <div id="blink-hold-wrap" hidden>
+                        <label for="blink-hold">Ojos cerrados durante</label>
+                        <select id="blink-hold" class="glass-select">
+                            <option value="400">0,4 segundos</option>
+                            <option value="600" selected>0,6 segundos</option>
+                            <option value="800">0,8 segundos</option>
+                            <option value="1000">1 segundo</option>
+                            <option value="1500">1,5 segundos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="blink-select">En Rostro e Iris, elegir con</label>
+                        <select id="blink-select" class="glass-select">
+                            <option value="both" selected>Parpadeo o permanencia</option>
+                            <option value="blink">Solo parpadeo</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="blink-options" hidden>
+                    <button type="button" class="btn btn-secondary" id="btn-blink-adjust">Ajustar a esta persona</button>
+                    <p class="settings-help" id="blink-status" role="status" aria-live="polite">Conviene ajustarlo una vez con cada persona: tarda unos 8 segundos.</p>
+                </div>
+            </section>
+
             <section class="settings-section" id="setting-voice">
                 <button type="button" class="btn btn-secondary" id="btn-test-voice">Probar voz</button>
                 <p class="settings-help" id="voice-status" role="status"></p>
@@ -527,6 +563,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=78"></script>
+    <script type="module" src="js/main.js?v=79"></script>
 </body>
 </html>

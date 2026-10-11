@@ -9,6 +9,7 @@ export class DwellEngine {
         this.targets = [];          // [{element, data, isBoardCard, isAccBtn}]
         this.rects = [];            // [{target, rect}] — cache (F1-6)
         this.lastRectRefresh = 0;
+        this.selectEnabled = true; // 1.4.0: con "solo parpadeo" la permanencia resalta pero no elige
         this.reset();
 
         window.addEventListener('resize', () => this.refreshRects());
@@ -50,6 +51,19 @@ export class DwellEngine {
             if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return target;
         }
         return null;
+    }
+
+    /** Objetivo bajo (x, y) con los rects actuales (para elegir con el parpadeo). */
+    targetAt(x, y) {
+        if (performance.now() - this.lastRectRefresh > CONFIG.RECT_REFRESH_MS) this.refreshRects();
+        return this._hitTest(x, y);
+    }
+
+    /** Se eligió por otra vía (parpadeo): reinicia la permanencia y respeta la pausa posterior. */
+    markSelected(now) {
+        this._clearVisual(this.currentTarget);
+        this.currentTarget = null; this.candidateTarget = null;
+        this.dwellStartTime = now; this.lastClickTime = now;
     }
 
     _bar(target) {
@@ -99,6 +113,7 @@ export class DwellEngine {
         }
 
         if (!this.currentTarget) return;
+        if (!this.selectEnabled) return; // se resalta lo que está bajo el cursor; elige el parpadeo
 
         if (now - this.lastClickTime <= CONFIG.DWELL_COOLDOWN_MS) {
             // En cooldown: no acumula progreso

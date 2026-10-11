@@ -11,7 +11,7 @@ import { LEVELS, CoverageGrid, noteForY, nextBalloonSize, balloonPosition, BALLO
     followPosition, nextLoopSeconds, FOLLOW, appendLog, summarize, hintFor } from './practice-logic.js';
 import { speak } from './speech.js';
 
-let deps = { setTargets() {}, mode: () => 'CLICKS', scope: () => 'prueba', onExit() {} };
+let deps = { setTargets() {}, mode: () => 'CLICKS', scope: () => 'prueba', onExit() {}, blinkInfo: () => ({ available: false, mode: 'off', value: null, threshold: 0.5 }) };
 export function initPractice(d) { deps = { ...deps, ...d }; }
 
 let view = null, backBtn, titleEl, hintEl, counterEl, stage, canvas, ctx;
@@ -24,6 +24,9 @@ let bgInert = [];
 
 export function isOpen() { return isOpenFlag; }
 export function targets() { return targetsList; }
+/** 1.4.0: en "Parpadear" el parpadeo revienta el globo (no elige lo que está bajo el cursor). */
+export function wantsBlink() { return !!(isOpenFlag && activity && level && level.needsBlink); }
+export function onBlink() { if (wantsBlink() && activity.onBlink) activity.onBlink(); }
 function setTargets(list) { targetsList = list; if (isOpenFlag) deps.setTargets(list); }
 
 // Botón accesible por permanencia/barrido: se activa con click (toque directo, o el click sintético de la
@@ -228,7 +231,8 @@ function showMenu() {
     const log = readLog();
     const list = [];
     for (const lv of LEVELS) {
-        const disabled = scan && lv.pointerOnly;
+        const blinkInfo = deps.blinkInfo();
+        const disabled = (scan && lv.pointerOnly) || (lv.needsBlink && !blinkInfo.available);
         const card = makeButton('practice-card', `${lv.title}`, () => { if (!disabled) startLevel(lv); });
         card.style.setProperty('--lv', String(lv.id));
         const num = document.createElement('span'); num.className = 'practice-card-num'; num.textContent = String(lv.id);
@@ -236,7 +240,7 @@ function showMenu() {
         const s = document.createElement('span'); s.className = 'practice-card-skill'; s.textContent = lv.skill;
         const last = [...log].reverse().find(e => e.level === lv.id);
         const sub = document.createElement('span'); sub.className = 'practice-card-last';
-        sub.textContent = disabled ? 'Con Rostro, Iris o Manual' : (last ? `Última vez: ${summarize(last)}` : '');
+        sub.textContent = disabled ? (lv.needsBlink ? 'Activá el parpadeo en Configuración' : 'Con Rostro, Iris o Manual') : (last ? `Última vez: ${summarize(last)}` : '');
         card.append(num, t, s, sub);
         if (disabled) { card.classList.add('is-disabled'); card.setAttribute('aria-disabled', 'true'); }
         else list.push(asTarget(card));
@@ -254,7 +258,7 @@ function startLevel(lv) {
     activity = ACTIVITIES[lv.key]();
     activity.startedAt = Date.now();
     activity.start(performance.now());
-    speak(hintFor(lv, deps.mode()), { cancelPrevious: true });
+    speak(hintFor(lv, deps.mode(), deps.blinkInfo().mode), { cancelPrevious: true });
 }
 function restartActivity() { if (!level) return; const lv = level; stopActivity(); startLevel(lv); }
 function stopActivity() {
@@ -297,7 +301,7 @@ const ACTIVITIES = {
         let w, h, grid, last, moveAcc = 0, lastNote = 0, lastMoveAt = 0, hue = Math.random() * 360, done = 0, activeMs = 0;
         return {
             start(now) {
-                setHeader(level.title, hintFor(level, deps.mode()), '');
+                setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), '');
                 canvas.style.display = 'block';
                 ({ w, h } = sizeCanvas());
                 ctx.fillStyle = pal().bg; ctx.fillRect(0, 0, w, h);
@@ -347,7 +351,7 @@ const ACTIVITIES = {
         }
         return {
             start() {
-                setHeader(level.title, hintFor(level, deps.mode()), '');
+                setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), '');
                 canvas.style.display = 'block';
                 ({ w, h } = sizeCanvas());
                 newScene();
@@ -416,7 +420,7 @@ const ACTIVITIES = {
         return {
             start(now) {
                 canvas.style.display = 'none';
-                setHeader(level.title, hintFor(level, deps.mode()), 'Globos: 0');
+                setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), 'Globos: 0');
                 measureStage(); w = stageRect.width; h = stageRect.height;
                 layer = document.createElement('div'); layer.className = 'practice-layer practice-balloons';
                 el = makeButton('practice-balloon', 'Globo', pop);
@@ -477,7 +481,7 @@ const ACTIVITIES = {
                 canvas.style.display = 'none';
                 layer = document.createElement('div'); layer.className = 'practice-layer practice-choices';
                 stage.appendChild(layer);
-                setHeader(level.title, hintFor(level, deps.mode()), 'Elecciones: 0');
+                setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), 'Elecciones: 0');
                 round();
             },
             tick() {},
@@ -490,7 +494,7 @@ const ACTIVITIES = {
         let w, h, t = 0, loop = FOLLOW.loopSeconds, onMs = 0, presentMs = 0, sumOn = 0, done = 0;
         return {
             start() {
-                setHeader(level.title, hintFor(level, deps.mode()), '');
+                setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), '');
                 canvas.style.display = 'block';
                 ({ w, h } = sizeCanvas());
                 humStart();
@@ -556,6 +560,58 @@ function burst(layer, cx, cy, size, color) {
     layer.appendChild(b);
     setTimeout(() => b.remove(), 900);
 }
+
+// --- 6. Parpadear: un globo grande en el centro; el parpadeo voluntario lo revienta ---
+// Abajo, una barra muestra cuánto se cierran los ojos y la línea del umbral: sirve para que la persona
+// de apoyo vea si la cámara distingue el parpadeo (y si hace falta "Ajustar a esta persona").
+ACTIVITIES.blink = function () {
+    let layer, el, meter, fill, mark, done = 0, popping = false, w, h, size;
+    const COLORS = ['#b28dff', '#4cc9f0', '#ff5d73', '#7bd389', '#ffb547'];
+    function spawn() {
+        el.classList.remove('pop');
+        el.style.setProperty('--balloon', COLORS[done % COLORS.length]);
+        el.style.transition = 'none';
+        Object.assign(el.style, { left: `${(w - size) / 2}px`, top: `${(h - size) / 2 - 20}px`, width: `${size}px`, height: `${size}px` });
+        void el.offsetWidth; el.style.transition = '';
+        popping = false;
+    }
+    return {
+        start() {
+            setHeader(level.title, hintFor(level, deps.mode(), deps.blinkInfo().mode), 'Globos: 0');
+            canvas.style.display = 'none';
+            measureStage(); w = stageRect.width; h = stageRect.height;
+            size = Math.min(w, h) * 0.42;
+            layer = document.createElement('div'); layer.className = 'practice-layer practice-balloons';
+            el = document.createElement('div'); el.className = 'practice-target practice-balloon practice-balloon-static'; el.setAttribute('aria-hidden', 'true');
+            meter = document.createElement('div'); meter.className = 'practice-blink-meter';
+            fill = document.createElement('div'); fill.className = 'practice-blink-fill';
+            mark = document.createElement('div'); mark.className = 'practice-blink-mark';
+            const cap = document.createElement('span'); cap.className = 'practice-blink-cap'; cap.textContent = 'Ojos cerrados';
+            meter.append(fill, mark, cap);
+            layer.append(el, meter); stage.appendChild(layer);
+            spawn();
+            setTargets([asTarget(backBtn)]);
+        },
+        tick() {
+            const b = deps.blinkInfo();
+            const v = Number.isFinite(b.value) ? b.value : 0;
+            fill.style.width = `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
+            fill.classList.toggle('is-closed', v >= b.threshold);
+            mark.style.left = `${Math.round(b.threshold * 100)}%`;
+        },
+        onBlink() {
+            if (popping) return;
+            popping = true; done++;
+            popSound();
+            el.classList.add('pop');
+            burst(layer, w / 2, (h - size) / 2 - 20 + size / 2, size, COLORS[(done - 1) % COLORS.length]);
+            counterEl.textContent = `Globos: ${done}`;
+            if (done % 5 === 0) praise();
+            setTimeout(() => { if (activity && layer.isConnected) spawn(); }, 700);
+        },
+        stop() { return { done }; }
+    };
+};
 
 // --- Íconos de "Elegir" (SVG fijo) ---
 const ICONS = {

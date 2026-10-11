@@ -2,6 +2,18 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.4.0] - 2026-10-11
+
+- **Added**: **parpadeo para elegir** (Configuración → Parpadeo), con la cámara y los blendshapes de FaceLandmarker (`web/js/blink.js`, puro y testeado).
+  - Dos gestos que no se confunden con el parpadeo reflejo: *parpadeo largo* (ojos cerrados 0,4–1,5 s, por defecto 0,6) o *doble parpadeo*. Histéresis y período refractario: no se encadenan selecciones.
+  - En **Barrido** reemplaza al pulsador: la cámara se enciende solo para eso (sin cursor ni calibración).
+  - En **Rostro e Iris** elige lo que estaba bajo el cursor justo antes de cerrar los ojos. Se puede usar junto con la permanencia o "solo parpadeo" (la permanencia resalta pero no elige: se termina el efecto Midas).
+  - Anillo celeste que se llena mientras los ojos están cerrados y destello al elegir.
+  - **Ajustar a esta persona**: 4 s con ojos abiertos (mirando también abajo) y 2,5 s cerrados fijan su umbral; avisa si la cámara no los distingue.
+- **Added**: nivel 6 de Practicar, **Parpadear**: un globo grande que se revienta parpadeando, con una barra que muestra cuánto se cierran los ojos y el umbral (para la persona de apoyo).
+- **Changed**: el menú de Practicar pasa a 3 columnas (6 tarjetas más grandes).
+- El panel de diagnóstico (`?diag=1`) muestra el cierre de ojos y el umbral.
+
 ## [1.3.3] - 2026-10-11
 
 - **Removed**: el panel "Configuración de su tablet" de Mis usuarios. El modo de acceso, la permanencia y el barrido se configuran en la propia tablet (Configuración); lo guardado antes desde la cuenta registrada ya no se aplica.

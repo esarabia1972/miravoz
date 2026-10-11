@@ -1452,8 +1452,8 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .practice-back { min-width: 170px; min-height: 80px; padding: 10px 18px 10px 14px; border-radius: 16px; background: var(--pr-surface); font: 700 1.05rem 'Inter', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .practice-back::before { content: '‹'; font-size: 1.6rem; line-height: 1; margin-top: -3px; }
 
-.practice-menu { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 24px; box-sizing: border-box; align-content: center; }
-@media (max-width: 900px), (orientation: portrait) { .practice-menu { grid-template-columns: repeat(3, 1fr); } }
+.practice-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 24px; box-sizing: border-box; align-content: center; }
+@media (orientation: portrait) { .practice-menu { grid-template-columns: repeat(2, 1fr); } }
 .practice-card { min-height: 220px; border-radius: 22px; padding: 18px 14px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;
   background: linear-gradient(160deg, hsl(calc(var(--lv) * 62 + 150) 70% 32%), hsl(calc(var(--lv) * 62 + 170) 60% 20%)); }
 .practice-card-num { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; background: rgba(255,255,255,0.18); }
@@ -1506,3 +1506,11 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .new-user-content label[for="new-user-name"] { display: block; margin: 4px 0 8px; font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
 .new-user-content .modal-header { margin-bottom: 14px; }
 .new-user-content .modal-footer { margin-top: 22px; }
+
+/* Practicar 6 · Parpadear (1.4.0) */
+.practice-balloon-static { cursor: default; pointer-events: none; }
+.practice-blink-meter { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(70%, 520px); height: 22px; border-radius: 999px; background: var(--pr-surface); border: 1px solid var(--pr-border); overflow: visible; }
+.practice-blink-fill { height: 100%; width: 0; border-radius: 999px; background: #4fc3f7; transition: width 0.08s linear; }
+.practice-blink-fill.is-closed { background: var(--accent); }
+.practice-blink-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; background: var(--pr-fg); opacity: 0.7; border-radius: 2px; }
+.practice-blink-cap { position: absolute; right: 0; top: -24px; font-size: 0.85rem; color: var(--pr-muted); }

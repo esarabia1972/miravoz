@@ -149,6 +149,14 @@ export function recentFeatures(ms, skipMs = 0) {
 // Procesamiento común a ambos motores
 let fpsWindowStart = 0, fpsFrames = 0;
 let waitingFirstFrame = false;
+// 1.4.0: cada cuadro de cara (o su ausencia) se avisa al detector de parpadeo de main.js
+let faceListener = null;
+export function setFaceListener(fn) { faceListener = fn; }
+// En Barrido la cámara solo se usa si el parpadeo está activado (como pulsador)
+let scanCamera = false;
+export function setScanCamera(on) { scanCamera = !!on; }
+export function isRunning() { return running; }
+
 function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
     const now = performance.now();
     if (latencies.length >= 300) latencies.shift();
@@ -167,9 +175,11 @@ function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
         // M01: sin cara no hay cursor en NINGÚN modo (antes en Rostro quedaba congelado y el dwell seguía)
         latestSample = buildSample({ ...sampleBase, face: false });
         S.rawX = null; S.rawY = null;
+        if (faceListener) try { faceListener(null, capturedAt); } catch (e) { console.error(e); }
         return;
     }
     faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, iris: irisInEye(landmarks), t: now };
+    if (faceListener) try { faceListener(faceData, capturedAt); } catch (e) { console.error(e); }
     currentFeatures = extractFeatures(faceData, S.trackingMode);
     if (currentFeatures) {
         recent.push({ t: now, f: currentFeatures });
@@ -462,7 +472,7 @@ function cameraError(e) {
 }
 
 export function startMediaPipe() {
-    if (S.trackingMode === 'CLICKS' || S.trackingMode === 'SCAN') return;
+    if (S.trackingMode === 'CLICKS' || (S.trackingMode === 'SCAN' && !scanCamera)) return;
     if (running) return;
     running = true;
     const gen = ++generation;

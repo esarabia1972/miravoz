@@ -18,10 +18,13 @@ export const LEVELS = [
     { id: 4, key: 'choose',  title: 'Elegir',            skill: 'Elegir',         pointerOnly: false,
       hint: 'Elegí qué querés escuchar.', hintScan: 'Elegí qué querés escuchar: cuando se ilumine, tocá la pantalla o el pulsador.' },
     { id: 5, key: 'follow',  title: 'Seguir',            skill: 'Seguir',         pointerOnly: true,
-      hint: 'Seguí a la luciérnaga con el cursor.', hintTouch: 'Seguí a la luciérnaga con el dedo.' }
+      hint: 'Seguí a la luciérnaga con el cursor.', hintTouch: 'Seguí a la luciérnaga con el dedo.' },
+    { id: 6, key: 'blink',   title: 'Parpadear',         skill: 'Parpadeo',       pointerOnly: false, needsBlink: true,
+      hint: 'Cerrá los ojos un momento para reventar el globo.', hintDouble: 'Parpadeá dos veces seguidas para reventar el globo.' }
 ];
 /** Consigna según el modo de acceso (CARA/OJOS: cursor; CLICKS: dedo; SCAN: pulsador). */
-export function hintFor(level, mode) {
+export function hintFor(level, mode, blinkMode = 'long') {
+    if (level.needsBlink) return blinkMode === 'double' ? level.hintDouble : level.hint;
     if (mode === 'SCAN' && level.hintScan) return level.hintScan;
     if (mode === 'CLICKS' && level.hintTouch) return level.hintTouch;
     return level.hint;
@@ -121,6 +124,7 @@ export function summarize(entry) {
         case 3: return `${entry.done || 0} globo(s)`;
         case 4: return `${entry.done || 0} elección(es)`;
         case 5: return `${Math.round((entry.onTargetFrac || 0) * 100)}% del tiempo siguiéndola`;
+        case 6: return `${entry.done || 0} globo(s) con parpadeo`;
         default: return '';
     }
 }

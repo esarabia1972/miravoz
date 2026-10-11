@@ -508,7 +508,7 @@ if (caseArg === 'practicar') {
     const pv = $('practice-view');
     check('Practicar abre su pantalla y el estado PRACTICE', pv && !pv.hidden && S.state === 'PRACTICE', `${S.state}`);
     const cardsP = [...pv.querySelectorAll('.practice-card')];
-    check('5 niveles en el menú', cardsP.length === 5, String(cardsP.length));
+    check('6 niveles en el menú; Parpadear deshabilitado sin parpadeo', cardsP.length === 6 && cardsP[5].classList.contains('is-disabled'), String(cardsP.length));
     const base = selectionContexts.baseTargets ? selectionContexts.baseTargets() : null;
     void base;
     // Nivel 3: globos
@@ -519,7 +519,7 @@ if (caseArg === 'practicar') {
     check('reventar el globo cuenta', /Globos: 1/.test(pv.querySelector('.practice-counter').textContent), pv.querySelector('.practice-counter').textContent);
     // Volver al menú y abrir Elegir
     pv.querySelector('.practice-back').click(); await sleep(20);
-    check('"Actividades" vuelve al menú', pv.querySelectorAll('.practice-card').length === 5, '');
+    check('"Actividades" vuelve al menú', pv.querySelectorAll('.practice-card').length === 6, '');
     pv.querySelectorAll('.practice-card')[3].click(); await sleep(20);
     const opts = pv.querySelectorAll('.practice-choice');
     check('nivel 4 empieza con 2 opciones', opts.length === 2, String(opts.length));
