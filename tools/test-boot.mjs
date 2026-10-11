@@ -349,6 +349,14 @@ if (caseArg === 'paginas') {
     delBtn.click();
     await sleep(50);
     check('pide confirmación antes de borrar la página', /Borrar la página/.test($('dialog-message').textContent), $('dialog-message').textContent);
+    {
+        const { selectionContexts } = await import(pathToFileURL(path.join(WEB, 'js/contexts.js')).href);
+        const top = selectionContexts.top();
+        const ids = top ? top.getTargets().map(t => t.element.id) : [];
+        check('M03: el diálogo es el contexto activo y sus botones (Cancelar y Aceptar) son los objetivos', top && top.name === 'dialog' && ids.includes('btn-dialog-ok') && ids.includes('btn-dialog-cancel'), JSON.stringify(ids));
+        boards.renderGrid(S.currentGridId); // el tablero se redibuja detrás (p. ej. una sincronización)
+        check('M03: redibujar el tablero no le quita el control al diálogo', selectionContexts.top() === top, 'cambió el contexto');
+    }
     document.getElementById('btn-dialog-ok').click();
     await sleep(150);
     check('"Borrar página" la borra (con confirmación) y la de inicio pasa a otra', Object.keys(store.get(b.id).boards).length === 3 && store.get(b.id).boards[store.get(b.id).mainBoard], JSON.stringify(Object.keys(store.get(b.id).boards)));
@@ -446,14 +454,16 @@ if (caseArg === 'asterics') {
     const n0 = ui.getSentence().length;
     await tap('cell-2-0');
     check('"y" en una página común es una palabra: se dice y va a la frase', spoken.includes('y') && ui.getSentence().length === n0 + 1, JSON.stringify(spoken));
-    let overlayTargets = 'sin evento';
-    document.addEventListener('miravoz-overlay', (e) => { overlayTargets = e.detail.targets; }, { once: true });
+    const { selectionContexts } = await import(pathToFileURL(path.join(WEB, 'js/contexts.js')).href);
     await tap('cell-3-0');
     const ov = document.getElementById('webpage-overlay');
-    check('abrir página web: panel con "Volver" y la mirada apunta solo a ese botón', ov && Array.isArray(overlayTargets) && overlayTargets.length === 1 && overlayTargets[0].element.textContent === 'Volver al tablero'
-        && !/allow-popups/.test(ov.querySelector('iframe').getAttribute('sandbox')), JSON.stringify({ ov: !!ov, t: typeof overlayTargets }));
+    const top = selectionContexts.top();
+    const overlayTargets = top ? top.getTargets() : [];
+    check('abrir página web: panel con "Volver" y la mirada apunta solo a ese botón', ov && top && top.name === 'webpage' && overlayTargets.length === 1 && /Volver al tablero/.test(overlayTargets[0].element.textContent)
+        && !/allow-popups/.test(ov.querySelector('iframe').getAttribute('sandbox')), JSON.stringify({ ov: !!ov, top: top && top.name }));
+    check('con la página abierta, el tablero de abajo queda inerte', document.getElementById('board-view').inert === true, String(document.getElementById('board-view').inert));
     ov.querySelector('button').click();
-    check('"Volver al tablero" cierra la página', !document.getElementById('webpage-overlay'), 'sigue abierta');
+    check('"Volver al tablero" cierra la página y vuelve el tablero', !document.getElementById('webpage-overlay') && !selectionContexts.isBlocked() && document.getElementById('board-view').inert === false, 'sigue abierta');
     const media = await import(pathToFileURL(path.join(WEB, 'js/media.js')).href);
     media.openWebpage({ openURL: location.origin + '/otra' });
     check('nunca abre el propio MiraVoz dentro del panel', !document.getElementById('webpage-overlay'), 'se abrió');

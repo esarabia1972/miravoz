@@ -7,6 +7,7 @@
 // timeoutSeconds (como Asterics), porque con la mirada no se puede usar una pestaña nueva.
 
 import { showInfoToast } from './ui.js';
+import { selectionContexts, buttonTargets } from './contexts.js';
 
 let radio = null;          // HTMLAudioElement
 let radioList = [];        // emisoras del tablero abierto
@@ -73,13 +74,14 @@ export function radioAction(action, bundle) {
 // --- Página web ---
 let webTimer = null;
 
-// Mientras la página está abierta, la mirada y el barrido apuntan SOLO al botón "Volver" (main.js escucha)
-const overlayEvent = (targets) => document.dispatchEvent(new CustomEvent('miravoz-overlay', { detail: { targets } }));
+// Mientras la página está abierta, la mirada y el barrido apuntan SOLO al botón "Volver" (contexto M03)
+let webToken = null;
 
 export function closeWebpage() {
     if (webTimer) { clearTimeout(webTimer); webTimer = null; }
     const ov = document.getElementById('webpage-overlay');
-    if (ov) { ov.remove(); overlayEvent(null); }
+    if (ov) ov.remove();
+    if (webToken !== null) { selectionContexts.pop(webToken); webToken = null; }
 }
 
 /** Muestra una página web encima del tablero (solo http/https). */
@@ -110,7 +112,7 @@ export function openWebpage(action) {
     // Vuelve sola (como Asterics). Sin tiempo configurado: 60 s, para que nadie quede atrapado
     const secs = Number(action.timeoutSeconds) > 0 ? Math.min(Number(action.timeoutSeconds), 600) : 60;
     webTimer = setTimeout(closeWebpage, secs * 1000);
-    overlayEvent([{ element: back, data: null, isAccBtn: true }]);
+    webToken = selectionContexts.push('webpage', () => buttonTargets([back]), { element: ov });
 }
 
 // --- Audio grabado (GridActionAudio) ---

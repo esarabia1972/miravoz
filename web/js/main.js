@@ -20,6 +20,7 @@ import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 import { initTheme } from './theme.js';
 import { PointerController, pauseMessage } from './selection.js';
+import { selectionContexts } from './contexts.js';
 import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
 import { failureAdvice } from './validation.js';
 
@@ -201,9 +202,8 @@ function onSwitchActivate(e) {
     if (now - lastSwitchActivation < 250) return; // debounce (switches 3D rebotan)
     lastSwitchActivation = now;
 
-    // No interceptar interacciones con modales/settings abiertos
-    const modalOpen = [...document.querySelectorAll('.modal-overlay')].some(m => m.style.display !== 'none');
-    if (modalOpen) return;
+    // Paneles del acompañante: el pulsador no activa nada detrás. Un diálogo SÍ se maneja con el pulsador (M03).
+    if (selectionContexts.isPaused()) return;
 
     if (scan.activate()) {
         if (e.cancelable) e.preventDefault();
@@ -223,19 +223,34 @@ window.addEventListener('pointerdown', (e) => {
 // --- Benchmark (F1-7) ---
 const benchmark = new Benchmark();
 
-// --- Hooks de boards ---
-boards.hooks.onGridRendered = (targets) => { dwell.setTargets(targets); scan.setTargets(targets); };
-boards.hooks.onHomeRendered = (targets) => {
-    if (S.state === 'HOME') { dwell.setTargets(targets); scan.setTargets(targets); }
-};
-boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
-// Página web abierta desde un tablero de Asterics: la mirada y el barrido apuntan solo a "Volver"; al cerrarla, se restauran
-document.addEventListener('miravoz-overlay', (e) => {
-    const t = e.detail && e.detail.targets;
-    const targets = t || (S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements);
-    dwell.setTargets(targets);
-    scan.setTargets(targets);
+// --- M03: contexto único de selección (tablero abajo; diálogos y superposiciones encima) ---
+const INERT_IDS = ['home-view', 'board-view', 'top-bar', 'bottom-bar', 'users-view', 'auth-view'];
+selectionContexts.configure({
+    apply: (targets) => { dwell.setTargets(targets); scan.setTargets(targets); },
+    baseTargets: () => (S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements),
+    onChange: (blocked, top) => {
+        // Entrar o salir de un contexto reinicia la permanencia: lo que quedó debajo no se activa solo
+        pointer.invalidate('context', performance.now());
+        // Con un diálogo arriba, el fondo no es accesible por ninguna vía (teclado, lector de pantalla, toque)
+        const modal = blocked && top && !top.companion;
+        for (const id of INERT_IDS) {
+            const el = document.getElementById(id);
+            if (el && (!top || !top.element || !el.contains(top.element))) el.inert = modal;
+        }
+    }
 });
+// Paneles del acompañante (configuración, usuarios, importar, editar celda, etiquetas, dar copia): pausan la selección
+let companionToken = null;
+function syncCompanionContext() {
+    const open = [...document.querySelectorAll('.modal-overlay')].some(el => el.id !== 'custom-dialog' && el.style.display && el.style.display !== 'none');
+    if (open && companionToken === null) companionToken = selectionContexts.push('companion', () => [], { companion: true });
+    else if (!open && companionToken !== null) { selectionContexts.pop(companionToken); companionToken = null; }
+}
+
+// --- Hooks de boards ---
+boards.hooks.onGridRendered = (targets) => selectionContexts.setBase(targets);
+boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
+boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
     clearSentence();
     // Tablet vinculada: el lápiz de edición solo aparece en copias editables
@@ -346,7 +361,7 @@ function onCalibrationComplete(profile) {
         S.state = 'BOARD';
         boardView.style.display = 'flex';
         setTimeout(() => (boardView.style.opacity = '1'), 50);
-        dwell.setTargets(boards.activeGridElements);
+        selectionContexts.setBase(boards.activeGridElements);
         resetFilters();
     } else {
         goHome();
@@ -444,8 +459,7 @@ function applyMode(mode) {
         }
 
         if (S.trackingMode === 'SCAN') {
-            const targets = (S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements;
-            scan.setTargets(targets);
+            selectionContexts.setBase((S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements);
             scan.start();
         } else {
             scan.stop();
@@ -472,8 +486,7 @@ function goHome() {
     bottomBar.style.display = 'flex';
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
-    dwell.setTargets(boards.activeHomeElements);
-    if (S.trackingMode === 'SCAN') scan.setTargets(boards.activeHomeElements);
+    selectionContexts.setBase(boards.activeHomeElements);
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
@@ -654,6 +667,7 @@ function appLoop() {
         const now = performance.now();
 
         if (diag) recordDiag(now);
+        syncCompanionContext();
         if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
             // Una muestra por cuadro NUEVO de cámara (M04/T05): refrescar la pantalla no multiplica observaciones
             const fresh = pointer.takeNewSample(tracking.latestSample, now);
@@ -664,6 +678,9 @@ function appLoop() {
                 const info = calibSession.renderInfo(now);
                 if (info) drawCalibPoint(info);
             }
+        } else if (selectionContexts.isPaused()) {
+            // Panel del acompañante abierto: selección en pausa (el fondo no se activa)
+            pointer.invalidate('companion', now);
         } else if (editor.isEditMode()) {
             // En modo edición los motores de acceso quedan en pausa (se edita con mouse/touch)
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {

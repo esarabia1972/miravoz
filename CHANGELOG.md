@@ -333,3 +333,13 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
   - Los denominadores incluyen errores y omisiones.
   - Las metas 95% (3×3) y 85% (4×4) quedan rotuladas como metas internas, no como estándar clínico.
 - Tests: `tools/test-profiles.mjs` (13, escenarios T08 a T10 y T13 a T15). `test-calibration.mjs` adaptado al formato v3.
+
+### Etapa D — M03: un único contexto de selección para diálogos y superposiciones
+- **Added (M03)**: `web/js/contexts.js`, una **pila de contextos**: el tablero o el inicio abajo, y encima los diálogos (alertas, confirmaciones, página web, resultados del benchmark). Solo el contexto de arriba ofrece objetivos al dwell y al barrido.
+  - Los botones de los diálogos (Aceptar, Cancelar, Volver, Cerrar) se activan con la mirada o el pulsador y muestran la barra de avance: nunca hace falta tocar para salir de algo abierto con la mirada.
+  - Con un diálogo arriba, el fondo queda `inert` (ni teclado, ni lector de pantalla, ni toque).
+- **Changed (M03)**: si el tablero se redibuja con un diálogo abierto (sincronización, resize, render), sus objetivos se guardan pero **no se activan**. Al cerrar el diálogo, los objetivos se reconstruyen desde el estado actual, nunca con nodos eliminados, y la permanencia se reinicia: lo que quedó debajo no se activa solo.
+  - Se aceptan diálogos anidados y cierres fuera de orden, como el cierre por tiempo de la página web.
+- **Changed (M03)**: los paneles del acompañante (configuración, usuarios, importar, editar celda, etiquetas, dar copia) **pausan** la selección por mirada y por pulsador mientras están abiertos.
+- **Removed**: el evento suelto `miravoz-overlay`; la página web usa la pila.
+- Tests: `tools/test-contexts.mjs` (7, escenarios T11 y T12 con el dwell y el controlador reales). Hay 3 verificaciones nuevas en `test-boot.mjs`: diálogo de confirmación, tablero redibujado detrás y página web con fondo inerte.

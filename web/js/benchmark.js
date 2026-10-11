@@ -8,6 +8,7 @@ import { openBundle, activeGridElements, IMPORTER_VERSION } from './boards.js';
 import { speak } from './speech.js';
 import * as tracking from './tracking.js';
 import { summarizePhase } from './validation.js';
+import { selectionContexts, buttonTargets } from './contexts.js';
 
 const TARGETS_PER_GRID = 20;
 const STORAGE_KEY = 'miravoz_benchmarks';
@@ -154,10 +155,12 @@ export class Benchmark {
         const btn = document.createElement('button');
         btn.textContent = 'Cerrar';
         btn.style.cssText = 'margin-top:20px; padding:12px 30px; border-radius:10px; border:none; background:#00ff88; color:black; font-weight:bold; cursor:pointer; font-size:1rem;';
-        btn.onclick = () => overlay.remove();
         box.appendChild(btn);
 
         overlay.appendChild(box);
         document.body.appendChild(overlay);
+        // M03: "Cerrar" se puede activar con la mirada o el barrido
+        const token = selectionContexts.push('benchmark-results', () => buttonTargets([btn]), { element: overlay });
+        btn.onclick = () => { overlay.remove(); selectionContexts.pop(token); };
     }
 }

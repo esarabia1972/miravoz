@@ -3,6 +3,7 @@
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 import { learnWord } from './prediction.js';
+import { selectionContexts, buttonTargets } from './contexts.js';
 
 // --- Modales ---
 // Hay un solo #custom-dialog: los diálogos se encolan para que dos pedidos simultáneos
@@ -39,9 +40,12 @@ function showAlert(message) {
     msg.innerText = message;
     btnCancel.style.display = 'none';
     dialog.style.display = 'flex';
+    // M03: mientras el diálogo está abierto, la mirada y el barrido apuntan solo a sus botones
+    const token = selectionContexts.push('dialog', () => buttonTargets([btnOk]), { element: dialog });
+    try { btnOk.focus({ preventScroll: true }); } catch { /* sin foco */ }
 
     return new Promise(resolve => {
-        btnOk.onclick = () => { dialog.style.display = 'none'; resolve(); };
+        btnOk.onclick = () => { dialog.style.display = 'none'; selectionContexts.pop(token); resolve(); };
     });
 }
 
@@ -54,10 +58,12 @@ function showConfirm(message) {
     msg.innerText = message;
     btnCancel.style.display = 'inline-block';
     dialog.style.display = 'flex';
+    const token = selectionContexts.push('dialog', () => buttonTargets([btnCancel, btnOk]), { element: dialog });
+    try { btnCancel.focus({ preventScroll: true }); } catch { /* sin foco */ } // lo seguro primero
 
     return new Promise(resolve => {
-        btnOk.onclick = () => { dialog.style.display = 'none'; resolve(true); };
-        btnCancel.onclick = () => { dialog.style.display = 'none'; resolve(false); };
+        btnOk.onclick = () => { dialog.style.display = 'none'; selectionContexts.pop(token); resolve(true); };
+        btnCancel.onclick = () => { dialog.style.display = 'none'; selectionContexts.pop(token); resolve(false); };
     });
 }
 
