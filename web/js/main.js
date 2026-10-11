@@ -10,7 +10,7 @@ import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast
 import * as offline from './offline.js';
 import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
-import { syncAll } from './sync.js';
+import { syncAll, startCloudWatch } from './sync.js';
 import * as deviceMod from './device.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
@@ -64,6 +64,23 @@ async function onProfessionalSession(user) {
     fetchUsers();
     await syncAll();
     deviceMod.flushProfessionalCopies(); // copias de usuarios editadas sin conexión
+    // 1.7.0: lo que se cambia desde Claude (u otro dispositivo) aparece solo en unos segundos
+    startCloudWatch({ isActive: () => !deviceMod.isDeviceMode() && (S.state === 'HOME' || S.state === 'BOARD') });
+    openFromLink();
+}
+
+/** 1.7.0: ?tablero=<id>&pagina=<id> (enlace "abrir en MiraVoz" que devuelve Claude) abre ese tablero y página. */
+async function openFromLink() {
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get('tablero');
+    if (!id) return;
+    const page = url.searchParams.get('pagina');
+    url.searchParams.delete('tablero'); url.searchParams.delete('pagina');
+    window.history.replaceState(null, '', url.toString());
+    const bundle = await localforage.getItem(id);
+    if (!bundle || !bundle.boards) { showInfoToast('Ese tablero no está en esta cuenta.', 5000); return; }
+    boards.openBundle(bundle);
+    if (page && bundle.boards[page]) setTimeout(() => boards.renderGrid(page), 50);
 }
 
 document.getElementById('btn-account')?.addEventListener('click', async (e) => {

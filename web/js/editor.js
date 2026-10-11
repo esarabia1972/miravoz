@@ -5,7 +5,7 @@
 import { S } from './state.js';
 import { labelText, navInfo } from './asterics.js';
 import * as boards from './boards.js';
-import { customAlert, customConfirm, showUndoToast } from './ui.js';
+import { customAlert, customConfirm, showUndoToast, showInfoToast } from './ui.js';
 import { saveBundle } from './sync.js';
 import { pageOrder, pageCount, gridName, nextPageName, removePage, linksTo, migrateToActionSpeech } from './pages.js';
 
@@ -370,6 +370,16 @@ function buildToolbar() {
         renderPagesStrip();
     };
     tb.appendChild(nameInput);
+
+    // 1.7.0: referencia para pegar en Claude (conector MiraVoz): tablero y página actuales
+    const refBtn = mkBtn('Copiar para Claude', async () => {
+        const g = grid();
+        const text = `Tablero "${b.name}" (id: ${b.id})${g ? `, página "${gridName(g) || 'inicio'}"` : ''}`;
+        try { await navigator.clipboard.writeText(text); showInfoToast('Copiado: pegalo en Claude para pedirle cambios en este tablero.', 4000); }
+        catch { customAlert(text); }
+    }, 'Copia el nombre y el id del tablero y de la página para pedirle cambios a Claude');
+    refBtn.classList.add('et-claude');
+    tb.appendChild(refBtn);
     
     // Aire
     const spacer1 = document.createElement('div');

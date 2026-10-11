@@ -24,7 +24,8 @@ export async function POST(request) {
 
     const db = supabaseDb({ url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, token });
     // Token válido y cuenta habilitada (misma regla que la app: supabase/06_cuentas_habilitadas.sql)
-    try { await db.user(); } catch { return unauthorized(request, 'invalid_token'); }
+    let user;
+    try { user = await db.user(); } catch { return unauthorized(request, 'invalid_token'); }
     try {
         const enabled = await db.rpc('account_enabled');
         if (enabled === false) return json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Cuenta no registrada en MiraVoz.' } }, 403);
@@ -34,7 +35,8 @@ export async function POST(request) {
     try { body = await request.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'JSON inválido' } }, 400); }
     const msgs = Array.isArray(body) ? body : [body];
     const out = [];
-    for (const m of msgs) { const r = await handle(m, { db }); if (r) out.push(r); }
+    const ctx = { db, user, base: baseUrl(request) };
+    for (const m of msgs) { const r = await handle(m, ctx); if (r) out.push(r); }
     if (!out.length) return json(null, 202);
     return json(Array.isArray(body) ? out : out[0]);
 }

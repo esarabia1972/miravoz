@@ -39,9 +39,10 @@ await t('initialize: versión de protocolo, solo herramientas, instrucciones de 
     assert(r2.result.protocolVersion === PROTOCOL_VERSIONS[0], 'versión desconocida → la más nueva');
     assert(await handle({ jsonrpc: '2.0', method: 'notifications/initialized' }, { db }) === null, 'las notificaciones no responden');
 });
-await t('etapa 1: todas las herramientas son de solo lectura', async () => {
+await t('las herramientas de lectura de la etapa 1 siguen siendo de solo lectura', async () => {
     const r = await handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, { db });
-    assert(r.result.tools.length === TOOLS.length && r.result.tools.every(x => x.annotations.readOnlyHint && !x.annotations.destructiveHint), 'solo lectura');
+    const read = ['quien_soy', 'listar_tableros', 'ver_tablero', 'listar_usuarios', 'ver_usuario', 'buscar_pictogramas', 'revisar_tablero', 'historial_tablero'];
+    assert(r.result.tools.length === TOOLS.length && r.result.tools.filter(x => read.includes(x.name)).every(x => x.annotations.readOnlyHint && !x.annotations.destructiveHint), 'solo lectura');
 });
 await t('listar_tableros: filtra por nombre y etiqueta', async () => {
     assert(data(await call('listar_tableros')).cantidad === 2, 'todos');

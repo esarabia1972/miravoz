@@ -2,6 +2,15 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.7.0] - 2026-10-11
+
+- **Added**: **edición de tableros desde Claude** (servidor MCP, etapa 2). Herramientas nuevas: `crear_tablero`, `duplicar_tablero`, `editar_tablero` (nombre y etiquetas), `agregar_pagina`, `editar_pagina` (nombre, tamaño, página de inicio), `borrar_pagina`, `poner_celdas` (en lote: texto, pictograma de ARASAAC por id o por palabra, color Fitzgerald, voz propia, silenciosa, navegación a otra página / volver / inicio / página nueva, tamaño), `mover_celda`, `borrar_celdas`, `revisar_tablero` (vínculos rotos, páginas sueltas, sin pictograma, repetidas, lugares libres), `historial_tablero` y `restaurar_version`.
+  - Mismo formato que el editor de MiraVoz (`web/api/_edit.js`, puro y testeado en `tools/test-edit.mjs`).
+  - **Ningún dato se pierde**: antes de cada cambio se guarda la versión anterior en `board_versions` (`supabase/07_versiones_de_tableros.sql`, últimas 40 por tablero); si no se puede, el cambio no se hace. Escritura con concurrencia optimista (si otro dispositivo guardó en el medio, se relee y se reintenta).
+  - Cada respuesta trae el enlace **abrir en MiraVoz** (`?tablero=…&pagina=…`), que abre ese tablero y página.
+- **Added**: en la app, los cambios hechos desde Claude (u otro dispositivo) **aparecen solos** en unos segundos mientras MiraVoz está abierto (consulta liviana de fechas cada 8 s y sincronización solo si algo cambió), con aviso "Se actualizó «…»".
+- **Added**: botón **Copiar para Claude** en el editor: copia el nombre y el id del tablero y de la página actual para pedirle cambios a Claude.
+
 ## [1.6.0] - 2026-10-11
 
 - **Added**: **servidor MCP de MiraVoz** (etapa 1, solo lectura) en `https://www.miravoz.com.ar/mcp`, para conectar la cuenta registrada con Claude como conector personalizado.

@@ -9,7 +9,7 @@
 import { S } from './state.js';
 import { supabaseClient, getProfessional as getUser } from './auth.js'; // nunca sincronizar con la sesión anónima de una tablet
 import { showSyncToast, hideSyncToast, showInfoToast, customConfirm } from './ui.js';
-import { planSync, pushDecision, bundleTime, isVisibleTo, normTombstone } from './sync-plan.js';
+import { planSync, pushDecision, bundleTime, isVisibleTo, normTombstone, sameContent } from './sync-plan.js';
 
 export { isVisibleTo };
 
@@ -243,11 +243,17 @@ async function runSync(quiet) {
         for (const c of plan.conflicts) if (c.lost) await backupBundle(c.id, c.lost, `sync: ganó ${c.kept}`);
 
         // 2. Bajar (salvo que se haya editado localmente mientras corría la sync)
+        const updatedNames = [];
         for (const b of plan.saveLocal) {
             const cur = await localforage.getItem(b.id);
             if (cur && bundleTime(cur) !== (localTime.get(b.id) || 0)) continue; // editado recién: lo resuelve el próximo sync
+            if (!cur || !sameContent(cur, b)) updatedNames.push(b.name || 'Sin título');
             await localforage.setItem(b.id, b);
             changed.push(b.id);
+        }
+        // 1.7.0: cambios hechos desde otro lado (otro dispositivo o Claude) mientras MiraVoz estaba abierto
+        if (quiet && updatedNames.length && !plan.conflicts.some(c => !c.silent)) {
+            showInfoToast(updatedNames.length === 1 ? `Se actualizó «${updatedNames[0]}»` : `Se actualizaron ${updatedNames.length} tableros`, 4000);
         }
 
         // 3. Borrados que vinieron de otro dispositivo (con backup)
@@ -302,6 +308,34 @@ async function askAdoption(candidates) {
         toAsk.forEach(b => declined.add(b.id));
         await localforage.setItem(ADOPT_DECLINED_KEY, [...declined]);
     }
+}
+
+// --- 1.7.0: cambios en la nube en (casi) tiempo real ---
+// Mientras la cuenta registrada tiene MiraVoz abierto, cada pocos segundos se consulta SOLO id y fecha de sus
+// tableros (liviano). Si algo cambió (por ejemplo, Claude editó un tablero), se hace la sincronización completa.
+let watchTimer = null;
+let lastSig = null; // { id: updated_at } de la consulta anterior
+/** ¿Cambió algo en la nube desde la consulta anterior? (la primera vez solo toma la referencia) */
+export async function cloudHasChanges() {
+    if (!supabaseClient || syncing) return false;
+    const user = await getUser();
+    if (!user) return false;
+    const { data: rows, error } = await supabaseClient.from('boards').select('id, updated_at').eq('owner_professional_id', user.id);
+    if (error || !rows) return false;
+    const sig = Object.fromEntries(rows.map(r => [r.id, r.updated_at]));
+    const prev = lastSig;
+    lastSig = sig;
+    if (!prev) return false;
+    const ids = new Set([...Object.keys(prev), ...Object.keys(sig)]);
+    for (const id of ids) if (prev[id] !== sig[id]) return true;
+    return false;
+}
+export function startCloudWatch({ intervalMs = 8000, isActive = () => true } = {}) {
+    if (watchTimer) return;
+    watchTimer = setInterval(async () => {
+        if (document.visibilityState !== 'visible' || !isActive() || syncing) return;
+        try { if (await cloudHasChanges()) await syncAll({ quiet: true }); } catch { /* sin red: se reintenta */ }
+    }, intervalMs);
 }
 
 // Reintentar al recuperar la conexión y al volver a la app (tablet que queda abierta)
