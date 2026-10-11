@@ -20,6 +20,8 @@ import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 import { initTheme } from './theme.js';
 import { PointerController, pauseMessage } from './selection.js';
+import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
+import { failureAdvice } from './validation.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -141,12 +143,13 @@ let pendingImplicit = null;
 
 function recordImplicitSelection(rect) {
     if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || pointer.invalid || !rect || !rect.width) return;
-    if (!calibration.isUsableProfile('OJOS', calibration.profiles.OJOS)) return;
+    const ojosProfile = calibration.getProfile('OJOS');
+    if (!calibration.isUsableProfile('OJOS', ojosProfile)) return;
     const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
     const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === gaze.RAW_NAMES.length);
     if (feats.length < 3) return;
     // Solo aprender de selecciones "seguras": el cursor estuvo en el centro del objetivo casi todo el dwell
-    if (!gaze.isConfidentSelection(calibration.profiles.OJOS.model, feats, rect)) return;
+    if (!gaze.isConfidentSelection(ojosProfile.model, feats, rect)) return;
     const step = Math.max(1, Math.floor(feats.length / CONFIG.IMPLICIT_SAMPLES_PER_SELECT));
     const target = [rect.left + rect.width / 2, rect.top + rect.height / 2];
     const samples = feats.filter((_, i) => i % step === 0).slice(0, CONFIG.IMPLICIT_SAMPLES_PER_SELECT).map(raw => ({ target, raw }));
@@ -243,7 +246,7 @@ boards.hooks.onBundleOpened = () => {
     updateCopyBanner();
     // Solo los modos de puntero (Rostro/Iris) requieren calibración; Barrido y Manual no.
     if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
-        startCalibration();
+        if (!calibSession) beginCameraAccess();
     } else {
         S.state = 'BOARD';
     }
@@ -252,11 +255,46 @@ boards.hooks.onBundleOpened = () => {
 // --- Calibración ---
 let calibSession = null;
 
-function startCalibration() {
+// M02: ámbito de persona y contexto de pantalla/cámara con el que se guardan y comparan los perfiles
+function profileScope() {
+    return deviceMod.isDeviceMode() && deviceMod.device?.aacUserId ? `user:${deviceMod.device.aacUserId}` : 'prueba';
+}
+calibration.setContextProvider(() => makeContext({
+    scope: profileScope(), deviceId: localDeviceId(), engine: tracking.engineName,
+    w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1, camera: tracking.cameraInfo
+}));
+
+const btnCalibText = () => document.getElementById('btn-iniciar-calibracion');
+
+/**
+ * M02: el perfil tiene que ser de esta persona, este dispositivo, esta orientación y estar verificado.
+ * Aunque sea compatible, se hace una verificación rápida (5 puntos) antes de habilitar la selección.
+ */
+function beginCameraAccess() {
+    const chk = calibration.checkProfile(S.trackingMode);
+    S.isCalibrated = false;
+    tracking.clearWeights();
+    if (chk.ok) {
+        tracking.applyProfile(S.trackingMode, chk.profile);
+        startCalibration({ validateOnly: chk.profile });
+    } else {
+        const msg = compatibilityMessage(chk.reason);
+        if (msg) showInfoToast(msg, 6000);
+        startCalibration();
+    }
+}
+
+/** Calibración completa, o verificación rápida de un perfil guardado ({ validateOnly: perfil }). */
+function startCalibration({ validateOnly = null } = {}) {
     if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
 
     calibration.updateCalibPoints();
-    calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete);
+    calibSession = new calibration.CalibrationSession(S.trackingMode, onCalibrationComplete, { validateOnly });
+    S.isCalibrated = false;
+    pointer.invalidate('calibrating', performance.now());
+    if (btnCalibText()) btnCalibText().textContent = validateOnly
+        ? 'Verificación rápida: presioná y mirá 5 puntos'
+        : 'Presioná para iniciar calibración';
     S.state = 'CALIBRATING_PENDING';
 
     boardView.style.opacity = '0';
@@ -271,8 +309,26 @@ function startCalibration() {
 }
 
 function onCalibrationComplete(profile) {
+    const wasQuickCheck = !!calibSession?.validateOnly;
     calibSession = null;
     pointer.invalidate('calibrated', performance.now());
+    // M04: una verificación fallida NO activa el cursor. Se ofrece repetir, con consejos de colocación.
+    if (profile && profile.validation && profile.validation.status !== 'accepted') {
+        tracking.clearWeights();
+        S.isCalibrated = false;
+        instructionBox.style.display = 'none';
+        if (S.currentBundle) { S.state = 'BOARD'; boardView.style.display = 'flex'; boardView.style.opacity = '1'; }
+        else goHome();
+        const tips = failureAdvice(profile.validation.failures || []);
+        const m = profile.validation.metrics;
+        customChoice(
+            `${wasQuickCheck ? 'La verificación rápida no salió bien' : 'La calibración no pasó la verificación'}: el cursor no se activa todavía.\n\n` +
+            (tips.length ? `Sugerencias: ${tips.join('; ')}.\n\n` : '') +
+            `Datos: error mediano ${Math.round(m.medianError)} px, p90 ${Math.round(m.p90Error)} px, señal válida ${Math.round(m.coverage * 100)}%.`,
+            'Repetir calibración', 'Ahora no'
+        ).then(again => { if (again) startCalibration(); });
+        return;
+    }
     if (!profile) {
         customAlert(S.trackingMode === 'OJOS' && tracking.engineName === 'legacy'
             ? 'El Modo Iris necesita el motor de cámara nuevo, que no pudo iniciar en este navegador. Probá con Chrome o Edge actualizados.'
@@ -291,13 +347,16 @@ function onCalibrationComplete(profile) {
         boardView.style.display = 'flex';
         setTimeout(() => (boardView.style.opacity = '1'), 50);
         dwell.setTargets(boards.activeGridElements);
+        resetFilters();
     } else {
         goHome();
     }
 
-    speak('Calibración completada');
-    const px = Math.round(profile.meanError);
-    showInfoToast(`Calibración: ${profile.quality} (error medio ±${px}px)`, 5000);
+    speak(wasQuickCheck ? 'Verificación completada' : 'Calibración completada');
+    // M04: se informa la VERIFICACIÓN (objetivos nuevos), no el error de ajuste del entrenamiento
+    const m = profile.validation?.metrics;
+    const detail = m ? `error mediano ${Math.round(m.medianError)} px, p90 ${Math.round(m.p90Error)} px` : '';
+    showInfoToast(`Calibración ${profile.quality}${detail ? ` · ${detail}` : ''}${calibration.isUnsaved() ? ' · no se pudo guardar: vale solo para esta sesión' : ''}`, 6000);
     instructionBox.style.display = 'none';
 }
 
@@ -394,19 +453,7 @@ function applyMode(mode) {
     } else {
         scan.stop();
         tracking.startMediaPipe();
-        const profile = calibration.profiles[S.trackingMode];
-        if (calibration.isUsableProfile(S.trackingMode, profile)) {
-            tracking.applyProfile(S.trackingMode, profile);
-            S.isCalibrated = true;
-            resetFilters();
-            const targets = (S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements;
-            dwell.setTargets(targets);
-            console.log(`Calibración cargada para ${S.trackingMode} (${profile.quality || 's/d'})`);
-        } else {
-            S.isCalibrated = false;
-            tracking.clearWeights();
-            startCalibration();
-        }
+        beginCameraAccess();
     }
 }
 
@@ -609,7 +656,8 @@ function appLoop() {
         if (diag) recordDiag(now);
         if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
             // Una muestra por cuadro NUEVO de cámara (M04/T05): refrescar la pantalla no multiplica observaciones
-            calibSession.onFrame(pointer.takeNewFeatures(tracking.latestSample, now), now);
+            const fresh = pointer.takeNewSample(tracking.latestSample, now);
+            calibSession.onFrame(fresh ? fresh.features : null, now, fresh);
             // onFrame puede completar la sesión (onCalibrationComplete pone calibSession en null):
             // re-chequear antes de dibujar el punto.
             if (calibSession) {
@@ -819,8 +867,38 @@ function updateDeviceAccountUI() {
 }
 
 document.getElementById('btn-unlink-device')?.addEventListener('click', async () => {
-    if (await deviceMod.confirmAndUnlink()) window.location.reload();
+    const scope = profileScope();
+    if (await deviceMod.confirmAndUnlink()) { await calibration.clearScope(scope); window.location.reload(); }
 });
+
+// M02: girar el iPad o cambiar mucho el área de uso suspende la selección y pide calibrar en la geometría
+// nueva. Las barras de Safari (cambios chicos de alto) no cuentan: ver GEOMETRY_RULE en profiles.js.
+let geometryTimer = null;
+function onGeometryChange() {
+    clearTimeout(geometryTimer);
+    geometryTimer = setTimeout(() => {
+        if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+        if (calibSession) {
+            // Se giró (o cambió mucho la pantalla) en plena calibración: los puntos ya no corresponden → de nuevo.
+            // Un cambio chico (barras de Safari) no la interrumpe.
+            const v = calibSession.viewport;
+            if (v && geometryChanged(v, { w: window.innerWidth, h: window.innerHeight }) || (v && orientationOf(v.w, v.h) !== orientationOf(window.innerWidth, window.innerHeight))) {
+                startCalibration();
+            }
+            return;
+        }
+        if (!S.isCalibrated) return;
+        const chk = calibration.checkProfile(S.trackingMode);
+        if (chk.ok) return;
+        pointer.invalidate('geometry', performance.now());
+        S.isCalibrated = false;
+        tracking.clearWeights();
+        showInfoToast(compatibilityMessage(chk.reason) || 'Cambió la pantalla: hay que calibrar de nuevo.', 6000);
+        startCalibration();
+    }, 600);
+}
+window.addEventListener('resize', onGeometryChange);
+window.addEventListener('orientationchange', onGeometryChange);
 
 async function enterDeviceMode() {
     document.body.classList.add('device-mode');
@@ -846,6 +924,7 @@ async function enterDeviceMode() {
 }
 
 window.addEventListener('miravoz:device-unlinked', async () => {
+    await calibration.clearScope(profileScope());
     await deviceMod.unlink();
     await customAlert('Esta tablet fue desvinculada por la profesional.');
     window.location.reload();

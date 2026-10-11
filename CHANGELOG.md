@@ -312,3 +312,24 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
 - **Changed (M01)**: la calibración toma una muestra por cuadro nuevo de cámara: refrescar la pantalla a 60-120 Hz ya no multiplica observaciones. El aviso de pausa ("No se ve la cara", "La cámara no está enviando imágenes", "Volvé a poner la cabeza…") se muestra sobre el tablero.
 - **Changed (M07)**: el aprendizaje implícito del modo Iris queda **apagado por defecto**: un dwell no corregido no demuestra intención. Solo se activa con `?implicit=1`.
 - Tests: `tools/test-selection.mjs` (16), que cubre los escenarios T01 a T07 y T16 con el dwell, el filtro y el controlador reales y el reloj controlado.
+
+### Etapa C — M02: perfiles por persona, dispositivo y geometría · M04: calibración verificada aparte
+- **Changed (M02)**: los perfiles de calibración se guardan por **ámbito de persona**: `user:<id>` en una tablet vinculada y `prueba` para la profesional, en `miravoz_calibration_v3` (`web/js/profiles.js`). Cada perfil guarda esquema, revisión, tipo de modelo, motor, cámara, viewport, orientación, área calibrada, convención de coordenadas y verificación. `checkCompatibility()` decide si se puede usar:
+  - otra persona, otro dispositivo, otra orientación, otro motor (en Iris), otro modelo o un perfil sin verificar no se aplican;
+  - cambiar más de 15% el ancho o más de 25% el alto invalida; las barras de Safari no (regla documentada y testeada).
+- **Changed (M02)**: los perfiles viejos v2, sin contexto, se **conservan** para recuperación pero no se aplican: piden calibrar.
+- **Changed (M02)**: un guardado fallido no pisa lo persistido; el perfil nuevo queda solo en memoria y se avisa.
+- **Changed (M02)**: al desvincular la tablet se borran solo los perfiles de ese usuario.
+- **Changed (M02)**: girar el iPad o cambiar mucho la pantalla suspende la selección y pide calibrar en la geometría nueva. Si pasa en plena calibración, se reinicia.
+- **Added (M02)**: aun con un perfil compatible, al habilitar la cámara se hace una **verificación rápida de 5 puntos** antes de permitir seleccionar.
+- **Added (M04)**: después de entrenar, **verificación independiente** con 5 objetivos nuevos (posiciones que no se ajustaron, en otro orden; `web/js/validation.js`).
+  - Mide cobertura de señal válida, error mediano, percentil 90 y temblor durante la fijación, comparados con el tamaño de una celda 3×3.
+  - Las reglas son provisorias y versionadas (`v1-provisional-2026-10-11`): hay que ajustarlas con mediciones en el iPad.
+  - Las muestras de verificación nunca entran al entrenamiento ni al aprendizaje.
+- **Changed (M04)**: una calibración que **no pasa** la verificación **no activa el cursor** ni reemplaza a la anterior. Se ofrece repetirla con consejos de luz y de colocación del iPad, sin pedir mover la cabeza.
+- **Changed (M04)**: el aviso final informa el error mediano y el p90 de la verificación. El error del entrenamiento queda como `trainingError` (diagnóstico de ajuste) y ya no se muestra como "±N px".
+- **Changed (M04)**: la calibración descarta cuadros capturados antes de la fijación de cada punto y toma uno por cuadro nuevo de cámara.
+- **Changed (M04)**: el benchmark tiene tiempo máximo por objetivo (las omisiones cuentan), un **descanso** de 10 s antes de cada grilla para medir activaciones involuntarias por minuto, y mediana y p90 de tiempos.
+  - Los denominadores incluyen errores y omisiones.
+  - Las metas 95% (3×3) y 85% (4×4) quedan rotuladas como metas internas, no como estándar clínico.
+- Tests: `tools/test-profiles.mjs` (13, escenarios T08 a T10 y T13 a T15). `test-calibration.mjs` adaptado al formato v3.

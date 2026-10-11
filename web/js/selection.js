@@ -167,12 +167,18 @@ export class PointerController {
      * de cámara, nunca repetida por refrescar la pantalla más rápido que la cámara). null en otro caso.
      */
     takeNewFeatures(sample, now) {
+        const s = this.takeNewSample(sample, now);
+        return s ? (s.features || null) : null;
+    }
+
+    /** La muestra si es NUEVA y reciente (aunque no sea válida para el puntero), o null. */
+    takeNewSample(sample, now) {
         const kind = this.classify(sample, now);
         if (kind !== 'new') return null;
         if (sample.sessionId !== this.lastSessionId) this.lastSequence = -1;
         this.lastSessionId = sample.sessionId;
         this.lastSequence = sample.sequence;
-        return sample.features || null;
+        return sample;
     }
 }
 

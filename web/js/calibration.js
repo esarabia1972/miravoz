@@ -1,80 +1,109 @@
-// calibration.js — Flujo de calibración de 9 puntos (SPEC F1-3, F1-4, F1-5)
-// Muestreo robusto (warm-up + outliers), entrenamiento polinómico ridge,
-// score de calidad y reintento automático del peor punto.
+// calibration.js — Calibración de 9 puntos + verificación independiente (SPEC F1-3/4/5 · M02 · M04, 11/10/2026)
+//
+// Flujo: CAPTURA (9 puntos) → ENTRENAMIENTO → VERIFICACIÓN (5 objetivos nuevos) → aceptada | requiere ajuste.
+//  - Muestreo: una muestra por cuadro NUEVO de cámara (main.js pasa solo muestras nuevas y recientes) y nunca
+//    un cuadro capturado antes de que empiece la fijación del punto (sacada de llegada / objetivo anterior).
+//  - trainingError (antes "meanError") mide ajuste sobre el entrenamiento: es diagnóstico, no rendimiento.
+//  - La verificación usa posiciones que no se ajustaron (validation.js). Sus muestras NUNCA entran al
+//    entrenamiento ni al aprendizaje implícito. Una verificación fallida no activa el cursor.
+//  - Los perfiles se guardan con contexto (persona, dispositivo, cámara, geometría) en profiles.js.
 
 import { CONFIG } from './config.js';
-import { trainModel, trimOutliers, qualityLabel } from './regression.js';
+import { trainModel, trimOutliers, phi, dot } from './regression.js';
 import * as gaze from './gaze-model.js';
+import { ProfileStore, SCHEMA, MODEL_KINDS, checkCompatibility, newRevision } from './profiles.js';
+import { validationTargets, computeMetrics, judge, RULES } from './validation.js';
 
-const STORAGE_KEY = 'miravoz_calibration_v2'; // v2: 6 features polinómicas (v1 incompatible)
+// --- Almacén y contexto (M02) ---
+let store = null;
+function getStore() {
+    if (!store) store = new ProfileStore(globalThis.localforage);
+    return store;
+}
+/** Para los tests: reemplazar el almacenamiento */
+export function _setStorage(storage) { store = new ProfileStore(storage); }
 
-export let profiles = { OJOS: null, CARA: null };
+let contextProvider = () => ({ scope: 'prueba', deviceId: null, engine: null, viewport: { w: window.innerWidth, h: window.innerHeight },
+    orientation: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait', dpr: 1, camera: null });
+/** main.js informa el contexto actual: ámbito de persona, motor, cámara, viewport. */
+export function setContextProvider(fn) { contextProvider = fn; }
+export function currentContext() { return contextProvider(); }
 
-export async function loadProfiles() {
-    try {
-        const stored = await localforage.getItem(STORAGE_KEY);
-        if (stored) profiles = stored;
-    } catch (e) {
-        console.error('Error al cargar perfiles de calibración:', e);
-    }
+export function modelKindFor(mode) { return mode === 'OJOS' ? gaze.MODEL_KIND : MODEL_KINDS.CARA; }
+
+export async function loadProfiles() { await getStore().load(); }
+
+/** Perfil guardado del modo para la persona actual (o null). */
+export function getProfile(mode) { return getStore().get(currentContext().scope, mode); }
+
+/** ¿Se puede usar el perfil del modo en el contexto actual? → { ok, reason, profile } */
+export function checkProfile(mode) {
+    const profile = getProfile(mode);
+    return { ...checkCompatibility(profile, currentContext(), { mode, modelKind: modelKindFor(mode) }), profile };
 }
 
-/** ¿El perfil guardado sirve para este modo? (los perfiles del modo Iris viejo, solo-iris, no) */
-export function isUsableProfile(mode, profile) {
+/** ¿El último guardado falló? (el perfil activo vive solo en memoria) */
+export function isUnsaved() { return getStore().unsaved; }
+
+/**
+ * Compatibilidad estructural del perfil con el modo (y, si hay contexto, con persona/geometría).
+ * Un perfil sin verificación aceptada nunca es usable.
+ */
+export function isUsableProfile(mode, profile, ctx = null) {
     if (!profile) return false;
-    if (mode === 'OJOS') return profile.kind === gaze.MODEL_KIND && !!profile.model;
-    return !!(profile.weightsX && profile.weightsY);
+    if (mode === 'OJOS' && !(profile.kind === gaze.MODEL_KIND && profile.model)) return false;
+    if (mode !== 'OJOS' && !(profile.weightsX && profile.weightsY)) return false;
+    return checkCompatibility(profile, ctx, { mode, modelKind: modelKindFor(mode) }).ok;
+}
+
+export async function saveProfile(mode, profile) {
+    return getStore().put(currentContext().scope, mode, profile);
+}
+
+export async function clearProfile(mode) { await getStore().remove(currentContext().scope, mode); }
+
+/** Al desvincular la tablet: se borran los perfiles de ese usuario (no los tableros). */
+export async function clearScope(scope) { await getStore().removeScope(scope); }
+
+/** Función features → [x, y] de un perfil (sin recortar). */
+export function predictorFor(mode, profile) {
+    if (mode === 'OJOS') return (f) => gaze.predict(profile.model, f);
+    return (f) => { const p = phi(f[0], f[1]); return [dot(profile.weightsX, p), dot(profile.weightsY, p)]; };
 }
 
 /**
- * Aprendizaje implícito (modo Iris): suma muestras confirmadas por el uso y re-entrena cada N.
+ * Aprendizaje implícito (modo Iris, EXPERIMENTAL con ?implicit=1). Ver M07 en main.js.
  * @returns el perfil actualizado si se re-entrenó, o null.
  */
 let implicitSinceRetrain = 0;
 export async function addImplicitSamples(mode, samples) {
-    const profile = profiles[mode];
+    const profile = getProfile(mode);
     if (!isUsableProfile(mode, profile) || mode !== 'OJOS' || !samples.length) return null;
-    profile.implicit = gaze.addImplicit(profile.implicit, samples, CONFIG.IMPLICIT_MAX_SAMPLES);
+    const next = { ...profile, implicit: gaze.addImplicit(profile.implicit, samples, CONFIG.IMPLICIT_MAX_SAMPLES) };
     implicitSinceRetrain++;
     let retrained = null;
     if (implicitSinceRetrain >= CONFIG.IMPLICIT_RETRAIN_EVERY) {
         implicitSinceRetrain = 0;
         try {
-            const r = gaze.train(profile.samples, CONFIG.GAZE_LAMBDA, profile.implicit);
-            if (gaze.acceptRetrain(profile.model, r.model, profile.samples)) {
-                profile.model = r.model;
-                retrained = profile;
+            const r = gaze.train(next.samples, CONFIG.GAZE_LAMBDA, next.implicit);
+            if (gaze.acceptRetrain(next.model, r.model, next.samples)) {
+                next.model = r.model;
+                next.revision = newRevision();
+                retrained = next;
             } else {
-                // El modelo nuevo empeora sobre la calibración: probablemente aprendió de errores no corregidos.
-                // Se descarta y se vacía lo implícito para no seguir arrastrando el sesgo.
                 console.warn('Aprendizaje implícito: modelo descartado (empeoraba la calibración)');
-                profile.implicit = [];
+                next.implicit = [];
             }
         } catch (e) {
             console.warn('Re-entrenamiento implícito falló (se mantiene el modelo):', e?.message || e);
         }
     }
-    await saveProfile(mode, profile);
+    await saveProfile(mode, next);
     return retrained;
-}
-
-export async function clearProfile(mode) {
-    profiles[mode] = null;
-    await localforage.setItem(STORAGE_KEY, profiles);
-}
-
-async function saveProfile(mode, profile) {
-    profiles[mode] = profile;
-    try {
-        await localforage.setItem(STORAGE_KEY, profiles);
-    } catch (e) {
-        console.error('Error guardando calibración:', e);
-    }
 }
 
 // --- Puntos de calibración (grilla 3x3 sobre el viewport) ---
 export let calibPoints = [];
-
 
 export function updateCalibPoints() {
     const w = window.innerWidth;
@@ -88,90 +117,90 @@ export function updateCalibPoints() {
         [mx, h - my], [cx, h - my], [w - mx, h - my]
     ];
 }
-
-function pointsFor(mode) {
-    // Modo Iris v3 ("cabeza quieta"): los mismos 9 puntos, sin los de mover la cabeza. El diagnóstico real
-    // mostró que la gente no mueve la cabeza lo suficiente al pedírselo y que compensar cabeza con webcam no
-    // alcanza; el modo vigila la pose en lugar de compensarla (gaze-model.js v3).
-    return calibPoints.map(p => ({ target: [...p], headMove: false }));
-}
 updateCalibPoints();
 window.addEventListener('resize', updateCalibPoints);
 
-// --- Sesión de calibración ---
-// Estados: PENDING (espera click en el botón) → COUNTDOWN → SAMPLING → ...
-// Al terminar los 9 puntos: entrena, evalúa por punto y, si el peor punto supera
-// el umbral, lo re-muestrea automáticamente (hasta CALIB_MAX_RETRIES_PER_POINT).
+const VALIDATION_SAMPLING_MS = 1000;
 
+/**
+ * Sesión de calibración (o solo verificación, con { validateOnly: perfil }).
+ * onComplete(profile | null): profile.validation.status = 'accepted' | 'failed'. null = abortada.
+ */
 export class CalibrationSession {
-    // onComplete({weightsX, weightsY, meanError, quality, pointErrors})
-    constructor(mode, onComplete) {
+    constructor(mode, onComplete, { validateOnly = null } = {}) {
         this.mode = mode;
         this.onComplete = onComplete;
-        this.points = pointsFor(mode);
+        this.validateOnly = validateOnly;
+        this.viewport = { w: window.innerWidth, h: window.innerHeight };
+        this.points = calibPoints.map(p => ({ target: [...p] }));
         this.pointSamples = this.points.map(p => ({ target: [...p.target], samples: [] }));
         this.retries = new Array(this.points.length).fill(0);
-        this.queue = this.points.map((_, i) => i); // puntos pendientes
+        this.queue = validateOnly ? [] : this.points.map((_, i) => i);
         this.currentIdx = null;
+        this.stage = validateOnly ? 'VALIDATE' : 'CAPTURE';
         this.phase = 'IDLE'; // IDLE | COUNTDOWN | SAMPLING | DONE
         this.phaseStart = 0;
-        this.emptyPointStreak = 0; // abort de seguridad: puntos seguidos sin muestras
+        this.emptyPointStreak = 0;
+        this.trained = null;   // { profileDraft, predictor }
+        this.vTargets = [];
+        this.vIdx = -1;
+        this.vData = [];
     }
 
     begin(now) {
-        this._nextPoint(now);
+        if (this.validateOnly) this._startValidation(now, this.validateOnly);
+        else this._nextPoint(now);
     }
 
     _nextPoint(now) {
-        if (this.queue.length === 0) {
-            this._train(now);
-            return;
-        }
+        if (this.queue.length === 0) { this._train(now); return; }
         this.currentIdx = this.queue.shift();
-        this.pointSamples[this.currentIdx].samples = []; // limpia (relevante en retry)
+        this.pointSamples[this.currentIdx].samples = [];
         this.phase = 'COUNTDOWN';
         this.phaseStart = now;
     }
 
-    // Llamar por frame con las features actuales (o null si no hay rostro).
-    onFrame(features, now) {
+    /**
+     * Llamar en cada refresco.
+     * @param {number[]|null} features  features de una muestra NUEVA (null si no hay cuadro nuevo o no es válida)
+     * @param {number} now
+     * @param {{capturedAt:number, features:number[]|null}|null} [fresh] la muestra nueva (para cobertura y descarte por tiempo)
+     */
+    onFrame(features, now, fresh) {
+        const isNewFrame = fresh !== undefined ? !!fresh : !!features;
+        const capturedAt = fresh ? fresh.capturedAt : now;
         if (this.phase === 'COUNTDOWN') {
-            if (now - this.phaseStart > CONFIG.COUNTDOWN_MS) {
-                this.phase = 'SAMPLING';
-                this.phaseStart = now;
-            }
-        } else if (this.phase === 'SAMPLING') {
-            // F1-4: warm-up — descartar las muestras iniciales (sacada de llegada)
-            const elapsed = now - this.phaseStart;
-            const headMove = this.points[this.currentIdx].headMove;
-            if (features && elapsed > CONFIG.SAMPLE_WARMUP_MS) {
-                // Modo Iris: features = vector crudo del modelo híbrido (fx, fy = iris, para outliers)
-                const sample = this.mode === 'OJOS'
-                    ? { fx: features[0], fy: features[1], raw: features }
-                    : { fx: features[0], fy: features[1] };
-                this.pointSamples[this.currentIdx].samples.push(sample);
-            }
-            const duration = headMove ? CONFIG.GAZE_HEADMOVE_SAMPLING_MS : CONFIG.SAMPLING_MS;
-            if (elapsed > duration + CONFIG.SAMPLE_WARMUP_MS) {
-                // F1-4: descarte de outliers del punto (no en los de mover la cabeza: ahí la variación es buscada)
-                const p = this.pointSamples[this.currentIdx];
-                if (!headMove) p.samples = trimOutliers(p.samples, CONFIG.SAMPLE_OUTLIER_SIGMA);
-                if (p.samples.length < CONFIG.MIN_SAMPLES_PER_POINT) {
-                    // Muestras insuficientes (sin rostro / mucho ruido): repetir el punto,
-                    // pero NUNCA en loop infinito — 3 intentos vacíos seguidos abortan.
-                    this.emptyPointStreak++;
-                    if (this.emptyPointStreak >= 3) {
-                        console.error('Calibración abortada: la cámara no entrega rostro/features.');
-                        this.phase = 'DONE';
-                        this.onComplete(null);
-                        return;
-                    }
-                    this.queue.unshift(this.currentIdx);
-                } else {
-                    this.emptyPointStreak = 0;
+            if (now - this.phaseStart > CONFIG.COUNTDOWN_MS) { this.phase = 'SAMPLING'; this.phaseStart = now; }
+            return;
+        }
+        if (this.phase !== 'SAMPLING') return;
+        const elapsed = now - this.phaseStart;
+        // Solo cuadros capturados DESPUÉS del warm-up de este punto (nunca del objetivo anterior)
+        const inWindow = capturedAt >= this.phaseStart + CONFIG.SAMPLE_WARMUP_MS;
+        if (this.stage === 'VALIDATE') { this._validationFrame(features, isNewFrame && inWindow, elapsed, now); return; }
+
+        if (features && inWindow) {
+            const sample = this.mode === 'OJOS' ? { fx: features[0], fy: features[1], raw: features } : { fx: features[0], fy: features[1] };
+            this.pointSamples[this.currentIdx].samples.push(sample);
+        }
+        if (elapsed > CONFIG.SAMPLING_MS + CONFIG.SAMPLE_WARMUP_MS) {
+            const p = this.pointSamples[this.currentIdx];
+            p.samples = trimOutliers(p.samples, CONFIG.SAMPLE_OUTLIER_SIGMA);
+            if (p.samples.length < CONFIG.MIN_SAMPLES_PER_POINT) {
+                // Muestras insuficientes (sin rostro / cuadros repetidos o tardíos): repetir el punto,
+                // pero NUNCA en loop infinito — 3 intentos vacíos seguidos abortan.
+                this.emptyPointStreak++;
+                if (this.emptyPointStreak >= 3) {
+                    console.error('Calibración abortada: la cámara no entrega rostro/features.');
+                    this.phase = 'DONE';
+                    this.onComplete(null);
+                    return;
                 }
-                this._nextPoint(now);
+                this.queue.unshift(this.currentIdx);
+            } else {
+                this.emptyPointStreak = 0;
             }
+            this._nextPoint(now);
         }
     }
 
@@ -187,17 +216,11 @@ export class CalibrationSession {
             this.onComplete(null);
             return;
         }
-
-        // F1-5: reintento automático del peor punto si supera el umbral
+        // F1-5: reintento automático del peor punto si supera el umbral (diagnóstico de ajuste)
         const diag = Math.hypot(window.innerWidth, window.innerHeight);
         const threshold = diag * CONFIG.CALIB_POINT_ERROR_FRAC;
         let worstIdx = -1, worstErr = 0;
-        result.pointErrors.forEach((err, i) => {
-            if (this.points[i].headMove) return; // ver abajo: no se reintentan
-            if (err > worstErr) { worstErr = err; worstIdx = i; }
-        });
-
-        // Los puntos de "mover la cabeza" tienen más error por naturaleza: no se reintentan (calibración más corta)
+        result.pointErrors.forEach((err, i) => { if (err > worstErr) { worstErr = err; worstIdx = i; } });
         if (worstIdx >= 0 && worstErr > threshold && this.retries[worstIdx] < CONFIG.CALIB_MAX_RETRIES_PER_POINT) {
             this.retries[worstIdx]++;
             console.log(`Calibración: reintentando punto ${worstIdx + 1} (error ${Math.round(worstErr)}px > ${Math.round(threshold)}px)`);
@@ -206,48 +229,98 @@ export class CalibrationSession {
             return;
         }
 
-        const quality = qualityLabel(result.meanError, diag, CONFIG.CALIB_GOOD_FRAC, CONFIG.CALIB_POINT_ERROR_FRAC);
-        const profile = this.mode === 'OJOS'
-            ? {
-                kind: gaze.MODEL_KIND,
-                model: result.model,
-                // Se guardan las muestras (solo el vector crudo) para re-entrenar con el aprendizaje implícito
-                samples: this.pointSamples.map(p => ({ target: p.target, samples: p.samples.map(s => ({ raw: s.raw })) })),
-                implicit: [],
-                meanError: result.meanError,
-                quality,
-                ts: Date.now()
-            }
-            : {
-                weightsX: result.weightsX,
-                weightsY: result.weightsY,
-                meanError: result.meanError,
-                quality,
-                ts: Date.now()
-            };
+        const ctx = currentContext();
+        const base = {
+            schema: SCHEMA,
+            revision: newRevision(),
+            mode: this.mode,
+            modelKind: modelKindFor(this.mode),
+            context: {
+                scope: ctx.scope, deviceId: ctx.deviceId, engine: ctx.engine, camera: ctx.camera,
+                viewport: { ...ctx.viewport }, orientation: ctx.orientation, dpr: ctx.dpr,
+                calibRect: { x: calibPoints[0][0], y: calibPoints[0][1], w: calibPoints[8][0] - calibPoints[0][0], h: calibPoints[8][1] - calibPoints[0][1] },
+                coords: 'css-px-viewport' // convención única para calibrar y para seleccionar
+            },
+            trainingError: result.meanError,
+            meanError: result.meanError, // compatibilidad: es el error de AJUSTE (no de rendimiento)
+            createdAt: Date.now(),
+            ts: Date.now()
+        };
+        const draft = this.mode === 'OJOS'
+            ? { ...base, kind: gaze.MODEL_KIND, model: result.model,
+                samples: this.pointSamples.map(p => ({ target: p.target, samples: p.samples.map(s => ({ raw: s.raw })) })), implicit: [] }
+            : { ...base, weightsX: result.weightsX, weightsY: result.weightsY };
         implicitSinceRetrain = 0;
-        saveProfile(this.mode, profile);
+        this._startValidation(now, draft);
+    }
+
+    // --- Verificación (M04) ---
+    _startValidation(now, profile) {
+        this.stage = 'VALIDATE';
+        this.trained = { profile, predictor: predictorFor(this.mode, profile) };
+        this.vTargets = validationTargets(window.innerWidth, window.innerHeight);
+        this.vData = this.vTargets.map(t => ({ target: t, preds: [], newFrames: 0 }));
+        this.vIdx = 0;
+        this.phase = 'COUNTDOWN';
+        this.phaseStart = now;
+    }
+
+    _validationFrame(features, countable, elapsed, now) {
+        const d = this.vData[this.vIdx];
+        if (countable) {
+            d.newFrames++;
+            if (features) {
+                // Igual que en el uso real (tracking.js): en Iris se predice sobre la mediana de los últimos cuadros
+                let f = features;
+                if (this.mode === 'OJOS') {
+                    d.buf = [...(d.buf || []), features].slice(-CONFIG.GAZE_MEDIAN_FRAMES);
+                    f = features.map((_, i) => { const v = d.buf.map(b => b[i]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; });
+                }
+                const [x, y] = this.trained.predictor(f);
+                if (Number.isFinite(x) && Number.isFinite(y)) d.preds.push([x, y]);
+            }
+        }
+        if (elapsed > VALIDATION_SAMPLING_MS + CONFIG.SAMPLE_WARMUP_MS) {
+            this.vIdx++;
+            if (this.vIdx < this.vTargets.length) { this.phase = 'COUNTDOWN'; this.phaseStart = now; return; }
+            this._finishValidation();
+        }
+    }
+
+    _finishValidation() {
+        const fps = (currentContext().camera && currentContext().camera.frameRate) || 30;
+        const expected = Math.round(VALIDATION_SAMPLING_MS / 1000 * fps);
+        const points = this.vData.map(d => ({ target: d.target, preds: d.preds, expectedFrames: Math.max(d.newFrames, Math.round(expected * 0.5)) }));
+        const metrics = computeMetrics(points, { w: window.innerWidth, h: window.innerHeight });
+        const verdict = judge(metrics);
+        const quality = verdict.status !== 'accepted' ? 'no aprobada'
+            : metrics.medianError <= 0.2 * metrics.cellRef ? 'buena' : 'aceptable';
+        const profile = {
+            ...this.trained.profile,
+            quality,
+            validation: { status: verdict.status, failures: verdict.failures, metrics, rules: RULES.version, checkedAt: Date.now() }
+        };
         this.phase = 'DONE';
+        // Solo se persiste una calibración ACEPTADA. Una fallida no reemplaza a la anterior ni activa el cursor.
+        // En una verificación rápida fallida se guarda el estado "failed" del perfil existente (pide recalibrar).
+        if (verdict.status === 'accepted' || this.validateOnly) saveProfile(this.mode, profile);
         this.onComplete(profile);
     }
 
     // Datos para que main.js dibuje el punto actual en el canvas
     renderInfo(now) {
         if (this.phase !== 'COUNTDOWN' && this.phase !== 'SAMPLING') return null;
-        const pt = this.points[this.currentIdx];
-        const [tx, ty] = pt.target;
-        const total = this.points.length;
+        const validating = this.stage === 'VALIDATE';
+        const [tx, ty] = validating ? this.vTargets[this.vIdx] : this.points[this.currentIdx].target;
         return {
             x: tx, y: ty,
-            index: this.currentIdx,
-            label: `${this.currentIdx + 1}/${total}`,
-            hint: pt.headMove
-                ? 'Mirá el punto y mové la cabeza despacito'
+            index: validating ? this.vIdx : this.currentIdx,
+            stage: this.stage,
+            label: validating ? `V${this.vIdx + 1}/${this.vTargets.length}` : `${this.currentIdx + 1}/${this.points.length}`,
+            hint: validating ? 'Verificación: mirá el punto'
                 : (this.mode === 'OJOS' ? 'Mirá el punto, con la cabeza quieta' : null),
             sampling: this.phase === 'SAMPLING',
-            countdownProgress: this.phase === 'COUNTDOWN'
-                ? Math.min((now - this.phaseStart) / CONFIG.COUNTDOWN_MS, 1)
-                : null
+            countdownProgress: this.phase === 'COUNTDOWN' ? Math.min((now - this.phaseStart) / CONFIG.COUNTDOWN_MS, 1) : null
         };
     }
 }

@@ -51,6 +51,8 @@ function publishInvalid(reason) {
     latestSample = invalidSample(reason, { sessionId, sequence: ++sequence, now: performance.now(), mode: S.trackingMode });
     S.rawX = null; S.rawY = null;
 }
+/** Cámara en uso (M02: se guarda con el perfil). null hasta que arranca. */
+export let cameraInfo = null;
 /** Para diagnóstico: latencias captura→resultado de los últimos cuadros (ms) */
 export const latencies = [];
 
@@ -213,6 +215,8 @@ async function startTasks(video, gen) {
     const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
     if (gen !== generation) { s.getTracks().forEach(t => t.stop()); return false; } // arranque viejo: no tocar el vigente
     stream = s;
+    const st = s.getVideoTracks()[0]?.getSettings?.() || {};
+    cameraInfo = { width: st.width || null, height: st.height || null, frameRate: st.frameRate || null, facingMode: st.facingMode || 'user', mirror: false };
     // Cámara cortada (otra app la tomó, se desconectó, permiso revocado): mirada inválida en el acto
     s.getVideoTracks().forEach(tr => tr.addEventListener('ended', () => { if (gen === generation) publishInvalid('camera-ended'); }));
     video.muted = true;

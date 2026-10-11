@@ -89,8 +89,9 @@ await t('CARA: termina con perfil {weightsX, weightsY, meanError, quality} sin k
 });
 await t('CARA: 9 puntos, error medio bajo (<2% diagonal), calidad buena', () => {
     assert(cara.s.points.length === 9, `${cara.s.points.length} puntos`);
-    assert(new Set(cara.log.map(e => e.index)).size === 9, 'no recorrió los 9');
-    assert(cara.log.every(e => e.label.endsWith('/9') && e.hint === null), 'label/hint inesperado en CARA');
+    const capture = cara.log.filter(e => e.stage === 'CAPTURE');
+    assert(new Set(capture.map(e => e.index)).size === 9, 'no recorrió los 9');
+    assert(capture.every(e => e.label.endsWith('/9') && e.hint === null), 'label/hint inesperado en CARA');
     assert(cara.result.meanError < diag * 0.02, `meanError ${cara.result.meanError.toFixed(1)} px`);
     assert(cara.result.quality === 'buena', cara.result.quality);
     origLog(`    (CARA) error medio ${cara.result.meanError.toFixed(1)} px en ${(cara.now / 1000).toFixed(1)} s simulados`);
@@ -110,7 +111,7 @@ const ojos = runSession('OJOS', ojosFeat);
 await t('OJOS (v3, cabeza quieta): 9 puntos, todos con la indicación de cabeza quieta', () => {
     assert(ojos.s.points.length === 9, `${ojos.s.points.length}`);
     const byIdx = {};
-    for (const e of ojos.log) byIdx[e.index] = e;
+    for (const e of ojos.log) if (e.stage === 'CAPTURE') byIdx[e.index] = e;
     assert(Object.keys(byIdx).length === 9, `recorrió ${Object.keys(byIdx).length}`);
     assert(Object.values(byIdx).every(e => e.label.endsWith('/9')), 'label');
     assert(Object.values(byIdx).every(e => e.hint && /cabeza quieta/i.test(e.hint) && !isHeadHint(e.hint)), 'hint');
@@ -124,6 +125,7 @@ await t('OJOS: perfil kind gaze-v3 con model (y poseRef), samples (9 con raw), i
     assert(Array.isArray(p.implicit) && p.implicit.length === 0, 'implicit');
     assert(Number.isFinite(p.meanError) && p.quality, 'meanError/quality');
     origLog(`    (OJOS) error medio ${p.meanError.toFixed(1)} px (${p.quality}) en ${(ojos.now / 1000).toFixed(1)} s simulados`);
+    if (process.env.DBG) origLog(JSON.stringify({ ...p.validation.metrics, perPoint: undefined }), p.validation.failures);
 });
 await t('OJOS: isUsableProfile true; perfil viejo solo-iris {weightsX, weightsY} false', () => {
     assert(isUsableProfile('OJOS', ojos.result), 'híbrido');
@@ -132,15 +134,16 @@ await t('OJOS: isUsableProfile true; perfil viejo solo-iris {weightsX, weightsY}
 });
 
 // 5. Persistencia (antes de tocar el perfil con el implícito)
-await t('persistencia: miravoz_calibration_v2 con ambos perfiles y loadProfiles() los recupera', async () => {
+await t('persistencia: miravoz_calibration_v3 (ámbito "prueba") con ambos perfiles y loadProfiles() los recupera', async () => {
     await new Promise(r => setTimeout(r, 0));
-    const st = store.get('miravoz_calibration_v2');
-    assert(st && st.CARA && st.OJOS, `guardado: ${st && Object.keys(st)}`);
-    assert(st.OJOS.kind === 'gaze-v3' && st.CARA.weightsX, 'contenido');
-    cal.profiles.OJOS = null; cal.profiles.CARA = null;
+    const st = store.get('miravoz_calibration_v3');
+    const sc = st && st.scopes && st.scopes.prueba;
+    assert(sc && sc.CARA && sc.OJOS, `guardado: ${st && JSON.stringify(Object.keys(st))}`);
+    assert(sc.OJOS.kind === 'gaze-v3' && sc.CARA.weightsX && sc.CARA.schema === 3 && sc.CARA.context, 'contenido');
+    cal._setStorage(globalThis.localforage);
     await loadProfiles();
-    assert(isUsableProfile('OJOS', cal.profiles.OJOS) && isUsableProfile('CARA', cal.profiles.CARA), 'no recuperó');
-    assert(JSON.stringify(cal.profiles.OJOS.model) === JSON.stringify(ojos.result.model), 'modelo distinto');
+    assert(isUsableProfile('OJOS', cal.getProfile('OJOS')) && isUsableProfile('CARA', cal.getProfile('CARA')), 'no recuperó');
+    assert(JSON.stringify(cal.getProfile('OJOS').model) === JSON.stringify(ojos.result.model), 'modelo distinto');
 });
 
 // 3. Sin rostro
@@ -165,38 +168,38 @@ await t('sin rostro intermitente (cara aparece y desaparece) no aborta si un pun
 
 // 4. Aprendizaje implícito
 const implicitBatch = () => {
-    const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H, h = moving(rnd() * 10000);
+    const tx = (0.15 + 0.7 * rnd()) * W, ty = (0.15 + 0.7 * rnd()) * H, h = still(); // cabeza quieta (como pide el modo Iris v3)
     return Array.from({ length: CONFIG.IMPLICIT_SAMPLES_PER_SELECT }, () => ({ target: [tx, ty], raw: observe(tx, ty, h) }));
 };
 await t('implícito: 4 llamadas → null; la 5ª re-entrena (model nuevo) y acumula implicit', async () => {
-    const before = JSON.stringify(cal.profiles.OJOS.model);
+    const before = JSON.stringify(cal.getProfile('OJOS').model);
     for (let i = 0; i < CONFIG.IMPLICIT_RETRAIN_EVERY - 1; i++) {
         const r = await addImplicitSamples('OJOS', implicitBatch());
         assert(r === null, `llamada ${i + 1} devolvió perfil`);
     }
-    assert(JSON.stringify(cal.profiles.OJOS.model) === before, 'cambió el modelo antes de la 5ª');
+    assert(JSON.stringify(cal.getProfile('OJOS').model) === before, 'cambió el modelo antes de la 5ª');
     const r = await addImplicitSamples('OJOS', implicitBatch());
     assert(r && r.kind === 'gaze-v3', '5ª no devolvió perfil');
     assert(JSON.stringify(r.model) !== before, 'modelo igual');
     const n = CONFIG.IMPLICIT_RETRAIN_EVERY * CONFIG.IMPLICIT_SAMPLES_PER_SELECT;
     assert(r.implicit.length === n, `implicit ${r.implicit.length} ≠ ${n}`);
-    assert(store.get('miravoz_calibration_v2').OJOS.implicit.length === n, 'no persistió implicit');
+    assert(store.get('miravoz_calibration_v3').scopes.prueba.OJOS.implicit.length === n, 'no persistió implicit');
 });
 await t('implícito: respeta IMPLICIT_MAX_SAMPLES', async () => {
     const calls = Math.ceil(CONFIG.IMPLICIT_MAX_SAMPLES / CONFIG.IMPLICIT_SAMPLES_PER_SELECT) + 10;
     for (let i = 0; i < calls; i++) await addImplicitSamples('OJOS', implicitBatch());
     // Nunca supera el tope (puede quedar por debajo si la salvaguarda descartó un re-entrenamiento y vació lo implícito)
-    assert(cal.profiles.OJOS.implicit.length > 0 && cal.profiles.OJOS.implicit.length <= CONFIG.IMPLICIT_MAX_SAMPLES, `${cal.profiles.OJOS.implicit.length}`);
+    assert(cal.getProfile('OJOS').implicit.length > 0 && cal.getProfile('OJOS').implicit.length <= CONFIG.IMPLICIT_MAX_SAMPLES, `${cal.getProfile('OJOS').implicit.length}`);
 });
 await t('implícito: modo CARA, sin perfil o samples vacío → null sin romper', async () => {
     assert(await addImplicitSamples('CARA', implicitBatch()) === null, 'CARA');
     assert(await addImplicitSamples('OJOS', []) === null, 'vacío');
-    const keep = cal.profiles.OJOS;
-    cal.profiles.OJOS = null;
+    const keep = cal.getProfile('OJOS');
+    await cal.clearProfile('OJOS');
     assert(await addImplicitSamples('OJOS', implicitBatch()) === null, 'sin perfil');
-    cal.profiles.OJOS = { weightsX: [1], weightsY: [1] }; // perfil viejo solo-iris
+    await cal.saveProfile('OJOS', { weightsX: [1], weightsY: [1] }); // perfil viejo solo-iris
     assert(await addImplicitSamples('OJOS', implicitBatch()) === null, 'perfil viejo');
-    cal.profiles.OJOS = keep;
+    await cal.saveProfile('OJOS', keep);
 });
 await t('implícito: el contador se reinicia al recalibrar (una nueva sesión OJOS)', async () => {
     await addImplicitSamples('OJOS', implicitBatch()); // contador ≠ 0
