@@ -41,7 +41,7 @@ begin
   end if;
   return jsonb_build_object('error', jsonb_build_object(
     'http_code', 403,
-    'message', 'Cuenta no registrada. Escribí a esteban@sarabia.com para pedir acceso.'
+    'message', 'Cuenta no registrada'
   ));
 end;
 $$;

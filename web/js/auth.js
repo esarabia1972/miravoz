@@ -130,7 +130,7 @@ export function consumeOAuthReturn() {
 // --- Cuentas habilitadas (11/10/2026, supabase/06_cuentas_habilitadas.sql) ---
 // La barrera real está en el servidor (Auth Hook "Before User Created"); esto corta además a cuentas
 // creadas antes de la lista. Sin red o sin respuesta se deja pasar (null): lo local tiene que funcionar offline.
-export const NOT_ENABLED_MESSAGE = 'Cuenta no registrada. Escribí a esteban@sarabia.com para pedir acceso.';
+export const NOT_ENABLED_MESSAGE = 'Cuenta no registrada';
 
 /** true / false según la lista; null si no se pudo saber (sin red, función no instalada, demora > 4 s). */
 export async function accountEnabled() {
