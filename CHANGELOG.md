@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.3.2] - 2026-10-11
+
+- **Changed**: "Cerrar sesión" y "Desvincular tablet" pasan de la barra inferior a Configuración, abajo a la izquierda y en rojo (lejos de "Listo").
+
 ## [1.3.1] - 2026-10-11
 
 - **Changed**: "Nuevo tablero" es solo un ícono "+" (sin fondo verde), junto al de Importar.

@@ -1505,3 +1505,9 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .practice-card { color: #fff; border-color: transparent; }
 :root[data-theme="light"] .practice-card { box-shadow: 0 6px 18px rgba(15,23,42,0.12); }
 :root[data-theme="light"] .practice-choice { color: #0f172a; }
+
+/* Configuración: Cerrar sesión / Desvincular abajo a la izquierda, en rojo (1.3.2) */
+.settings-footer { justify-content: space-between; }
+.settings-footer #btn-settings-done { margin-left: auto; }
+.btn-danger-outline { background: transparent; border: 1px solid var(--danger-text); color: var(--danger-text); border-radius: 10px; padding: 8px 16px; font: 600 0.95rem 'Inter', sans-serif; cursor: pointer; }
+.btn-danger-outline:hover { background: var(--danger-bg); border-color: var(--danger-bg); color: #fff; }
