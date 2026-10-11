@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.5] - 2026-10-11
+
+- **Changed**: Mis usuarios: la tarjeta de cada usuario queda en una sola fila clara: a la izquierda el estado (tablet vinculada y última conexión, código vigente si hay, etiqueta "Registro de uso activo"); a la derecha las acciones (Desvincular tablet, Nuevo código, Activar/Desactivar registro). Ya no se muestra "Sin código vigente…" ni el texto largo del registro.
+
 ## [1.9.4] - 2026-10-11
 
 - **Fixed**: Progreso fallaba con "text.trim is not a function" en tableros con textos automáticos de ARASAAC (`autoLabel` es un objeto, no un texto). Corregido también en el registro de uso, en `ver_tablero` y `revisar_tablero` del servidor MCP.

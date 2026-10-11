@@ -1583,3 +1583,10 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .progress-bar-label { font-size: 0.7rem; color: var(--text-muted); }
 .progress-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
 .user-metrics { flex-wrap: wrap; }
+
+/* Mis usuarios: fila de la tablet (1.9.5) */
+.user-tablet-row { justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.user-tablet-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 260px; }
+.user-tablet-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.user-badge { align-self: flex-start; font-size: 0.8rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+.user-tablet-info .user-code { align-self: flex-start; }

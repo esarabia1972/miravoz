@@ -261,54 +261,45 @@ async function setMetrics(user, enabled) {
     renderUsersList(`metrics:${user.id}`);
 }
 
-function renderMetrics(user) {
-    const row = el('div', 'user-row user-metrics');
+function metricsButton(user) {
     const on = !!user.settings?.metrics?.enabled;
-    row.appendChild(el('span', 'user-note', on
-        ? 'Registro de uso activado (con consentimiento). La tablet lo aplica la próxima vez que se conecta.'
-        : 'Registro de uso desactivado.'));
-    const toggle = button(on ? 'Desactivar registro' : 'Activar registro', `${on ? 'Desactivar' : 'Activar'} el registro de uso de ${user.display_name}`, () => setMetrics(user, !on));
-    toggle.dataset.focusKey = `metrics:${user.id}`;
-    row.appendChild(toggle);
-    return row;
+    const b = button(on ? 'Desactivar registro' : 'Activar registro', `${on ? 'Desactivar' : 'Activar'} el registro de uso de ${user.display_name}`, () => setMetrics(user, !on));
+    b.dataset.focusKey = `metrics:${user.id}`;
+    b.title = on ? 'Se registra el uso de su tablet (con consentimiento) para ver su progreso.' : 'Registrar el uso de su tablet para ver su progreso (necesita consentimiento).';
+    return b;
 }
 
+/** 1.9.5: una sola fila clara — estado de la tablet a la izquierda; acciones (desvincular, código, registro) a la derecha. */
 function renderTablet(user) {
     const box = el('div', 'user-tablet');
-
-    // Tablet(s) vinculada(s)
-    if (user.devicesError) {
-        box.appendChild(el('p', 'user-note', 'No pudimos ver si tiene una tablet vinculada.'));
-    } else if (!user.devices.length) {
-        box.appendChild(el('p', 'user-note', 'Sin tablet vinculada.'));
-    } else {
-        user.devices.forEach((device, i) => {
-            const row = el('div', 'user-row');
-            const label = user.devices.length > 1 ? `Tablet ${i + 1} vinculada` : 'Tablet vinculada';
-            const seen = device.last_seen_at ? ` · última conexión ${shortDate(device.last_seen_at)}` : '';
-            row.appendChild(el('span', 'user-device', device.created_at ? `${label} desde el ${shortDate(device.created_at)}${seen}` : label));
-            row.appendChild(button('Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device)));
-            box.appendChild(row);
-        });
-    }
-
-    // Código de vinculación
-    const row = el('div', 'user-row');
-    const code = el('span', 'user-code');
-    if (user.codesError) {
-        code.textContent = 'No pudimos cargar el código para vincular su tablet.';
-    } else if (user.access_code) {
+    const row = el('div', 'user-row user-tablet-row');
+    const info = el('div', 'user-tablet-info');
+    const linked = !user.devicesError && user.devices.length > 0;
+    if (user.devicesError) info.appendChild(el('span', 'user-device', 'No pudimos ver si tiene una tablet vinculada.'));
+    else if (!linked) info.appendChild(el('span', 'user-device', 'Sin tablet vinculada'));
+    else user.devices.forEach((device, i) => {
+        const label = user.devices.length > 1 ? `Tablet ${i + 1} vinculada` : 'Tablet vinculada';
+        const seen = device.last_seen_at ? ` · última conexión ${shortDate(device.last_seen_at)}` : '';
+        info.appendChild(el('span', 'user-device', device.created_at ? `${label} desde el ${shortDate(device.created_at)}${seen}` : label));
+    });
+    // Código: solo se muestra si hay uno vigente (o si todavía no hay tablet y falló la carga)
+    if (user.codesError) info.appendChild(el('span', 'user-note', 'No pudimos cargar el código de vinculación.'));
+    else if (user.access_code) {
         const days = Math.max(0, Math.ceil((new Date(user.access_code_expires) - Date.now()) / 86400000));
-        code.textContent = `Código para vincular su tablet: ${user.access_code} · un solo uso · vence en ${days} ${days === 1 ? 'día' : 'días'}`;
-    } else {
-        code.textContent = 'Sin código vigente para vincular una tablet.';
+        info.appendChild(el('span', 'user-code', `Código: ${user.access_code} · un solo uso · vence en ${days} ${days === 1 ? 'día' : 'días'}`));
     }
-    row.appendChild(code);
-    const gen = button(user.access_code ? 'Nuevo código' : 'Generar código',
-        `${user.access_code ? 'Nuevo código' : 'Generar código'} para la tablet de ${user.display_name}`,
-        () => generateCode(user.id));
-    gen.title = 'Genera un código de un solo uso (vence en 7 días). El código anterior deja de servir.';
-    row.appendChild(gen);
+    if (user.settings?.metrics?.enabled) info.appendChild(el('span', 'user-badge', 'Registro de uso activo'));
+    row.appendChild(info);
+
+    const actions = el('div', 'user-tablet-actions');
+    if (linked) user.devices.forEach((device, i) => actions.appendChild(
+        button(user.devices.length > 1 ? `Desvincular tablet ${i + 1}` : 'Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device))));
+    const gen = button(user.access_code || linked ? 'Nuevo código' : 'Generar código',
+        `${user.access_code || linked ? 'Nuevo código' : 'Generar código'} para la tablet de ${user.display_name}`, () => generateCode(user.id));
+    gen.title = 'Genera un código de un solo uso para vincular una tablet (vence en 7 días). El código anterior deja de servir.';
+    actions.appendChild(gen);
+    actions.appendChild(metricsButton(user));
+    row.appendChild(actions);
     box.appendChild(row);
     return box;
 }
@@ -430,7 +421,6 @@ export function renderUsersList(focusKey = null) {
         card.appendChild(head);
 
         card.appendChild(renderTablet(user));
-        card.appendChild(renderMetrics(user));
 
         const panel = el('div', 'user-copies');
         panel.id = panelId;
