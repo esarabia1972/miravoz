@@ -57,6 +57,25 @@ await t('calibración aceptada: guarda contexto completo y verificación con mé
     await new Promise(r => setTimeout(r, 0));
     assert(cal.checkProfile('CARA').ok, 'no compatible en el mismo contexto: ' + cal.checkProfile('CARA').reason);
 });
+await t('Rostro: verificación a lazo cerrado (cursor visible) corrige el desplazamiento de la cabeza', async () => {
+    // Persona cuya cabeza "se hunde" en la verificación (+0.06 en y, ~un tercio de pantalla).
+    const drift = 0.06;
+    const open = runSession(info => { const g = good(info.x, info.y); return info.stage === 'VALIDATE' ? [g[0], g[1] + drift] : g; });
+    assert(open.result && open.result.validation.status === 'failed', 'sin corregir debería fallar');
+    // Misma deriva, pero la persona mira el cursor y lo lleva al punto (controlador proporcional)
+    let corr = [0, 0], sawCursor = false;
+    const closed = runSession(info => {
+        const g = good(info.x, info.y);
+        if (info.stage !== 'VALIDATE') return g;
+        if (info.cursor) {
+            sawCursor = true;
+            corr = [corr[0] - 0.15 * (info.cursor[0] - info.x) * 0.4 / W, corr[1] - 0.15 * (info.cursor[1] - info.y) * 0.4 / H];
+        }
+        return [g[0] + corr[0], g[1] + drift + corr[1]];
+    });
+    assert(sawCursor, 'en Rostro la verificación tiene que mostrar el cursor');
+    assert(closed.result && closed.result.validation.status === 'accepted', JSON.stringify(closed.result && closed.result.validation.metrics && { m: closed.result.validation.metrics.medianError, p90: closed.result.validation.metrics.p90Error }));
+});
 await t('T08 cambio de usuario: el perfil de otra persona nunca se usa', () => {
     ctx = { ...ctx, scope: 'user:beto' };
     const c = cal.checkProfile('CARA');

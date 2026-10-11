@@ -160,6 +160,11 @@ updateCalibPoints();
 window.addEventListener('resize', updateCalibPoints);
 
 const VALIDATION_SAMPLING_MS = 1000;
+// Rostro (1.2.0): la verificación es a LAZO CERRADO — se ve el cursor y la persona lo lleva al punto, como en el
+// uso real. A lazo abierto (sin cursor) se medía la precisión absoluta de la cabeza, que se desplaza unos grados
+// en pocos segundos (diagnósticos del iPad Air 4, 11/10/2026): con el cursor visible eso se corrige solo.
+// Iris sigue a lazo abierto (un cursor que sigue a la mirada distrae y arrastra la vista).
+const CARA_VALIDATION_COUNTDOWN_MS = 2500;
 const MAX_POINT_SAMPLING_MS = 3000; // tope por punto si el motor entrega pocos cuadros por segundo
 
 /**
@@ -185,6 +190,7 @@ export class CalibrationSession {
         this.vTargets = [];
         this.vIdx = -1;
         this.vData = [];
+        this.vCursor = null;
     }
 
     begin(now) {
@@ -209,8 +215,15 @@ export class CalibrationSession {
     onFrame(features, now, fresh) {
         const isNewFrame = fresh !== undefined ? !!fresh : !!features;
         const capturedAt = fresh ? fresh.capturedAt : now;
+        if (this._closedLoop() && features && this.trained && (this.phase === 'COUNTDOWN' || this.phase === 'SAMPLING')) {
+            const [x, y] = this.trained.predictor(features);
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+                const c = this.vCursor;
+                this.vCursor = c ? [c[0] + 0.35 * (x - c[0]), c[1] + 0.35 * (y - c[1])] : [x, y]; // suavizado solo para dibujar
+            }
+        }
         if (this.phase === 'COUNTDOWN') {
-            if (now - this.phaseStart > CONFIG.COUNTDOWN_MS) { this.phase = 'SAMPLING'; this.phaseStart = now; }
+            if (now - this.phaseStart > this._countdownMs()) { this.phase = 'SAMPLING'; this.phaseStart = now; }
             return;
         }
         if (this.phase !== 'SAMPLING') return;
@@ -246,6 +259,9 @@ export class CalibrationSession {
             this._nextPoint(now);
         }
     }
+
+    _closedLoop() { return this.stage === 'VALIDATE' && this.mode !== 'OJOS'; }
+    _countdownMs() { return this._closedLoop() ? CARA_VALIDATION_COUNTDOWN_MS : CONFIG.COUNTDOWN_MS; }
 
     _train(now) {
         let result;
@@ -380,10 +396,11 @@ export class CalibrationSession {
             index: validating ? this.vIdx : this.currentIdx,
             stage: this.stage,
             label: validating ? `V${this.vIdx + 1}/${this.vTargets.length}` : `${this.currentIdx + 1}/${this.points.length}`,
-            hint: validating ? (this.mode === 'OJOS' ? 'Verificación: mirá el punto, con la cabeza quieta' : 'Verificación: apuntá al punto con la nariz, como en la calibración')
+            hint: validating ? (this.mode === 'OJOS' ? 'Verificación: mirá el punto, con la cabeza quieta' : 'Verificación: llevá el cursor al punto con la cabeza y mantenelo ahí')
                 : (this.mode === 'OJOS' ? 'Mirá el punto, con la cabeza quieta' : null),
             sampling: this.phase === 'SAMPLING',
-            countdownProgress: this.phase === 'COUNTDOWN' ? Math.min((now - this.phaseStart) / CONFIG.COUNTDOWN_MS, 1) : null
+            countdownProgress: this.phase === 'COUNTDOWN' ? Math.min((now - this.phaseStart) / this._countdownMs(), 1) : null,
+            cursor: this._closedLoop() && this.vCursor ? [...this.vCursor] : null
         };
     }
 }

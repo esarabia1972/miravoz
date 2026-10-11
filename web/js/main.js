@@ -769,6 +769,17 @@ function drawCalibPoint(info) {
     ctxUI.textBaseline = 'middle';
     ctxUI.fillText(info.label, info.x, info.y);
 
+    // Verificación de Rostro a lazo cerrado: el cursor se ve (anillo celeste) para llevarlo al punto
+    if (info.cursor) {
+        ctxUI.beginPath();
+        ctxUI.arc(info.cursor[0], info.cursor[1], 14, 0, 2 * Math.PI);
+        ctxUI.lineWidth = 5;
+        ctxUI.fillStyle = 'rgba(79,195,247,0.35)';
+        ctxUI.fill();
+        ctxUI.strokeStyle = '#4fc3f7';
+        ctxUI.stroke();
+    }
+
     // Modo Iris: indicación (p. ej. "mové la cabeza despacito") arriba de la pantalla
     if (info.hint) {
         ctxUI.font = 'bold 26px Inter';

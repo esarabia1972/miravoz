@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.2.0] - 2026-10-11
+
+- **Changed**: la verificación del modo Rostro es a **lazo cerrado**: se ve el cursor (anillo celeste) y la persona lo lleva al punto y lo mantiene, como en el uso real. Los diagnósticos del iPad Air 4 mostraron que, sin cursor, la cabeza se desplaza unos 3-4° hacia abajo en menos de un minuto (sobre todo en vertical: todo el alto de la pantalla son ~9° de cabeceo), y eso hacía fallar la verificación aunque el cursor se pudiera usar. Iris sigue a lazo abierto. La cuenta regresiva de cada punto de verificación en Rostro es de 2,5 s para dar tiempo a acomodar el cursor.
+
 ## [1.1.0] - 2026-10-11
 
 - **Changed**: el modo Rostro usa los **ángulos de la cabeza** (giro y cabeceo de FaceLandmarker) en vez de la posición de la nariz en la imagen. La nariz cambia si la persona se corre o se hunde en la silla, y en el iPad Air 4 (cámara al costado en horizontal) eso arruinaba la verificación. Con el diagnóstico real del iPad, los mismos datos dan un error mediano de 46 px con ángulos contra 131 px con la nariz. Los perfiles de Rostro anteriores quedan invalidados: hay que recalibrar una vez. El motor legado (sin pose) sigue usando la nariz.
