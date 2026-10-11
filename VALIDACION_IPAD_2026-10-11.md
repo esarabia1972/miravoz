@@ -20,10 +20,10 @@ Protocolo: `PROTOCOLO_VALIDACION_IPAD.md`. Persona: quien desarrolla (Esteban). 
 6. **Robustez** (tapar cámara, ojos cerrados, girar, cambiar de app): 0 selecciones indebidas.
 7. **Sin internet:** abre, tableros y pictogramas OK, cursor OK. La voz se trababa después de la primera celda → corregido en 1.2.1 (cada frase cancela la anterior, vigilante de 1,5 s, voces locales).
 8. **Sesión de 20 min:** pendiente.
-9. **Worker (`?vision=worker`):** pendiente.
+9. **Worker (`?vision=worker`):** con el panel de diagnóstico, antes del benchmark: **22 resultados/s** (contra 30 en el hilo principal), inferencia 90 ms y captura→resultado 45 ms (contra 15-21 ms en el hilo principal). **Decisión: el Worker queda apagado; el hilo principal con GPU sigue por defecto en el iPad Air 4.** No hizo falta el benchmark con Worker.
 
 ## Pendientes que salen de la sesión
 
 - Revisar el suavizado del cursor ("inestable en algún momento") con el diagnóstico `miravoz-diag-2026-10-11-14-21.json` (carpeta MiraVoz, no versionado).
 - Confirmar la voz sin conexión con 1.2.1.
-- Pasos 8 y 9.
+- Paso 8.
