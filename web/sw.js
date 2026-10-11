@@ -103,7 +103,8 @@ async function activeCache() {
 }
 
 const isArasaacImage = (url) => url.hostname === 'api.arasaac.org' && /^\/api\/pictograms\/\d+/.test(url.pathname);
-const isPrivate = (url) => /supabase\.co$/.test(url.hostname) || url.pathname.startsWith('/auth') || url.pathname.startsWith('/rest/');
+const isPrivate = (url) => /supabase\.co$/.test(url.hostname) || url.pathname.startsWith('/auth') || url.pathname.startsWith('/rest/')
+    || url.pathname.startsWith('/oauth') || url.pathname.startsWith('/api/') || url.pathname === '/mcp' || url.pathname.startsWith('/.well-known/');
 
 self.addEventListener('fetch', (event) => {
     const req = event.request;

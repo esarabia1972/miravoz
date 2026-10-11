@@ -2,6 +2,15 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.6.0] - 2026-10-11
+
+- **Added**: **servidor MCP de MiraVoz** (etapa 1, solo lectura) en `https://www.miravoz.com.ar/mcp`, para conectar la cuenta registrada con Claude como conector personalizado.
+  - Inicio de sesión con el servidor OAuth 2.1 de Supabase: Claude recibe un token a nombre de la cuenta y las reglas RLS de siempre limitan lo que ve. También rige la lista de cuentas habilitadas.
+  - Pantalla de autorización propia en `/oauth/consent` (ingreso con Google, qué puede hacer la aplicación, Permitir/Cancelar).
+  - Herramientas: `quien_soy`, `listar_tableros`, `ver_tablero` (páginas, grilla y celdas con texto, voz, color, pictograma y navegación), `listar_usuarios`, `ver_usuario` (asignaciones) y `buscar_pictogramas` (ARASAAC). Nunca devuelve códigos, tokens de tablets ni imágenes propias.
+  - Funciones de Vercel en `web/api/` (sin dependencias); el núcleo (`_mcp.js`) está testeado (`tools/test-mcp.mjs`). Quedan fuera del modo sin conexión.
+- **Changed**: política de privacidad: sección sobre asistentes de inteligencia artificial conectados por la cuenta.
+
 ## [1.5.3] - 2026-10-11
 
 - **Changed**: Configuración: sin "Probar voz" ni la leyenda de la voz sin conexión; sin mención a Iris; una explicación breve (hasta dos líneas) por sección; opciones cortas para que no se corten ("Por filas / De a uno", "0,6 s", "Largo / Doble", "Con fijación: Sí / No").
