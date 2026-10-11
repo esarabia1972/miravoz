@@ -15,6 +15,7 @@ Protocolo: `PROTOCOLO_VALIDACION_IPAD.md`. Persona: quien desarrolla (Esteban). 
 1. **Preparación:** vinculación por código OK, voz OK, "Preparado para usar sin conexión" OK.
 2. **Calibración:** con 1.0.x la verificación fallaba (mediana 131 → 174 → 201 px; señal válida 100%). Diagnóstico: el modelo usaba la posición de la nariz (cambia si la persona se corre) y la verificación era a ciegas (la cabeza baja 3-4° en vertical en menos de un minuto; todo el alto de la pantalla son ~9°). Se corrigió en 1.1.0 (ángulos de la cabeza) y 1.2.0 (verificación con cursor visible). Con 1.2.0: **aceptada**.
 3. **Benchmark:** 3×3 **20/20 (100%)**, 0 errores, 0 omisiones, mediana 2,8 s, p90 4,1 s, 0 activaciones en el descanso. 4×4 **20/20 (100%)**, mediana 2,6 s, p90 3,4 s, 0 activaciones. Comentario: "en algún momento se mostraba inestable, pero pude hacerlo".
+   Segunda corrida con 1.2.1 (hilo principal, GPU, 28-30 resultados/s, 16/21 ms): 3×3 **20/20**, mediana 2,2 s, p90 3,5 s; 4×4 **20/20**, mediana 3,1 s, p90 4,6 s; 0 errores, 0 omisiones, 0 activaciones en el descanso.
 4. **Comunicación:** frases, borrar, navegar páginas y diálogos solo con la cabeza: OK.
 5. **Descanso de 2 min:** sin activaciones no deseadas.
 6. **Robustez** (tapar cámara, ojos cerrados, girar, cambiar de app): 0 selecciones indebidas.
