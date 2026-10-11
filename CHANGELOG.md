@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.5.3] - 2026-10-11
+
+- **Changed**: Configuración: sin "Probar voz" ni la leyenda de la voz sin conexión; sin mención a Iris; una explicación breve (hasta dos líneas) por sección; opciones cortas para que no se corten ("Por filas / De a uno", "0,6 s", "Largo / Doble", "Con fijación: Sí / No").
+- **Changed**: "Ajustar a esta persona" pasa a llamarse **Ajuste personalizado** y, si el modo es Manual (cámara apagada), enciende la cámara solo durante el ajuste.
+
 ## [1.5.2] - 2026-10-11
 
 - **Changed**: Alinear sin voz (solo texto en pantalla) y con textos impersonales que no nombran el dispositivo ("Más cerca de la pantalla", "Mover la cabeza un poco hacia la derecha", "Bien: mantener la posición").

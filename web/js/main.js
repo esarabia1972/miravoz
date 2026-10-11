@@ -868,13 +868,6 @@ if (btnSettings && settingsModal) {
         settingsModal.style.display = 'none';
     });
     document.getElementById('btn-settings-done')?.addEventListener('click', () => { settingsModal.style.display = 'none'; });
-    document.getElementById('btn-test-voice')?.addEventListener('click', () => {
-        const status = document.getElementById('voice-status');
-        if (!isSpeechSupported()) { if (status) status.textContent = 'Este navegador no tiene síntesis de voz.'; return; }
-        unlockSpeech();
-        speak('Hola, esta es la voz de MiraVoz', { cancelPrevious: true });
-        if (status) status.textContent = 'Si no escuchaste nada, revisá el volumen y el modo silencio del dispositivo.';
-    });
     settingsModal.addEventListener('pointerdown', (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
 }
 
@@ -916,11 +909,22 @@ function wireBlinkSettings() {
     hold.addEventListener('change', () => save({ holdMs: parseInt(hold.value, 10) }));
     sel.addEventListener('change', () => save({ selectWith: sel.value }));
     adjust.addEventListener('click', async () => {
-        if (!tracking.isRunning()) {
-            status.textContent = 'Para ajustar, la cámara tiene que estar encendida: elegí Rostro, o Barrido con el parpadeo activado.';
-            return;
-        }
         adjust.disabled = true;
+        // En Manual (o Barrido sin cámara) se enciende la cámara solo para el ajuste
+        const startedHere = !tracking.isRunning();
+        if (startedHere) {
+            tracking.setTempCamera(true);
+            tracking.startMediaPipe();
+            status.textContent = 'Encendiendo la cámara…';
+            const t0 = performance.now();
+            while (!tracking.faceData && performance.now() - t0 < 8000) await new Promise(r => setTimeout(r, 200));
+            if (!tracking.faceData) {
+                status.textContent = 'No se pudo ver la cara con la cámara. Revisá el permiso de cámara y la luz.';
+                tracking.stopMediaPipe(); tracking.setTempCamera(false);
+                adjust.disabled = false;
+                return;
+            }
+        }
         const phase = async (text, ms) => {
             status.textContent = text; speak(text, { cancelPrevious: true });
             await new Promise(r => setTimeout(r, 900)); // tiempo de reacción: no se mide
@@ -931,10 +935,11 @@ function wireBlinkSettings() {
         const open = await phase('Mirá la pantalla con los ojos abiertos. Mirá también la parte de abajo.', 4000);
         const closed = await phase('Ahora cerrá los ojos.', 2500);
         speak('Listo, ya podés abrir los ojos.', { cancelPrevious: true });
+        if (startedHere) { tracking.stopMediaPipe(); tracking.setTempCamera(false); if (S.trackingMode === 'SCAN' && blinkOn()) applyMode('SCAN'); }
         const r = calibrateThreshold(open, closed);
         if (r.ok) {
             await save({ threshold: r.threshold });
-            status.textContent = `Listo: ajustado a esta persona (umbral ${r.threshold.toFixed(2)}).`;
+            status.textContent = `Ajuste personalizado listo (umbral ${r.threshold.toFixed(2)}).`;
         } else {
             status.textContent = r.reason === 'pocas-muestras'
                 ? 'No se vio bien la cara durante el ajuste. Revisá la luz y probá de nuevo.'

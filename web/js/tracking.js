@@ -160,6 +160,9 @@ export function setFaceListener(fn) { faceListener = fn; }
 // En Barrido la cámara solo se usa si el parpadeo está activado (como pulsador)
 let scanCamera = false;
 export function setScanCamera(on) { scanCamera = !!on; }
+// 1.5.3: "Ajuste personalizado" del parpadeo puede encender la cámara un rato aunque el modo sea Manual
+let tempCamera = false;
+export function setTempCamera(on) { tempCamera = !!on; }
 export function isRunning() { return running; }
 
 function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
@@ -477,7 +480,7 @@ function cameraError(e) {
 }
 
 export function startMediaPipe() {
-    if (S.trackingMode === 'CLICKS' || (S.trackingMode === 'SCAN' && !scanCamera)) return;
+    if (!tempCamera && (S.trackingMode === 'CLICKS' || (S.trackingMode === 'SCAN' && !scanCamera))) return;
     if (running) return;
     running = true;
     const gen = ++generation;

@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=56">
+    <link rel="stylesheet" href="style.css?v=57">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -480,8 +480,8 @@
                 <div class="settings-col">
             <section class="settings-section" id="setting-dwell">
                 <h3>Modo Rostro</h3>
-                <p class="settings-help">El cursor sigue la nariz. <strong>Iris</strong> (experimental) sigue los ojos con la cabeza quieta: no usarlo como única vía de comunicación.</p>
-                <label for="dwell-select" title="Cuánto tiempo hay que mantener el cursor sobre una celda para elegirla">Tiempo de fijación</label>
+                <p class="settings-help">El cursor sigue el movimiento de la cabeza. Se elige manteniendo el cursor quieto sobre una celda.</p>
+                <label for="dwell-select">Tiempo de fijación</label>
                 <select id="dwell-select" class="glass-select">
                     <option value="800">0,8 segundos</option>
                     <option value="1200" selected>1,2 segundos</option>
@@ -492,38 +492,38 @@
             </section>
             <section class="settings-section" id="setting-blink">
                 <h3>Parpadeo</h3>
-                <p class="settings-help">En Barrido es el pulsador; en Rostro e Iris elige lo que está bajo el cursor. Los parpadeos comunes no cuentan.</p>
+                <p class="settings-help">Elegir cerrando los ojos un momento. En Barrido reemplaza al pulsador; los parpadeos comunes no cuentan.</p>
                 <div class="settings-grid settings-grid-3">
                     <div>
                         <label for="blink-mode">Usar</label>
                         <select id="blink-mode" class="glass-select">
                             <option value="off" selected>No</option>
-                            <option value="long">Parpadeo largo</option>
-                            <option value="double">Doble parpadeo</option>
+                            <option value="long">Largo</option>
+                            <option value="double">Doble</option>
                         </select>
                     </div>
                     <div id="blink-hold-wrap" hidden>
                         <label for="blink-hold" title="Cuánto tiempo hay que cerrar los ojos">Duración</label>
                         <select id="blink-hold" class="glass-select">
-                            <option value="300">0,3 segundos (rápido)</option>
-                            <option value="400">0,4 segundos</option>
-                            <option value="600" selected>0,6 segundos</option>
-                            <option value="800">0,8 segundos</option>
-                            <option value="1000">1 segundo</option>
-                            <option value="1500">1,5 segundos</option>
+                            <option value="300">0,3 s</option>
+                            <option value="400">0,4 s</option>
+                            <option value="600" selected>0,6 s</option>
+                            <option value="800">0,8 s</option>
+                            <option value="1000">1 s</option>
+                            <option value="1500">1,5 s</option>
                         </select>
                     </div>
                     <div>
-                        <label for="blink-select">En Rostro e Iris</label>
+                        <label for="blink-select" title="En modo Rostro, si también se elige manteniendo el cursor quieto">Con fijación</label>
                         <select id="blink-select" class="glass-select">
-                            <option value="both" selected>Parpadeo o permanencia</option>
-                            <option value="blink">Solo parpadeo</option>
+                            <option value="both" selected>Sí</option>
+                            <option value="blink">No</option>
                         </select>
                     </div>
                 </div>
                 <div id="blink-options" class="settings-inline" hidden>
-                    <button type="button" class="btn btn-secondary" id="btn-blink-adjust">Ajustar a esta persona</button>
-                    <p class="settings-help" id="blink-status" role="status" aria-live="polite">Una vez con cada persona (8 s).</p>
+                    <button type="button" class="btn btn-secondary" id="btn-blink-adjust">Ajuste personalizado</button>
+                    <p class="settings-help" id="blink-status" role="status" aria-live="polite">Adapta la detección a los ojos de cada persona (8 s).</p>
                 </div>
             </section>
                 </div>
@@ -535,41 +535,39 @@
                     <div>
                         <label for="scan-pattern">Patrón</label>
                         <select id="scan-pattern" class="glass-select">
-                            <option value="ROW_COLUMN" selected>Fila → elemento</option>
-                            <option value="LINEAR">Elemento por elemento</option>
+                            <option value="ROW_COLUMN" selected>Por filas</option>
+                            <option value="LINEAR">De a uno</option>
                         </select>
                     </div>
                     <div>
-                        <label for="scan-interval">Velocidad</label>
+                        <label for="scan-interval" title="Cuánto tiempo queda resaltada cada opción">Velocidad</label>
                         <select id="scan-interval" class="glass-select">
-                            <option value="600">Muy rápida (0,6 s)</option>
-                            <option value="900">Rápida (0,9 s)</option>
-                            <option value="1200" selected>Media (1,2 s)</option>
-                            <option value="1800">Pausada (1,8 s)</option>
-                            <option value="2000">Lenta (2 s)</option>
-                            <option value="2500">Más lenta (2,5 s)</option>
-                            <option value="3000">Muy lenta (3 s)</option>
+                            <option value="600">0,6 s</option>
+                            <option value="900">0,9 s</option>
+                            <option value="1200" selected>1,2 s</option>
+                            <option value="1800">1,8 s</option>
+                            <option value="2000">2 s</option>
+                            <option value="2500">2,5 s</option>
+                            <option value="3000">3 s</option>
                         </select>
                     </div>
                     <div>
-                        <label for="scan-audio">Sonido al barrer</label>
+                        <label for="scan-audio">Sonido</label>
                         <select id="scan-audio" class="glass-select">
                             <option value="none" selected>Silencio</option>
                             <option value="beep">Beep</option>
-                            <option value="speak">Decir cada opción</option>
+                            <option value="speak">Decir</option>
                         </select>
                     </div>
                 </div>
             </section>
-            <section class="settings-section" id="setting-voice">
-                <h3>Voz y uso sin conexión</h3>
+            <section class="settings-section" id="setting-offline">
+                <h3>Uso sin conexión</h3>
                 <p class="settings-help" id="offline-status" role="status">Revisando…</p>
                 <div class="settings-inline">
-                    <button type="button" class="btn btn-secondary" id="btn-test-voice">Probar voz</button>
                     <button type="button" class="btn btn-secondary" id="btn-prepare-offline" title="Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo">Preparar sin conexión</button>
                     <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
                 </div>
-                <p class="settings-help" id="voice-status" role="status">La voz sin conexión depende del iPad: probala con el modo avión.</p>
             </section>
                 </div>
             </div>
@@ -583,6 +581,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=84"></script>
+    <script type="module" src="js/main.js?v=85"></script>
 </body>
 </html>
