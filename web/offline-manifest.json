@@ -1,0 +1,353 @@
+{
+ "schema": 1,
+ "version": "4e11087b4824",
+ "files": [
+  {
+   "url": "/apple-touch-icon.png",
+   "sha256": "cb64fd3ea6746e98bc9435e17795a223a4636c66fa986ebf2117b818abee3a70",
+   "bytes": 10440
+  },
+  {
+   "url": "/icon-192.png",
+   "sha256": "9718e56d66a2cc67d1904b48111c8e55448230724e987faa21c79ad5826530ad",
+   "bytes": 11553
+  },
+  {
+   "url": "/icon-512.png",
+   "sha256": "410e6a683011a9fb045ae72286888894a14c331b8d410831ba21e3d835766285",
+   "bytes": 40245
+  },
+  {
+   "url": "/index.html",
+   "sha256": "fda130f665cbb2ec30de4715cfe14bce18fed2e4da64eba28bf15391390c27e9",
+   "bytes": 34587
+  },
+  {
+   "url": "/js/asterics.js",
+   "sha256": "662bfb596836c2479d36af64860fbc00cea05bcc9577ded0625f99ac059a3f0d",
+   "bytes": 14481
+  },
+  {
+   "url": "/js/auth.js",
+   "sha256": "85d6df6470e40566d88c764e7e07af8ae22a744f3810f1ad5cabd9b3df00ccc5",
+   "bytes": 6506
+  },
+  {
+   "url": "/js/benchmark.js",
+   "sha256": "9684eab08f3fb0910627ba3f3c00b50d8184a4cd3b1116c172ea2fa6c521e364",
+   "bytes": 7515
+  },
+  {
+   "url": "/js/boards.js",
+   "sha256": "03bcf4c425429f2a78f49bb315c1a76401256e11aa3ef1a419d4a3ae73e4a8f4",
+   "bytes": 82203
+  },
+  {
+   "url": "/js/calibration.js",
+   "sha256": "7d71846a65754c7b18a390a45afe566c38de1a7ce9798f1b440defdc5a55d252",
+   "bytes": 15851
+  },
+  {
+   "url": "/js/colors.js",
+   "sha256": "458d1a801b377a1bd250a3d03fe0e8c515c3e711547f5f0103ce802fd20c7600",
+   "bytes": 2316
+  },
+  {
+   "url": "/js/config.js",
+   "sha256": "98b24717fedc53945cdefd7a24c511651accf6a1c8b85d056ade213b9b842b98",
+   "bytes": 4510
+  },
+  {
+   "url": "/js/contexts.js",
+   "sha256": "a77caf7201fe80fe84a293b77218d43808abe9e1d4415c940894d0a634ccd787",
+   "bytes": 5295
+  },
+  {
+   "url": "/js/device.js",
+   "sha256": "be617df90c8696d93f5e05f0bec0cb028977c40f4aa4b8a75312061a1676f4b5",
+   "bytes": 18651
+  },
+  {
+   "url": "/js/dwell.js",
+   "sha256": "a5a4c89b04b880231174df56febf6d3cae0ea2bacab67f8222a1a9e939fc3536",
+   "bytes": 4909
+  },
+  {
+   "url": "/js/editor.js",
+   "sha256": "47d0e95e84fbe58bf813bdefe4b479fa08ed992155339926d07a467d02f6ec99",
+   "bytes": 28825
+  },
+  {
+   "url": "/js/filters.js",
+   "sha256": "e91bbe49e801c4a5470aab0fee865bc1c4e57f90a08320c77f66c59ae25df4c7",
+   "bytes": 1593
+  },
+  {
+   "url": "/js/gaze-model.js",
+   "sha256": "42eb414c3ab09102f7fd580f62dc1220d91538dc09fca8021ef6eeaf500015b6",
+   "bytes": 8852
+  },
+  {
+   "url": "/js/headpose.js",
+   "sha256": "f8046add99f64ce327e6e1acfc6905d332ca8b320718acc9acd60b18d5fd10b3",
+   "bytes": 2527
+  },
+  {
+   "url": "/js/main.js",
+   "sha256": "c83c0f15a0376eb20ad03f2a41d4e8e4750902d93d5d3582344cb312edf32a5d",
+   "bytes": 48046
+  },
+  {
+   "url": "/js/media.js",
+   "sha256": "e67375d53e3a6dd34120bdf4614152c5d8dcc54d12db096f9b27cce710accea6",
+   "bytes": 5973
+  },
+  {
+   "url": "/js/offline.js",
+   "sha256": "30980568c688cefb8e6e7b1c413d2557f8d8d5553d3ab8e0ecf490ac605b2faa",
+   "bytes": 6733
+  },
+  {
+   "url": "/js/pages.js",
+   "sha256": "d8332218d33e525c79c1d519ff3e4f55e8571bef9f8d6ca21ab0bf91bb56663e",
+   "bytes": 11454
+  },
+  {
+   "url": "/js/prediction.js",
+   "sha256": "1196df61a3ee690d018b781addf4c14980ed918774ae035f7e357a9ca463a0d8",
+   "bytes": 3293
+  },
+  {
+   "url": "/js/profiles.js",
+   "sha256": "163f667712cc8dd92ecf9900e0cb8af4b540a775666f9770096d6cd5fa8c243c",
+   "bytes": 8165
+  },
+  {
+   "url": "/js/regression.js",
+   "sha256": "c048cf060edc4c609cc85c3c7007d20c4b1f66e991aa3cde33c0f40c5d615f71",
+   "bytes": 4711
+  },
+  {
+   "url": "/js/scanning.js",
+   "sha256": "9bc39d5d6a608d2be15fd6d0d4f4855691e0097c43e517af0f8a29c18d4c6b9c",
+   "bytes": 9385
+  },
+  {
+   "url": "/js/selection.js",
+   "sha256": "dda34cb15f82c41fdb40d1bc3ed5253a5bdaf9c4fae2ce994719d19f8cf86a1a",
+   "bytes": 10082
+  },
+  {
+   "url": "/js/speech.js",
+   "sha256": "4031998e58882b9e4e0fe6e57789ec25877058d198d1eb4e796a5305cc50a109",
+   "bytes": 3729
+  },
+  {
+   "url": "/js/state.js",
+   "sha256": "33acec4bd5350977530b8ea2c30f44a70823b8aa33010a4e308b699bc294924a",
+   "bytes": 660
+  },
+  {
+   "url": "/js/sync-plan.js",
+   "sha256": "d229b8b3f9dd32e62b63fb3f8a086bcbda88001c0de1163276585e3eaffd9a23",
+   "bytes": 7774
+  },
+  {
+   "url": "/js/sync.js",
+   "sha256": "5492dcaf59c9b8747b41a01106805b43a54eb3e18772626346db0c7b3d3337b3",
+   "bytes": 14040
+  },
+  {
+   "url": "/js/theme.js",
+   "sha256": "2466dd0623003945de9e40abdee15eed39022163621cce6b807f89824d4a9b96",
+   "bytes": 2438
+  },
+  {
+   "url": "/js/tracking.js",
+   "sha256": "df6739770b3f1639fe9f6b6ac5c8a89d383257a020e81eaf033130c33bdc0a0a",
+   "bytes": 18557
+  },
+  {
+   "url": "/js/ui.js",
+   "sha256": "a2b54dd9865f391e2b4b242088188f19326e732a7e01b5098fa13373bb54518a",
+   "bytes": 10239
+  },
+  {
+   "url": "/js/users.js",
+   "sha256": "4c9580ea4c097287ccda9ab11cd41d7a6c2cae73840cbe7dad799f3297975a21",
+   "bytes": 25681
+  },
+  {
+   "url": "/js/validation.js",
+   "sha256": "ef15e63a1047e8dd839a020735569906d88da488e0e91e697a3ac7852bc222bb",
+   "bytes": 7068
+  },
+  {
+   "url": "/logo.png",
+   "sha256": "e213b1760f3f6a9ae24c40194df2448b87edc18d029c45e6512ddd73a5022a31",
+   "bytes": 150542
+  },
+  {
+   "url": "/manifest.webmanifest",
+   "sha256": "caf9b66567ae1740e90f9aeb25fa8ef56da7b6fefe52e8a991f3d6da180900e3",
+   "bytes": 538
+  },
+  {
+   "url": "/pictograms/01_me_encuentro_mal.png",
+   "sha256": "a058116dbd25005d637b739b15e5044f7e6c829ea113423093124746f726d9a5",
+   "bytes": 112838
+  },
+  {
+   "url": "/pictograms/02_me_estoy_mareando.png",
+   "sha256": "2ea395e80d8c87bf39f8b127957a23f53314151edce2fcef681740031fb563e0",
+   "bytes": 127331
+  },
+  {
+   "url": "/pictograms/03_quiero_descansar.png",
+   "sha256": "e89311f5a237e854dc78ec6d1f762d10e8e0763d4e1d9cf8b16d8f6c2fc0ee9f",
+   "bytes": 156843
+  },
+  {
+   "url": "/pictograms/04_tengo_calor.png",
+   "sha256": "518057f734bda099d82ed40f8beb4d59557d9ad54b68422feedc1492dbb0ac37",
+   "bytes": 126497
+  },
+  {
+   "url": "/pictograms/05_tengo_frio.png",
+   "sha256": "7c53a814543c8102070eb3b8cc2c639acd2c4b4bb65595c99114b655291198ab",
+   "bytes": 150928
+  },
+  {
+   "url": "/pictograms/06_tengo_hambre.png",
+   "sha256": "6de630f40ae6bac8a7b70f2857c1243a761e16092ff9f3ad1e631ed5e6c90c33",
+   "bytes": 129377
+  },
+  {
+   "url": "/pictograms/07_tengo_sed.png",
+   "sha256": "04ad15d77d55c469b60172db1f9bfc5238c6be899b2a0108a58dd0d19f069ec9",
+   "bytes": 129655
+  },
+  {
+   "url": "/pictograms/08_no_entiendo.png",
+   "sha256": "1dbaddc8fd9f81e26ad855c1460146e209b6feb9d4d0d3f09b7ff01453928e9d",
+   "bytes": 126378
+  },
+  {
+   "url": "/pictograms/09_hay_mucho_ruido.png",
+   "sha256": "159e7038fd31979c64e2942dfe287f49fc9400304abdf6a49039e31afcc9e239",
+   "bytes": 129683
+  },
+  {
+   "url": "/pictograms/10_quiero_ir_al_bano.png",
+   "sha256": "e6d13c6c01564886ced238e575da24b7679a615c5dc7bf86db8c0415a697e648",
+   "bytes": 172901
+  },
+  {
+   "url": "/pictograms/11_esta_roto.png",
+   "sha256": "0570b37146d9a857f106da3358714c52382b66e0aaf5a97440b729880d4d05f7",
+   "bytes": 177237
+  },
+  {
+   "url": "/pictograms/12_no_se_que_pasa.png",
+   "sha256": "e02cfb2648e684824b4144765f8f82c254462fa2e3be65f629dd739080f3c17b",
+   "bytes": 7706
+  },
+  {
+   "url": "/style.css",
+   "sha256": "7d8fbd9bd3333b96a90b8666d06263b15acfa5305686dd7be3a84bf724f1b1b9",
+   "bytes": 55180
+  },
+  {
+   "url": "/vendor/inter-5.3.0/LICENSE",
+   "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
+   "bytes": 4477
+  },
+  {
+   "url": "/vendor/inter-5.3.0/inter-latin-400-normal.woff2",
+   "sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
+   "bytes": 23664
+  },
+  {
+   "url": "/vendor/inter-5.3.0/inter-latin-600-normal.woff2",
+   "sha256": "f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a",
+   "bytes": 24452
+  },
+  {
+   "url": "/vendor/inter-5.3.0/inter-latin-800-normal.woff2",
+   "sha256": "a7d0a50f15d389cad679238466bdb5fc9787aa0715719064ce25abaff042820d",
+   "bytes": 24400
+  },
+  {
+   "url": "/vendor/inter-5.3.0/inter.css",
+   "sha256": "00f24a99f3dc155abab97b0a55391b0ef2a3437058b8bbd90759c7c3016bcdfc",
+   "bytes": 575
+  },
+  {
+   "url": "/vendor/jszip-3.10.1/LICENSE.md",
+   "sha256": "566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4",
+   "bytes": 33753
+  },
+  {
+   "url": "/vendor/jszip-3.10.1/jszip.min.js",
+   "sha256": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e",
+   "bytes": 97630
+  },
+  {
+   "url": "/vendor/localforage-1.10.0/LICENSE",
+   "sha256": "8c3c0576866d6c22f56cbe65b8ef20e63c8aa75ec58f8cd139a242edb42bf8f1",
+   "bytes": 11337
+  },
+  {
+   "url": "/vendor/localforage-1.10.0/localforage.min.js",
+   "sha256": "cc168d95fb927d46b1043726cfe13998e08902ff63f24330e2bb2290109ed145",
+   "bytes": 29703
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/NOTICE.md",
+   "sha256": "fc206d4a7fee8a2a611b5686c2ff96a3af5f9d739da3df5d8a54f826044c5584",
+   "bytes": 471
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/vision_bundle.mjs",
+   "sha256": "9d5fc9ef74b22329cf9aa88dc543956d192b8c254210b187271614713eb5b10c",
+   "bytes": 156135
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/wasm/vision_wasm_internal.js",
+   "sha256": "7c652617b5bef832f42878ce8c5f752b0724bca6054e4bc1013a37d4b1949723",
+   "bytes": 335393
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/wasm/vision_wasm_internal.wasm",
+   "sha256": "782eda3ec1f414fdb4f1d66a8b59093eb4d5ab437e06117796abf05962d68eef",
+   "bytes": 12997248
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/wasm/vision_wasm_nosimd_internal.js",
+   "sha256": "510fc70a170eb8b46767a7abab2af89a7a8341fa5b3ebfb8a5de41a79b7fa9df",
+   "bytes": 335196
+  },
+  {
+   "url": "/vendor/mediapipe-tasks-vision-1.1.0/wasm/vision_wasm_nosimd_internal.wasm",
+   "sha256": "b802041d105876865d6a0806f2ff7c4419a7f1b80bc01340fe36e759c2030011",
+   "bytes": 12168316
+  },
+  {
+   "url": "/vendor/supabase-js-2.117.3/LICENSE",
+   "sha256": "334dd6820e2eaeab2064e7c59001b810566728a28a41a7c1dbf69bbee17d0936",
+   "bytes": 1065
+  },
+  {
+   "url": "/vendor/supabase-js-2.117.3/supabase.js",
+   "sha256": "d6a5c4414a5d4ce646d9c1de223aa7067d3ff664c15394ffeb7fcffc763354a3",
+   "bytes": 217907
+  }
+ ],
+ "remote": [
+  {
+   "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+   "sha256": null
+  }
+ ],
+ "totalBytes": 28714243
+}

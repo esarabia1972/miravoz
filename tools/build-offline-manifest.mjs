@@ -1,0 +1,62 @@
+// Genera web/offline-manifest.json: la lista COMPLETA y versionada de lo que el Service Worker descarga para
+// que MiraVoz abra sin conexión (M05). Cada archivo lleva su sha256: el Service Worker verifica cada respuesta
+// y, si algo no coincide (p. ej. un deploy a medio publicar), NO instala la versión nueva y conserva la anterior.
+//
+// Uso:  node tools/build-offline-manifest.mjs           (regenera; correrlo antes de cada commit que toque web/)
+//       node tools/build-offline-manifest.mjs --check   (falla si el manifiesto quedó desactualizado; lo usa npm test)
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const WEB = path.resolve(HERE, '../web');
+const OUT = path.join(WEB, 'offline-manifest.json');
+
+// Archivos locales que forman la app (se excluye lo que no se usa en el navegador)
+const EXCLUDE = new Set(['offline-manifest.json', 'sw.js', 'package.json', 'vercel.json', 'version.json', '.DS_Store', '.gitignore']);
+const EXCLUDE_DIRS = new Set(['.vercel']);
+
+// Recursos externos fijados por versión: solo el modelo de FaceLandmarker (Google, Apache-2.0). No se pudo
+// descargar desde el entorno de desarrollo para calcular su sha256: se guarda tal cual lo entrega Google en su
+// URL versionada (float16/1). Las bibliotecas y el WASM de MediaPipe están en web/vendor (con sha256).
+export const REMOTE = [
+    { url: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', sha256: null }
+];
+
+function walk(dir, base = '') {
+    const out = [];
+    for (const name of fs.readdirSync(dir).sort()) {
+        const full = path.join(dir, name);
+        const rel = base ? `${base}/${name}` : name;
+        const st = fs.statSync(full);
+        if (st.isDirectory()) { if (!EXCLUDE_DIRS.has(name)) out.push(...walk(full, rel)); }
+        else if (!EXCLUDE.has(name) && !(base === '' && name.endsWith('.md'))) out.push(rel);
+    }
+    return out;
+}
+
+const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+
+export function buildManifest() {
+    const files = walk(WEB).map(rel => {
+        const buf = fs.readFileSync(path.join(WEB, rel));
+        return { url: '/' + rel, sha256: sha(buf), bytes: buf.length };
+    });
+    const remote = REMOTE.map(r => ({ url: r.url, sha256: r.sha256 }));
+    const version = sha(JSON.stringify({ files: files.map(f => [f.url, f.sha256]), remote })).slice(0, 12);
+    return { schema: 1, version, files, remote, totalBytes: files.reduce((a, f) => a + f.bytes, 0) };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    const m = buildManifest();
+    const text = JSON.stringify(m, null, 1) + '\n';
+    if (process.argv.includes('--check')) {
+        const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
+        if (cur !== text) { console.error('offline-manifest.json desactualizado: correr node tools/build-offline-manifest.mjs'); process.exit(1); }
+        console.log(`offline-manifest.json al día (versión ${m.version}, ${m.files.length} archivos)`);
+    } else {
+        fs.writeFileSync(OUT, text);
+        console.log(`offline-manifest.json: versión ${m.version}, ${m.files.length} archivos locales (${(m.totalBytes / 1e6).toFixed(1)} MB) + ${m.remote.length} externos`);
+    }
+}

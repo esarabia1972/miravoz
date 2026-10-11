@@ -29,14 +29,14 @@
     <meta property="og:title" content="Miravoz - Tu mirada ya tiene voz">
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=43">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
+    <script src="vendor/jszip-3.10.1/jszip.min.js"></script>
+    <script src="vendor/localforage-1.10.0/localforage.min.js"></script>
+    <script src="vendor/supabase-js-2.117.3/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 </head>
 <body>
     <!-- Z-Index 50: UI Ocular Overlay -->
@@ -470,12 +470,19 @@
                 <p class="settings-help" id="voice-status" role="status"></p>
             </section>
 
+            <section class="settings-section" id="setting-offline">
+                <h3>Uso sin conexión</h3>
+                <p class="settings-help" id="offline-status" role="status">Revisando…</p>
+                <button type="button" class="btn btn-secondary" id="btn-prepare-offline">Preparar para usar sin conexión</button>
+                <p class="settings-help">Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo. La voz sin conexión depende del iPad: probala con el modo avión.</p>
+            </section>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" id="btn-settings-done">Listo</button>
             </div>
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=55"></script>
+    <script type="module" src="js/main.js?v=56"></script>
 </body>
 </html>

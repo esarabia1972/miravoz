@@ -1,0 +1,4 @@
+/* Inter (SIL Open Font License 1.1) — subconjunto latino, alojado en el proyecto para funcionar sin conexión */
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('inter-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 800; font-display: swap; src: url('inter-latin-800-normal.woff2') format('woff2'); }

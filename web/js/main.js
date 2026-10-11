@@ -5,7 +5,8 @@ import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from 
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
-import { customAlert, customConfirm, customChoice, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo } from './ui.js';
+import { customAlert, customConfirm, customChoice, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
+import * as offline from './offline.js';
 import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
@@ -487,6 +488,7 @@ function goHome() {
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
     selectionContexts.setBase(boards.activeHomeElements);
+    offline.applyUpdateIfSafe(); // M05: una versión nueva ya descargada se aplica acá, en un momento seguro
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
@@ -570,6 +572,17 @@ if (btnSettings && settingsModal) {
     btnSettings.addEventListener('click', (e) => {
         e.preventDefault();
         settingsModal.style.display = 'flex';
+        refreshOfflineStatus();
+    });
+    document.getElementById('btn-prepare-offline')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const el = document.getElementById('offline-status');
+        btn.disabled = true;
+        if (el) el.textContent = 'Preparando… (puede tardar unos minutos la primera vez)';
+        try {
+            const st = await offline.prepareOffline(await localBundlesForOffline());
+            if (el) el.textContent = offline.statusText(st);
+        } finally { btn.disabled = false; }
     });
     document.getElementById('btn-close-settings').addEventListener('click', () => {
         settingsModal.style.display = 'none';
@@ -947,10 +960,31 @@ window.addEventListener('miravoz:device-unlinked', async () => {
     window.location.reload();
 });
 
+// --- M05: uso sin conexión ---
+async function refreshOfflineStatus() {
+    const el = document.getElementById('offline-status');
+    if (el) el.textContent = offline.statusText(await offline.offlineStatus());
+}
+/** Tableros de este dispositivo (propios o copias de la tablet), para guardar sus pictogramas. */
+async function localBundlesForOffline() {
+    const out = [];
+    for (const k of await localforage.keys()) {
+        if (k.startsWith('miravoz_') && !k.startsWith('miravoz_copy_')) continue;
+        const b = await localforage.getItem(k);
+        if (b && b.boards) out.push(b);
+    }
+    return out;
+}
+
 // --- Arranque ---
 (async function init() {
     initTheme();
     await initSettings();
+    offline.configureUpdates({
+        isSafeMoment: () => S.state === 'HOME' && !calibSession && getSentence().length === 0,
+        onUpdateReady: () => showInfoToast('Se descargó una versión nueva: se aplica al volver al inicio.', 5000)
+    });
+    offline.registerOffline();
     renderModeSegmented();
     if (dwellSelect) dwellSelect.value = String(settings.dwellMs);
     wireScanSetting('scan-pattern', 'pattern');

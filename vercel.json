@@ -3,13 +3,43 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "web",
-  "routes": [
+  "installCommand": "echo \"MiraVoz no tiene dependencias de producción\"",
+  "headers": [
     {
-      "src": "/(.*)",
-      "headers": {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
-      }
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/offline-manifest.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/((?!vendor/|sw\\.js|offline-manifest\\.json).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
-  ],
-  "installCommand": "echo \"MiraVoz no tiene dependencias de producción\""
+  ]
 }

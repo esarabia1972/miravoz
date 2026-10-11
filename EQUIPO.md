@@ -33,13 +33,14 @@
    - Los textos que escribe una persona (nombres, labels) se insertan con `textContent`, nunca con `innerHTML`.
    - La anon key es pública: toda tabla nueva lleva RLS y su script en `supabase/`.
    - Ninguna clave de servicio en el cliente.
-5. **Sin build step ni frameworks** salvo decisión explícita de Esteban. Cache-busting: cada cambio de JS o CSS sube el `?v=` en `index.html`.
+5. **Sin build step ni frameworks** salvo decisión explícita de Esteban. Cache-busting: cada cambio de JS o CSS sube el `?v=` en `index.html`. Las bibliotecas externas van en `web/vendor/<nombre>-<versión>/` (con su licencia), nunca desde una CDN: la app tiene que abrir sin conexión.
 6. **Git.**
    - Commits atómicos con el ID de la tarea (`F4-5: ...`). Nunca commitear `web/.vercel/` ni tocar `.git/config`.
    - En el sandbox de Claude, usar siempre `git --no-optional-locks`: el mount no permite borrar `index.lock` sin pedir permiso.
 7. **Verificación mínima antes de cada commit.**
    - `node --input-type=module --check` sobre cada JS modificado.
-   - Correr `node tools/test-*.mjs`.
+   - **Regenerar el manifiesto sin conexión** si se tocó algo en `web/`: `node tools/build-offline-manifest.mjs` (M05). Sin esto, el Service Worker no instala la versión nueva y `npm test` falla.
+   - Correr `npm test` (todos los grupos; `npm install` una vez para jsdom).
    - Probar contra `asterics/nuclear.grd`.
 
 ## Flujo por tarea

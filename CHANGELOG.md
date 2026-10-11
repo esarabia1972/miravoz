@@ -343,3 +343,31 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
 - **Changed (M03)**: los paneles del acompañante (configuración, usuarios, importar, editar celda, etiquetas, dar copia) **pausan** la selección por mirada y por pulsador mientras están abiertos.
 - **Removed**: el evento suelto `miravoz-overlay`; la página web usa la pila.
 - Tests: `tools/test-contexts.mjs` (7, escenarios T11 y T12 con el dwell y el controlador reales). Hay 3 verificaciones nuevas en `test-boot.mjs`: diálogo de confirmación, tablero redibujado detrás y página web con fondo inerte.
+
+### Etapa E — M05: arranque y comunicación sin conexión
+- **Added (M05)**: **Service Worker** `web/sw.js`, separado del motor de cámara y de la persistencia de tableros.
+  - Instala el conjunto **completo** de `web/offline-manifest.json` (HTML, CSS, módulos, íconos, bibliotecas, MediaPipe con su WASM y el modelo) y **verifica el sha256** de cada archivo.
+  - Si algo falta o no coincide (por ejemplo, un deploy a medio publicar), la instalación falla y sigue funcionando la versión anterior. Nunca hay una mezcla de código nuevo con WASM o modelo viejos.
+- **Added (M05)**: las versiones se registran como `/sw.js?v=<versión>`. Una actualización se descarga en segundo plano y se **aplica solo en un momento seguro**: al volver al inicio, sin frase en curso y sin calibración. Recién ahí se borra la versión anterior.
+- **Added (M05)**: los pictogramas de ARASAAC se guardan en un caché de imágenes. Autenticación, Supabase y pedidos privados **nunca** se guardan: van siempre a la red.
+- **Added (M05)**: en Configuración, sección **"Uso sin conexión"**, con el estado y el botón "Preparar para usar sin conexión".
+  - El botón pide almacenamiento persistente y guarda los pictogramas de los tableros del dispositivo.
+  - "Preparado para usar sin conexión" aparece solo si el Service Worker confirma el conjunto completo y no fallaron imágenes. También avisa si queda poco espacio.
+  - La voz sin conexión depende del iPad: se indica probarla en modo avión.
+- **Changed (M05)**: las bibliotecas pasan a estar alojadas en el proyecto, en `web/vendor`, con versión y licencia: localforage 1.10.0, JSZip 3.10.1, supabase-js 2.117.3 (se mantiene el SRI), la fuente Inter 5.3.0 y MediaPipe Tasks Vision 1.1.0 (bundle y WASM con y sin SIMD).
+  - `index.html` ya no depende de ninguna CDN.
+  - El modelo `face_landmarker.task` se descarga de su URL oficial versionada y lo guarda el Service Worker. Su sha256 queda pendiente: no se pudo descargar desde el entorno de desarrollo.
+  - El motor legado FaceMesh (respaldo) sigue funcionando solo con conexión.
+- **Changed (M05)**: encabezados en `vercel.json`:
+  - `sw.js` y el manifiesto: `no-store`;
+  - `vendor/` (versionado): `immutable`;
+  - el resto: `no-cache` (revalidar), en lugar de `no-store`.
+- **Changed (M05)**: sin conexión, el arranque de la profesional ya no espera indefinidamente a Supabase. A los 5 s entra con la sesión guardada a sus tableros locales, y la sincronización vuelve con la red. La tablet ya arrancaba sin cuenta.
+- **Removed**: `web/test.js`, un script viejo de Node publicado por error. `web/package.json` marca los módulos como ES.
+- Proceso: después de tocar `web/` hay que correr `node tools/build-offline-manifest.mjs`; `npm test` falla si el manifiesto quedó desactualizado (EQUIPO.md).
+- Tests: `tools/test-offline.mjs` (10). Corre el Service Worker real en una simulación con CacheStorage y red que se corta, y cubre los escenarios T18 y T19:
+  - arranque sin red;
+  - pedidos privados sin interceptar;
+  - descarga incompleta, archivo alterado y manifiesto cambiado durante la instalación;
+  - actualización que espera sin mezclar versiones.
+- Pendiente de dispositivo: el comportamiento real en Safari del iPad (cuotas, desalojo, pestaña frente a pantalla de inicio) y la voz sin conexión.

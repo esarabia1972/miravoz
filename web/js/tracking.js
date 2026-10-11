@@ -18,7 +18,8 @@ import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
 import { buildSample, invalidSample } from './selection.js';
 
 const TASKS_VERSION = '1.1.0';
-const TASKS_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VERSION}`;
+// M05: alojado en el proyecto (web/vendor) para funcionar sin conexión; el modelo lo guarda el Service Worker
+const TASKS_BASE = `/vendor/mediapipe-tasks-vision-${TASKS_VERSION}`;
 const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const LEGACY_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe';
 

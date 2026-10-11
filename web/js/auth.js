@@ -34,6 +34,15 @@ export async function getUser() {
 // Una sesión ANÓNIMA es la de una tablet vinculada (F4-4), nunca una profesional.
 const asProfessional = (u) => (u && !u.is_anonymous ? u : null);
 
+/** Usuario de la sesión guardada en este navegador (sin red). null si no hay. */
+function storedSessionUser() {
+    try {
+        const key = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+        const s = key && JSON.parse(localStorage.getItem(key));
+        return (s && (s.user || (s.currentSession && s.currentSession.user))) || null;
+    } catch { return null; }
+}
+
 /** Usuario profesional logueado (null si no hay sesión o si es la sesión anónima de una tablet). */
 export async function getProfessional() {
     return asProfessional(await getUser());
@@ -67,6 +76,9 @@ export function initAuth({ onReady, onSignedIn, onSignedOut }) {
         });
         // Red de seguridad por si la versión del SDK no emite INITIAL_SESSION
         getUser().then(u => fireReady(asProfessional(u)));
+        // M05: sin conexión, el arranque no espera indefinidamente a Supabase: con una sesión guardada se
+        // entra igual a lo local (los tableros están en el dispositivo); la sincronización vuelve con la red.
+        setTimeout(() => { if (!ready) fireReady(asProfessional(storedSessionUser())); }, 5000);
     }
 
     wireAuthForm();
