@@ -25,8 +25,14 @@ if (synth) {
     else synth.onvoiceschanged = loadVoices;
 }
 
-function pickVoice() {
+function pickVoice(lang) {
     if (!voices.length) loadVoices();
+    // Idioma pedido por la celda (speakLanguage de Asterics), si no es español
+    if (lang && !/^es/i.test(lang)) {
+        const l = String(lang).toLowerCase();
+        const v = voices.find(x => (x.lang || '').toLowerCase() === l) || voices.find(x => (x.lang || '').toLowerCase().startsWith(l.slice(0, 2)));
+        if (v) return v;
+    }
     const es = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
     if (!es.length) return null;
     const prefer = ['es-AR', 'es-419', 'es-US', 'es-MX'];
@@ -55,7 +61,7 @@ if (typeof window !== 'undefined') {
 
 export function isSpeechSupported() { return !!synth; }
 
-export function speak(text, { cancelPrevious = false, volume = 1.0 } = {}) {
+export function speak(text, { cancelPrevious = false, volume = 1.0, lang = null } = {}) {
     if (!text || !synth) return;
     if (cancelPrevious) synth.cancel();
     if (synth.paused) synth.resume();
@@ -63,7 +69,7 @@ export function speak(text, { cancelPrevious = false, volume = 1.0 } = {}) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-ES';
     utterance.volume = volume;
-    const voice = pickVoice();
+    const voice = pickVoice(lang);
     if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
 
     alive.add(utterance);

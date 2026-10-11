@@ -10,6 +10,7 @@
 //                vuelve al barrido de filas (escape implícito).
 
 import { settings } from './config.js';
+import { labelText } from './asterics.js';
 import { speak } from './speech.js';
 
 // Beep corto por WebAudio (F2-4)
@@ -135,7 +136,7 @@ export class ScanEngine {
         if (cfg.audio === 'beep') {
             beep();
         } else if (cfg.audio === 'speak' && this.phase === 'ITEMS' && set[0] && set[0].data) {
-            const label = set[0].data.label ? (set[0].data.label.es || set[0].data.label.en) : null;
+            const label = (set[0].element && set[0].element.dataset && set[0].element.dataset.word) || (set[0].data.label ? (labelText(set[0].data.label) || null) : null);
             if (label) speak(label, { cancelPrevious: true, volume: 0.5 });
         }
     }

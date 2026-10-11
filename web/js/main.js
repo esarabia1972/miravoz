@@ -214,6 +214,13 @@ boards.hooks.onHomeRendered = (targets) => {
     if (S.state === 'HOME') { dwell.setTargets(targets); scan.setTargets(targets); }
 };
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
+// Página web abierta desde un tablero de Asterics: la mirada y el barrido apuntan solo a "Volver"; al cerrarla, se restauran
+document.addEventListener('miravoz-overlay', (e) => {
+    const t = e.detail && e.detail.targets;
+    const targets = t || (S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements);
+    dwell.setTargets(targets);
+    scan.setTargets(targets);
+});
 boards.hooks.onBundleOpened = () => {
     clearSentence();
     // Tablet vinculada: el lápiz de edición solo aparece en copias editables
@@ -393,6 +400,7 @@ function applyMode(mode) {
 function goHome() {
     if (editor.isEditMode()) editor.exitEditMode();
     document.getElementById('copy-banner')?.remove();
+    boards.stopMedia(); // radio o página web de un tablero de Asterics
     if (deviceMod.isDeviceMode()) { openDeviceHome(); return; } // tablet: vista de inicio del adulto
     S.state = 'HOME';
     S.currentBundle = null;
@@ -449,7 +457,8 @@ fileImport.addEventListener('change', async (e) => {
                 `Un tablero con ${n} páginas`, `${n} tableros separados`))
         });
         await boards.loadSavedBoards();
-        customAlert(list.length > 1 ? `Se importaron ${list.length} tableros.` : `Se importó «${list[0].name}».`);
+        const head = list.length > 1 ? `Se importaron ${list.length} tableros.` : `Se importó «${list[0].name}».`;
+        customAlert(list.report ? `${head}\n\n${list.report}` : head);
     } catch (err) {
         console.error('Error importando:', err);
         customAlert('Hubo un error importando el archivo: ' + err.message);

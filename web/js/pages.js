@@ -8,12 +8,13 @@
 //  - completar el texto de los pictogramas de ARASAAC que vienen sin texto (el.autoLabel);
 //  - decidir qué decir al tocar una celda (también las que navegan).
 
+import { labelText, isLetterCell, isSpecialCell, isKeyboardPage } from './asterics.js';
+
 const isNav = (a) => a && (a.navType === 'navigateToGrid' || a.modelName === 'GridActionNavigate') && a.toGridId;
 
 export function gridName(grid) {
     if (!grid) return '';
-    const l = grid.label;
-    return String((l && (l.es || l.en)) || grid.name || '').trim();
+    return String(labelText(grid.label) || grid.name || '').trim();
 }
 
 /** Destinos de navegación de una página, en orden de lectura (fila por fila). */
@@ -144,7 +145,7 @@ export function pickArasaacKeyword(keywords) {
     return list.find(k => PREFERIDAS_AR.has(k.toLocaleLowerCase('es'))) || list[0];
 }
 
-const hasText = (el) => !!(el.label && String(el.label.es || el.label.en || '').trim());
+const hasText = (el) => !!String(labelText(el.label)).trim();
 
 /** Ids de ARASAAC de las celdas que tienen pictograma pero no texto (ni texto automático). */
 export function missingLabelIds(bundle) {
@@ -205,14 +206,14 @@ export async function enrichAutoLabels(bundle, fetchImpl) {
 
 /** Texto visible de la celda: el propio, o el automático solo si el tablero pide mostrarlo. */
 export function visibleLabel(el, bundle) {
-    const own = el?.label ? String(el.label.es || el.label.en || '') : '';
+    const own = String(labelText(el?.label));
     if (own.trim()) return own;
     return bundle?.showAutoLabels && el?.autoLabel ? String(el.autoLabel.es || '') : '';
 }
 
 /** Texto que representa a la celda para la voz y la frase: el propio o, si no hay, el automático. */
 export function cellText(el) {
-    const own = el?.label ? String(el.label.es || el.label.en || '') : '';
+    const own = String(labelText(el?.label));
     if (own.trim()) return own;
     return el?.autoLabel ? String(el.autoLabel.es || '') : '';
 }
@@ -227,7 +228,7 @@ export function speechOnNavigate(el, speechModel) {
     if (speechModel !== 'actions') return text || null;
     const actions = el?.actions || [];
     const custom = actions.find(a => a.modelName === 'GridActionSpeakCustom');
-    if (custom) return (custom.speakText && custom.speakText.es) || text || null;
+    if (custom) return labelText(custom.speakText) || text || null;
     if (actions.some(a => a.modelName === 'GridActionSpeak')) return text || null;
     return null;
 }
@@ -240,13 +241,13 @@ export function speechOnNavigate(el, speechModel) {
 export function migrateToActionSpeech(bundle) {
     if (!bundle || bundle.speechModel === 'actions') return 0;
     let n = 0;
-    Object.values(bundle.boards || {}).forEach(g => (g.gridElements || []).forEach(el => {
-        if (!cellText(el)) return;
+    Object.values(bundle.boards || {}).forEach(g => { const kb = isKeyboardPage(g); (g.gridElements || []).forEach(el => {
+        if (!cellText(el) || (kb && isLetterCell(el)) || isSpecialCell(el)) return; // teclas y botones especiales no hablaban
         const actions = el.actions || [];
         if (actions.some(a => a.modelName === 'GridActionSpeak' || a.modelName === 'GridActionSpeakCustom')) return;
         el.actions = [...actions, { id: 'ga-speak-mig-' + (el.id || n), modelName: 'GridActionSpeak' }];
         n++;
-    }));
+    }); });
     bundle.speechModel = 'actions';
     return n;
 }

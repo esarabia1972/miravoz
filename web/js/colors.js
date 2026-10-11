@@ -1,4 +1,5 @@
 // colors.js — Colores Fitzgerald por colorCategory nativo del GRD + fallback legacy (SPEC F0-8)
+import { labelText } from './asterics.js';
 
 // Valores reales verificados en nuclear.grd (GridData v7)
 const CATEGORY_COLORS = {
@@ -39,6 +40,6 @@ export function getCellColor(elData) {
     if (byCategory) return byCategory;
     const labelStr = typeof elData.label === 'string'
         ? elData.label
-        : (elData.label ? (elData.label.es || elData.label.en) : '');
+        : labelText(elData.label);
     return labelStr ? getAutoColor(labelStr) : null;
 }

@@ -3,6 +3,7 @@
 // GridData del bundle y persistir. Export = serialización directa.
 
 import { S } from './state.js';
+import { labelText, navInfo } from './asterics.js';
 import * as boards from './boards.js';
 import { customAlert, customConfirm, showUndoToast } from './ui.js';
 import { saveBundle } from './sync.js';
@@ -18,6 +19,7 @@ export function isEditMode() { return editMode; }
 async function persistBundle() {
     const b = S.currentBundle;
     if (!b) return;
+    delete b.__predExtra; // palabras del tablero para la predicción: se recalculan
     migrateToActionSpeech(b); // F3-3b: los tableros editados usan semántica de acciones (sin cambiar lo que se dice)
     const grid = b.boards[S.currentGridId];
     if (grid) grid.lastUpdateTime = Date.now();
@@ -448,7 +450,7 @@ export function openCellEditor(gridId, elData, x, y) {
     arasaacSelection = null;
 
     const get = id => document.getElementById(id);
-    get('ce-label').value = elData?.label ? (elData.label.es || elData.label.en || '') : '';
+    get('ce-label').value = labelText(elData?.label);
     // Texto completado desde ARASAAC: se sugiere como placeholder (escribir un texto lo reemplaza)
     get('ce-label').placeholder = elData?.autoLabel?.es ? `${elData.autoLabel.es} (de ARASAAC)` : '';
 
@@ -457,7 +459,7 @@ export function openCellEditor(gridId, elData, x, y) {
     if (elData?.actions) {
         const custom = elData.actions.find(a => a.modelName === 'GridActionSpeakCustom');
         const plain = elData.actions.find(a => a.modelName === 'GridActionSpeak');
-        if (custom) { speakMode = 'custom'; customText = custom.speakText?.es || ''; }
+        if (custom) { speakMode = 'custom'; customText = labelText(custom.speakText); }
         else if (!plain && S.currentBundle.speechModel === 'actions' && elData.id) speakMode = 'silent';
     }
     get('ce-speak-mode').value = speakMode;
@@ -469,16 +471,17 @@ export function openCellEditor(gridId, elData, x, y) {
 
     // Navegación: poblar tableros del bundle
     const navSel = get('ce-nav');
-    navSel.innerHTML = '<option value="">No navega</option><option value="__new__">Crear página nueva…</option>';
+    navSel.innerHTML = '<option value="">No navega</option><option value="__back__">Volver a la página anterior</option><option value="__home__">Ir a la página de inicio</option><option value="__new__">Crear página nueva…</option>';
     Object.values(S.currentBundle.boards).forEach(g => {
         if (g.id === gridId) return;
         const opt = document.createElement('option');
         opt.value = g.id;
-        opt.textContent = (g.label && (g.label.es || g.label.en)) || g.name || g.id;
+        opt.textContent = labelText(g.label) || g.name || g.id;
         navSel.appendChild(opt);
     });
-    const nav = elData?.actions?.find(a => (a.navType === 'navigateToGrid' || a.modelName === 'GridActionNavigate') && a.toGridId);
-    navSel.value = nav ? nav.toGridId : '';
+    // Navegación de Asterics: a una página, "volver" o "ir al inicio" (un vínculo roto se muestra como "No navega")
+    const nav = elData ? navInfo(elData, S.currentBundle) : null;
+    navSel.value = !nav ? '' : nav.kind === 'back' ? '__back__' : nav.kind === 'home' ? '__home__' : (nav.kind === 'grid' && !nav.broken ? nav.target : '');
 
     // Preview de imagen actual
     const prev = get('ce-img-preview');
@@ -551,8 +554,11 @@ async function saveCell() {
         grid.gridElements.push(elData);
     }
 
-    const labelText = get('ce-label').value.trim();
-    elData.label = { ...(elData.label || {}), es: labelText };
+    const rawLabel = get('ce-label').value;
+    // La tecla espacio de un teclado tiene texto ' ': no se recorta. Se guarda solo en español
+    // (si quedaran otras variantes, al vaciar el texto reaparecería, p. ej., el de es-ar).
+    const labelText = rawLabel.trim() === '' && rawLabel.length > 0 ? ' ' : rawLabel.trim();
+    elData.label = { es: labelText };
 
     // Color
     elData.colorCategory = get('ce-color').value || null;
@@ -574,14 +580,20 @@ async function saveCell() {
         actions.push({ id: 'ga-speakc-' + Date.now(), modelName: 'GridActionSpeakCustom', speakText: { es: get('ce-speak-text').value.trim() } });
     } // silent: sin acción de speak
 
+    const prevNav = (elData.actions || []).find(a => a.modelName === 'GridActionNavigate');
+    const keep = prevNav && prevNav.addToCollectElem ? { addToCollectElem: true } : {}; // "agregar a la frase al navegar"
     let navTo = get('ce-nav').value;
     if (navTo === '__new__') {
         const g = newGridData(labelText || nextPageName(S.currentBundle));
         S.currentBundle.boards[g.id] = g;
         navTo = g.id;
     }
-    if (navTo) {
-        actions.push({ id: 'ga-nav-' + Date.now(), modelName: 'GridActionNavigate', navType: 'navigateToGrid', toGridId: navTo });
+    if (navTo === '__back__') {
+        actions.push({ id: 'ga-nav-' + Date.now(), modelName: 'GridActionNavigate', navType: 'navigateToLastOpenedGrid', ...keep });
+    } else if (navTo === '__home__') {
+        actions.push({ id: 'ga-nav-' + Date.now(), modelName: 'GridActionNavigate', navType: 'navigateToHomeGrid', ...keep });
+    } else if (navTo) {
+        actions.push({ id: 'ga-nav-' + Date.now(), modelName: 'GridActionNavigate', navType: 'navigateToGrid', toGridId: navTo, ...keep });
     }
     elData.actions = actions;
 

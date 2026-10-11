@@ -1,11 +1,16 @@
 // boards.js — Import GRD/OBZ, gestión de bundles, render de tableros (SPEC F1-1)
 
 import { S } from './state.js';
-import { customAlert, customConfirm, addToSentence, showUndoToast } from './ui.js';
+import { customAlert, customConfirm, addToSentence, showUndoToast, showInfoToast, addLetter, completeWord, removeChar,
+    popSentence, clearSentence, playSentence, toggleInSentence, sentenceText, currentPrefix, getSentence, onSentenceChange } from './ui.js';
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
 import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
 import { bundleTime } from './sync-plan.js';
+import { labelText, ELEMENT, COLLECT, navInfo, navigates, isUsable, unsupportedFeatures, isSpecialCell, isLetterCell,
+    customSpeech, speakLanguage, audioAction, normalizeGrd, analyzeBundle, compatibilityMessage, isKeyboardPage, collectActions } from './asterics.js';
+import { suggest } from './prediction.js';
+import { radioAction, openWebpage, playRecordedAudio, stopRecordedAudio, stopRadio, closeWebpage } from './media.js';
 import { importedName, splitBundle, fetchArasaacWords, applyAutoLabels, missingLabelIds, visibleLabel, cellText, speechOnNavigate, pageCount } from './pages.js';
 
 export const IMPORTER_VERSION = 1;
@@ -51,11 +56,19 @@ function inferMainBoard(bundle) {
     if (unreferenced.length === 1) {
         bundle.mainBoard = unreferenced[0];
     } else if (unreferenced.length > 1) {
+        // Entre los candidatos, el que lleva a más páginas (un teclado suelto o una copia vieja llevan a pocas)
+        const scored = unreferenced.map(id => ({ id, n: reachableFrom(bundle, id).size }));
+        const best = Math.max(...scored.map(x => x.n));
+        if (best > 1) {
+            const top = scored.filter(x => x.n === best);
+            if (top.length === 1) { bundle.mainBoard = top[0].id; return; }
+            unreferenced.splice(0, unreferenced.length, ...top.map(x => x.id));
+        }
         const bundleName = bundle.name.toLowerCase();
         const bestMatch = unreferenced.find(id => {
             let boardName = bundle.boards[id].name || '';
             if (!boardName && bundle.boards[id].label) {
-                boardName = bundle.boards[id].label.es || bundle.boards[id].label.en || '';
+                boardName = labelText(bundle.boards[id].label);
             }
             return typeof boardName === 'string' && boardName.toLowerCase().includes(bundleName);
         });
@@ -63,21 +76,40 @@ function inferMainBoard(bundle) {
     }
 }
 
+/** Páginas a las que se llega navegando desde una (incluida ella). */
+function reachableFrom(bundle, startId) {
+    const seen = new Set();
+    const stack = [startId];
+    while (stack.length) {
+        const id = stack.pop();
+        if (seen.has(id) || !bundle.boards[id]) continue;
+        seen.add(id);
+        (bundle.boards[id].gridElements || []).forEach(el => (el.actions || []).forEach(a => {
+            if (isNavigateAction(a) && !seen.has(a.toGridId)) stack.push(a.toGridId);
+        }));
+    }
+    return seen;
+}
+
 // --- Import .grd ---
 async function importGrd(file) {
     const text = (await file.text()).replace(/^\uFEFF/, ''); // los respaldos de Asterics traen BOM
     const json = JSON.parse(text);
     if (!json || !Array.isArray(json.grids) || !json.grids.length) throw new Error('El archivo .grd no tiene tableros.');
+    // Respaldo completo de Asterics: inicio declarado, sin tablero global ni miniaturas; diccionario de predicción
+    const norm = normalizeGrd(json);
+    if (!norm.grids.length) throw new Error('El archivo .grd no tiene tableros.');
     const bundle = {
         id: 'bundle_' + Date.now(),
         name: file.name.replace('.grd', ''),
         type: 'grd',
         importerVersion: IMPORTER_VERSION,
-        mainBoard: json.grids[0].id,
+        mainBoard: norm.homeGridId || norm.grids[0].id,
         boards: {}
     };
-    json.grids.forEach(g => { bundle.boards[g.id] = g; });
-    inferMainBoard(bundle);
+    norm.grids.forEach(g => { bundle.boards[g.id] = g; });
+    if (norm.predictionWords.length) bundle.predictionWords = norm.predictionWords;
+    if (!norm.homeGridId) inferMainBoard(bundle);
     bundle.name = importedName(file.name, bundle);
     return bundle;
 }
@@ -204,6 +236,7 @@ export async function importFile(file, { chooseSplit = async () => false } = {})
     else if (ext === 'obz') bundle = await importObz(file);
     else throw new Error('Formato no soportado: ' + ext);
 
+    const report = compatibilityMessage(analyzeBundle(bundle)); // qué se adaptó y qué no se puede usar
     const n = pageCount(bundle);
     const stamp = Date.now();
     const list = (n > 1 && await chooseSplit(n))
@@ -212,6 +245,7 @@ export async function importFile(file, { chooseSplit = async () => false } = {})
     for (const b of list) await saveBundle(b, { isNew: true }); // local + nube (si hay sesión, nace en la cuenta)
     // Textos de ARASAAC en segundo plano: la importación no espera a la red
     list.forEach(b => completeMissingTexts(b.id));
+    list.report = report;
     return list;
 }
 
@@ -445,7 +479,7 @@ function buildBoardCard(bundle, { readOnly = false } = {}) {
         const mainElements = bundle.boards[bundle.mainBoard].gridElements || [];
         optionsCount = mainElements.length;
         const labels = mainElements
-            .map(e => e.label ? (e.label.es || e.label.en) : '')
+            .map(e => labelText(e.label))
             .filter(Boolean).slice(0, 5);
         if (labels.length > 0) {
             previewText = labels.join(', ') + (optionsCount > 5 ? '...' : '');
@@ -947,6 +981,7 @@ export function openBundle(bundle) {
         if ((!bundle.importerVersion || bundle.importerVersion < IMPORTER_VERSION) && bundle.type !== 'test') {
             customAlert('Este tablero fue importado con una versión anterior — reimportalo para corregir posibles errores de imágenes y navegación.');
         }
+        stopMedia();
         S.currentBundle = bundle;
         S.navigationHistory = [];
 
@@ -994,6 +1029,92 @@ export async function completeMissingTexts(bundleId) {
     finally { textsInFlight.delete(bundleId); }
 }
 
+/** Navegación de Asterics: a una página, "volver" o "ir al inicio" del tablero. */
+export function navigateTo(nav) {
+    if (!nav || !S.currentBundle) return;
+    if (nav.kind === 'back') {
+        if (S.navigationHistory.length) renderGrid(S.navigationHistory.pop());
+        return;
+    }
+    const target = nav.kind === 'home' ? S.currentBundle.mainBoard : nav.target;
+    if (!target || !S.currentBundle.boards[target] || target === S.currentGridId) return;
+    S.navigationHistory.push(S.currentGridId);
+    renderGrid(target);
+}
+
+let clipboardText = '';
+async function writeClipboard(text) {
+    clipboardText = text;
+    try { await navigator.clipboard.writeText(text); showInfoToast('Frase copiada.', 1500); } catch { /* sin permiso */ }
+}
+
+/** Acciones de frase (COLLECT), radio y página web de una celda. */
+function runSpecialActions(el, bundle) {
+    (el.actions || []).forEach(a => {
+        if (a.modelName === 'GridActionCollectElement') {
+            switch (a.action) {
+                case COLLECT.SPEAK: case COLLECT.SPEAK_CONTINUOUS: playSentence(); break;
+                case COLLECT.SPEAK_CLEAR: case COLLECT.SPEAK_CONTINUOUS_CLEAR: playSentence(); clearSentence(); break;
+                case COLLECT.CLEAR: clearSentence(); break;
+                case COLLECT.REMOVE_WORD: popSentence(); break;
+                case COLLECT.REMOVE_CHAR: removeChar(); break;
+                case COLLECT.COPY_CLIPBOARD: writeClipboard(sentenceText()); break;
+                case COLLECT.APPEND_CLIPBOARD: writeClipboard([clipboardText, sentenceText()].filter(Boolean).join(' ')); break;
+                case COLLECT.CLEAR_CLIPBOARD: writeClipboard(''); break;
+                case COLLECT.SHARE:
+                    if (navigator.share) navigator.share({ text: sentenceText() }).catch(() => {});
+                    else writeClipboard(sentenceText());
+                    break;
+                default: break; // girar texto: no aplica
+            }
+        } else if (a.modelName === 'GridActionWebradio') {
+            radioAction(a, bundle);
+        } else if (a.modelName === 'GridActionOpenWebpage') {
+            openWebpage(a);
+        }
+    });
+}
+
+/** Corta la radio y cierra una página web abierta (al salir del tablero). */
+export function stopMedia() { stopRadio(); closeWebpage(); stopRecordedAudio(); }
+
+// --- Celdas que muestran la frase o sugerencias (se actualizan cuando cambia la frase) ---
+let dynamicCells = { collect: [], prediction: [], upper: false, extra: [], keyboard: false };
+
+function predictionExtra(bundle) {
+    if (bundle.__predExtra) return bundle.__predExtra;
+    const words = new Map((bundle.predictionWords || []).map(([w, f]) => [w, f]));
+    Object.values(bundle.boards || {}).forEach(g => (g.gridElements || []).forEach(el => {
+        const t = labelText(el.label).trim();
+        if (t.length > 1 && t.length < 30 && !/\s/.test(t)) words.set(t, (words.get(t) || 0) + 1);
+    }));
+    Object.defineProperty(bundle, '__predExtra', { value: [...words.entries()], enumerable: false, configurable: true });
+    return bundle.__predExtra;
+}
+
+function updateDynamicCells() {
+    if (!dynamicCells.collect.length && !dynamicCells.prediction.length) return;
+    const items = getSentence();
+    dynamicCells.collect.forEach(cell => {
+        if (!cell.isConnected) return;
+        const box = cell.querySelector('.collect-text');
+        if (box) box.textContent = items.map(i => i.text).filter(Boolean).join(' ') || ' ';
+    });
+    if (dynamicCells.prediction.length) {
+        const words = suggest(currentPrefix(), { extra: dynamicCells.extra, count: dynamicCells.prediction.length, upper: dynamicCells.upper });
+        dynamicCells.prediction.forEach((cell, i) => {
+            if (!cell.isConnected) return;
+            const w = words[i] || '';
+            cell.dataset.word = w;
+            const lbl = cell.querySelector('.picto-label');
+            if (lbl) lbl.textContent = w;
+            cell.setAttribute('aria-label', w ? `Sugerencia: ${w}` : 'Sin sugerencia');
+            cell.classList.toggle('is-empty', !w);
+        });
+    }
+}
+onSentenceChange(updateDynamicCells);
+
 let lastCellClickTime = 0;
 
 export function handleCellClick(cellElement, elementData) {
@@ -1009,34 +1130,59 @@ export function handleCellClick(cellElement, elementData) {
     cellElement.style.transform = 'scale(0.95)';
     setTimeout(() => (cellElement.style.transform = ''), 150);
 
-    const navAction = (elementData.actions || []).find(isNavigateAction);
-    if (navAction) {
+    const bundle = S.currentBundle;
+    const model = bundle && bundle.speechModel;
+    const text = cellText(elementData); // propio (con idiomas de Asterics) o, si falta, el de ARASAAC
+
+    // Predicción de palabras: completa lo que se está escribiendo
+    if (elementData.type === ELEMENT.PREDICTION) {
+        const word = cellElement.dataset.word;
+        if (word) completeWord(word);
+        hooks.onCellActivated(elementData);
+        return;
+    }
+    // Celda que pide algo que MiraVoz no puede hacer (YouTube, domótica…): se avisa en vez de no hacer nada
+    if (!isUsable(elementData, bundle)) {
+        showInfoToast(`Esta celda usa ${unsupportedFeatures(elementData).join(', ')}: MiraVoz todavía no lo puede hacer.`);
+        hooks.onCellActivated(elementData);
+        return;
+    }
+
+    runSpecialActions(elementData, bundle); // frase, radio, página web
+    // Celda de frase sin acciones propias: tocarla dice la frase
+    if (elementData.type === ELEMENT.COLLECT && !collectActions(elementData).length) playSentence();
+    const nav = navInfo(elementData, bundle);
+    const navOk = navigates(elementData, bundle);
+    const letter = dynamicCells.keyboard && isLetterCell(elementData); // solo en páginas de teclado; incluye el espacio
+    const special = isSpecialCell(elementData);
+    const audio = audioAction(elementData);
+    const custom = customSpeech(elementData);
+    const lang = (custom && custom.lang) || speakLanguage(elementData);
+
+    // Qué se dice. Tableros editados en MiraVoz: solo lo que piden sus acciones (F3-3b).
+    // Importados sin editar: además se dice el texto de las celdas comunes (las teclas y los botones
+    // especiales no hablan, como en Asterics).
+    let toSpeak = null;
+    if (custom) toSpeak = custom.text || text;
+    else if ((elementData.actions || []).some(a => a.modelName === 'GridActionSpeak')) toSpeak = text;
+    else if (model !== 'actions' && !letter && !special) toSpeak = text;
+
+    const imageUrl = elementData.image ? (elementData.image.data || elementData.image.url) : null;
+    const item = { text, speakText: toSpeak, imageUrl, elData: elementData };
+
+    if (navOk) {
         // Se dice el texto antes de pasar de página (p. ej. la pregunta de una secuencia importada)
-        const say = speechOnNavigate(elementData, S.currentBundle && S.currentBundle.speechModel);
-        if (say) speak(say);
-        setTimeout(() => {
-            S.navigationHistory.push(S.currentGridId);
-            renderGrid(navAction.toGridId);
-        }, 100);
+        const say = speechOnNavigate(elementData, model);
+        if (audio) playRecordedAudio(audio);
+        else if (say) speak(say, { lang });
+        if (nav.addToCollect && (text || imageUrl)) addToSentence(item);
+        setTimeout(() => navigateTo(nav), 100);
     } else {
-        const labelText = cellText(elementData); // propio o, si falta, el de ARASAAC
-        // F3-3b: semántica de habla por acciones para bundles editados en MiraVoz;
-        // comportamiento legacy (hablar el label) para bundles importados sin editar.
-        let toSpeak = labelText;
-        if (S.currentBundle && S.currentBundle.speechModel === 'actions') {
-            const custom = (elementData.actions || []).find(a => a.modelName === 'GridActionSpeakCustom');
-            const plain = (elementData.actions || []).find(a => a.modelName === 'GridActionSpeak');
-            if (custom) toSpeak = (custom.speakText && custom.speakText.es) || labelText;
-            else if (!plain) toSpeak = null; // celda silenciosa
-        }
-        if (toSpeak) speak(toSpeak);
-        if (labelText || elementData.image) {
-            addToSentence({
-                text: labelText,
-                speakText: toSpeak,
-                imageUrl: elementData.image ? (elementData.image.data || elementData.image.url) : null,
-                elData: elementData
-            });
+        if (audio) playRecordedAudio(audio);
+        else if (toSpeak) speak(toSpeak, { lang });
+        if (letter) addLetter(labelText(elementData.label), elementData);
+        else if (!special && !elementData.dontCollect && (text || imageUrl)) {
+            if (elementData.toggleInBar) toggleInSentence(item); else addToSentence(item);
         }
     }
     hooks.onCellActivated(elementData);
@@ -1089,7 +1235,7 @@ export function renderGrid(gridId) {
     gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     gridContainer.setAttribute('role', 'group');
-    const gridLabel = gridData.label ? (gridData.label.es || gridData.label.en || '') : '';
+    const gridLabel = labelText(gridData.label);
     if (gridLabel) gridContainer.setAttribute('aria-label', gridLabel);
 
     // F3-6: filtro por nivel de vocabulario activo (fuera del modo edición)
@@ -1100,6 +1246,16 @@ export function renderGrid(gridId) {
         if (activeLevel && el.vocabularyLevel && el.vocabularyLevel > activeLevel) return;
         if (el.y < rows && el.x < cols) cellsMatrix[el.y][el.x] = el;
     });
+
+    // Celdas de frase y de predicción (Asterics): se registran y se actualizan con la frase
+    const bundleNow = S.currentBundle;
+    const letterLabels = (gridData.gridElements || []).map(e => labelText(e.label)).filter(t => [...t].length === 1 && /\p{L}/u.test(t));
+    dynamicCells = {
+        collect: [], prediction: [], keyboard: isKeyboardPage(gridData),
+        upper: letterLabels.length > 0 && letterLabels.filter(t => t === t.toLocaleUpperCase('es')).length >= letterLabels.length / 2,
+        extra: predictionExtra(bundleNow)
+    };
+    gridContainer.style.backgroundColor = gridData.backgroundColor || '';
 
     const renderedCells = new Set();
     for (let y = 0; y < rows; y++) {
@@ -1164,15 +1320,57 @@ export function renderGrid(gridId) {
                     cell.appendChild(label);
                 }
 
+                // Formato propio de Asterics: color y tamaño de letra de la celda
+                const lblEl = cell.querySelector('.picto-label');
+                if (lblEl && elData.fontColor) lblEl.style.color = elData.fontColor;
+                const pct = Number(elData.fontSizePct);
+                const px = parseFloat(elData.fontSizePx);
+                if (lblEl && (pct > 0 || px > 0)) {
+                    cell.style.containerType = 'size';
+                    lblEl.style.fontSize = pct > 0 ? `${Math.min(pct, 90)}cqh` : `min(${px}px, 45cqh)`;
+                    lblEl.style.lineHeight = '1.1';
+                }
+
+                // Tipos especiales de Asterics
+                if (elData.type === ELEMENT.PREDICTION) {
+                    cell.classList.add('cell-prediction');
+                    if (!lblEl) { const l = document.createElement('div'); l.className = 'picto-label'; cell.appendChild(l); }
+                    dynamicCells.prediction.push(cell);
+                } else if (elData.type === ELEMENT.COLLECT) {
+                    cell.classList.add('cell-collect');
+                    const box = document.createElement('div');
+                    box.className = 'collect-text';
+                    cell.appendChild(box);
+                    dynamicCells.collect.push(cell);
+                }
+
+                // Lo que MiraVoz no puede hacer se marca (nunca una celda muda sin aviso)
+                const missing = unsupportedFeatures(elData);
+                if (!isUsable(elData, bundleNow)) {
+                    cell.classList.add('cell-unavailable');
+                    const badge = document.createElement('div');
+                    badge.className = 'cell-unavailable-badge';
+                    badge.textContent = 'No disponible';
+                    cell.appendChild(badge);
+                    cell.title = `No disponible en MiraVoz: ${missing.join(', ')}`;
+                } else if (missing.length) {
+                    cell.title = `Parte de esta celda no funciona en MiraVoz: ${missing.join(', ')}`;
+                }
+                const navI = navInfo(elData, bundleNow);
+                if (navI && navI.kind === 'grid' && navI.broken && hooks.isEditMode()) {
+                    cell.classList.add('cell-broken');
+                    cell.title = 'Lleva a una página que no está en este tablero';
+                }
+
                 // Señal de que la celda abre otra página: esquina doblada con flecha (convención de carpetas en CAA)
-                if ((elData.actions || []).some(isNavigateAction)) {
+                if (navigates(elData, bundleNow)) {
                     cell.classList.add('cell-nav');
                     const mark = document.createElement('div');
                     mark.className = 'cell-nav-mark';
                     mark.setAttribute('aria-hidden', 'true');
                     mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>'; // SVG fijo
                     cell.appendChild(mark);
-                    cell.title = 'Abre otra página';
+                    if (!cell.title) cell.title = navI.kind === 'back' ? 'Vuelve a la página anterior' : navI.kind === 'home' ? 'Va al inicio del tablero' : 'Abre otra página';
                 }
 
                 const progress = document.createElement('div');
@@ -1229,6 +1427,7 @@ export function renderGrid(gridId) {
         activeGridElements.push({ element: btn, data: null, isAccBtn: true });
     });
 
+    updateDynamicCells();
     hooks.onGridRendered(activeGridElements);
     hooks.onPageRendered(gridId);
 }

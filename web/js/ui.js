@@ -2,6 +2,7 @@
 
 import { speak } from './speech.js';
 import { getCellColor } from './colors.js';
+import { learnWord } from './prediction.js';
 
 // --- Modales ---
 // Hay un solo #custom-dialog: los diálogos se encolan para que dos pedidos simultáneos
@@ -138,29 +139,96 @@ const sentenceContainer = document.getElementById('sentence-container');
 
 export function getSentence() { return sentenceAccumulator; }
 
-export function clearSentence() {
-    sentenceAccumulator = [];
+// Quien muestra la frase dentro del tablero (celdas de frase y de predicción de Asterics) se suscribe acá
+const sentenceListeners = new Set();
+export function onSentenceChange(fn) { sentenceListeners.add(fn); return () => sentenceListeners.delete(fn); }
+function changed() {
     renderSentence();
+    sentenceListeners.forEach(fn => { try { fn(sentenceAccumulator); } catch (e) { console.warn(e); } });
 }
 
+export function clearSentence() {
+    sentenceAccumulator = [];
+    changed();
+}
+
+/** Borra el último elemento (una palabra o un pictograma). */
 export function popSentence() {
     if (sentenceAccumulator.length > 0) {
         sentenceAccumulator.pop();
-        renderSentence();
+        changed();
     }
 }
 
 export function addToSentence(item) {
+    closeWord();
     sentenceAccumulator.push(item);
-    renderSentence();
+    changed();
+}
+
+// --- Teclado (10/10/2026): las letras se juntan en una palabra hasta un espacio ---
+const lastItem = () => sentenceAccumulator[sentenceAccumulator.length - 1];
+const openWord = () => { const l = lastItem(); return l && l.letters && l.open ? l : null; };
+
+/** Cierra la palabra que se está escribiendo (y la aprende para la predicción). */
+function closeWord() {
+    const w = openWord();
+    if (w) { w.open = false; learnWord(w.text); }
+}
+
+/** Agrega un carácter del teclado. El espacio termina la palabra. */
+export function addLetter(char, elData = null) {
+    if (char === ' ' || char === '\u00a0') {
+        if (openWord()) { closeWord(); changed(); }
+        return;
+    }
+    const w = openWord();
+    if (w) w.text += char;
+    else sentenceAccumulator.push({ text: char, letters: true, open: true, elData });
+    changed();
+}
+
+/** Lo que se está escribiendo (para la predicción): '' si no hay palabra abierta. */
+export function currentPrefix() { const w = openWord(); return w ? w.text : ''; }
+
+/** Borra un carácter: de la palabra que se escribe o, si es un pictograma, el pictograma entero. */
+export function removeChar() {
+    const l = lastItem();
+    if (!l) return;
+    if (l.letters && l.text.length > 1) { l.text = l.text.slice(0, -1); l.open = true; }
+    else sentenceAccumulator.pop();
+    changed();
+}
+
+/** Completa la palabra abierta con una sugerencia de la predicción (o la agrega). */
+export function completeWord(word) {
+    const w = openWord();
+    if (w) { w.text = word; w.open = false; }
+    else sentenceAccumulator.push({ text: word, letters: true, open: false });
+    learnWord(word);
+    changed();
+}
+
+/** "Agregar o sacar" (toggleInBar de Asterics): si el elemento ya está en la frase, lo saca. */
+export function toggleInSentence(item) {
+    const id = item.elData && item.elData.id;
+    const i = id ? sentenceAccumulator.findIndex(x => x.elData && x.elData.id === id) : -1;
+    if (i >= 0) { sentenceAccumulator.splice(i, 1); changed(); }
+    else addToSentence(item);
+}
+
+/** Texto de la frase (lo que se ve), por ejemplo para copiar. */
+export function sentenceText() {
+    return sentenceAccumulator.map(i => i.text).filter(Boolean).join(' ');
 }
 
 export function playSentence() {
     if (sentenceAccumulator.length === 0) return;
+    closeWord();
     const fullText = sentenceAccumulator
-        .map(i => i.speakText !== undefined ? i.speakText : i.text)
+        .map(i => (i.speakText !== undefined ? i.speakText : i.text))
         .filter(Boolean)
-        .join(', ');
+        .join(', '); // como siempre: una pausa breve entre pictogramas
     if (fullText) speak(fullText);
 }
 

@@ -18,7 +18,7 @@ const WEB = path.resolve(HERE, '../web');
 // Acceso (EQUIPO.md regla 2, 10/10/2026): sin modo sin cuenta; profesionales solo con Google.
 // 'editor-local' se eliminó: sin sesión el home no es alcanzable, así que el editor siempre corre con sesión
 // (lo cubre 'editor-sesion').
-const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'xss'];
+const CASES = ['sin-sesion', 'sin-cdn', 'vuelta-google-error', 'con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss'];
 
 // ---------------------------------------------------------------- orquestador
 const caseArg = process.argv.find(a => a.startsWith('--case='))?.slice(7);
@@ -89,6 +89,8 @@ globalThis.SpeechSynthesisUtterance = win.SpeechSynthesisUtterance = class { con
 globalThis.FaceMesh = win.FaceMesh = class { setOptions() {} onResults() {} send() {} };
 globalThis.Camera = win.Camera = class { start() {} stop() {} };
 globalThis.JSZip = win.JSZip = class {};
+const audios = [];
+globalThis.Audio = win.Audio = class { constructor(src) { this.src = src; this.paused = true; this.volume = 1; audios.push(src); } play() { this.paused = false; return Promise.resolve(); } pause() { this.paused = true; } };
 globalThis.fetch = win.fetch = async (url) => {
     // Caso 'paginas': ARASAAC responde la palabra de cada pictograma
     if (caseArg === 'paginas' && String(url).startsWith('https://api.arasaac.org/api/pictograms/es/')) {
@@ -118,7 +120,7 @@ const BUNDLE = { id: 'bundle_1', name: 'Prueba', type: 'grd', mainBoard: 'g1', b
 const CLOUD = { id: 'bundle_cloud', name: 'Nube', type: 'grd', mainBoard: 'gc', updatedAt: 1000, boards: { gc: { id: 'gc', label: { es: 'Nube' }, rowCount: 1, minColumnCount: 1, gridElements: [] } } };
 // En editor-sesion el tablero ya es de la cuenta y está sincronizado (en local y en la nube)
 const OWNED = { ...clone(BUNDLE), ownerId: 'u1', updatedAt: 500, syncedAt: 500 };
-const ownedCase = caseArg === 'editor-sesion' || caseArg === 'paginas';
+const ownedCase = caseArg === 'editor-sesion' || caseArg === 'paginas' || caseArg === 'asterics';
 store.set('bundle_1', ownedCase ? clone(OWNED) : clone(BUNDLE));
 
 // Stub de supabase-js
@@ -158,7 +160,7 @@ function makeSupabase({ user = null, tables = {} } = {}) {
 
 const USER = { id: 'u1', email: 'a@b.c' };
 const XSS = '<img src=x onerror=alert(1)>';
-const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'xss'].includes(caseArg);
+const withSession = ['con-sesion', 'con-sesion-rechaza', 'editor-sesion', 'paginas', 'asterics', 'xss'].includes(caseArg);
 if (caseArg !== 'sin-cdn') {
     win.supabase = makeSupabase(withSession ? {
         user: USER,
@@ -365,6 +367,100 @@ if (caseArg === 'paginas') {
     check('deshacer no deja muda la celda de la pregunta', S.currentBundle.speechModel === 'actions' && titleEl.actions.some(a => a.modelName === 'GridActionSpeak'), JSON.stringify(titleEl?.actions));
     editor.exitEditMode();
     check('al salir de edición se quita la franja', !document.getElementById('editor-pages'), 'sigue');
+}
+
+if (caseArg === 'asterics') {
+    const boards = await import(pathToFileURL(path.join(WEB, 'js/boards.js')).href);
+    const ui = await import(pathToFileURL(path.join(WEB, 'js/ui.js')).href);
+    const { S } = await import(pathToFileURL(path.join(WEB, 'js/state.js')).href);
+    // Respaldo completo sintético con todo lo que puede traer Asterics
+    const E = (id, x, y, o = {}) => ({ id, x, y, width: 1, height: 1, label: {}, actions: [], type: 'ELEMENT_TYPE_NORMAL', ...o });
+    const N = (extra) => ({ modelName: 'GridActionNavigate', ...extra });
+    const letters = ['H', 'O', 'L', 'A', ' '].map((c, i) => E('k' + i, i, 0, { label: { es: c } }))
+        .concat(['B', 'C', 'D', 'E', 'F'].map((c, i) => E('kk' + i, i, 3, { label: { es: c } }))); // página de teclado (≥ 8 teclas)
+    const home = { id: 'home', label: { es: 'Inicio' }, rowCount: 4, minColumnCount: 6, thumbnail: { data: 'data:image/png;base64,AAAA' },
+        webRadios: [{ radioId: 'r1', radioName: 'Radio Uno', radioUrl: 'http://radio.example/stream.mp3' }],
+        gridElements: [...letters,
+            E('del', 5, 0, { label: { es: 'Borrar' }, actions: [{ modelName: 'GridActionCollectElement', action: 'COLLECT_ACTION_REMOVE_CHAR' }] }),
+            E('pr1', 0, 1, { type: 'ELEMENT_TYPE_PREDICTION' }), E('pr2', 1, 1, { type: 'ELEMENT_TYPE_PREDICTION' }),
+            E('col', 2, 1, { type: 'ELEMENT_TYPE_COLLECT', width: 4, actions: [{ modelName: 'GridActionCollectElement', action: 'COLLECT_ACTION_SPEAK_CONTINUOUS' }] }),
+            E('go', 0, 2, { label: { 'es-ar': 'Más cosas' }, actions: [N({ navType: 'navigateToGrid', toGridId: 'p2' })] }),
+            E('yt', 1, 2, { actions: [{ modelName: 'GridActionYoutube', action: 'YT_TOGGLE' }] }),
+            E('rota', 2, 2, { label: { es: 'Rota' }, actions: [{ modelName: 'GridActionSpeak' }, N({ navType: 'navigateToGrid', toGridId: 'no-esta' })] }),
+            E('ana', 3, 2, { image: { data: 'data:image/png;base64,AAAA' }, actions: [{ modelName: 'GridActionSpeakCustom', speakText: { es: 'ANALÍA' } }] }),
+            E('rad', 4, 2, { label: { es: 'Radio' }, actions: [{ modelName: 'GridActionWebradio', action: 'WEBRADIO_ACTION_START', radioId: 'r1' }] })] };
+    const p2 = { id: 'p2', label: { es: 'Página 2' }, rowCount: 1, minColumnCount: 4, gridElements: [
+        E('y', 2, 0, { label: { es: 'y' } }),
+        E('web', 3, 0, { label: { es: 'Diario' }, actions: [{ modelName: 'GridActionOpenWebpage', openURL: 'https://example.org/', timeoutSeconds: 0 }] }),
+        E('back', 0, 0, { label: { es: 'Volver' }, actions: [N({ navType: 'navigateToLastOpenedGrid' })] }),
+        E('ini', 1, 0, { label: { es: 'Inicio' }, actions: [N({ navType: 'navigateToHomeGrid' })] })] };
+    const glob = { id: 'glob', label: { es: 'Tablero global' }, rowCount: 1, minColumnCount: 1, gridElements: [E('g1', 0, 0)] };
+    const json = { grids: [glob, p2, home], metadata: { homeGridId: 'home', globalGridId: 'glob' }, dictionaries: [{ data: JSON.stringify({ HOLANDA: { f: 1 } }) }] };
+    const file = { name: 'nene_2026-10-08_20-00_asterics-aac-full-backup.grd', text: async () => JSON.stringify(json) };
+    let asked = 0;
+    const list = await boards.importFile(file, { chooseSplit: async (n) => { asked = n; return false; } });
+    const b = list[0];
+    check('respaldo completo: inicio declarado y sin tablero global', b.mainBoard === 'home' && !b.boards.glob && asked === 2, JSON.stringify({ main: b.mainBoard, pages: Object.keys(b.boards), asked }));
+    check('sin miniaturas guardadas', !b.boards.home.thumbnail, 'quedó la miniatura');
+    check('informe de compatibilidad (vínculo roto y YouTube)', /1 celda lleva/.test(list.report) && /YouTube \(1\)/.test(list.report) && /teclado/.test(list.report), list.report);
+
+    boards.openBundle(await localforage.getItem(b.id));
+    await sleep(50);
+    const cell = (id) => document.getElementById(id);
+    check('texto solo en es-ar se ve', /Más cosas/.test(cell('cell-0-2').textContent), cell('cell-0-2').textContent);
+    check('YouTube se marca "No disponible"', cell('cell-1-2').classList.contains('cell-unavailable') && /No disponible/.test(cell('cell-1-2').textContent), cell('cell-1-2').className);
+    check('el vínculo roto no muestra la marca de "abre otra página"', !cell('cell-2-2').querySelector('.cell-nav-mark') && cell('cell-0-2').querySelector('.cell-nav-mark'), 'marcas incorrectas');
+
+    const tap = async (id) => { cell(id).click(); await sleep(520); };
+    ui.clearSentence();
+    spoken.length = 0;
+    await tap('cell-0-0'); await tap('cell-1-0'); await tap('cell-2-0');
+    const sent = () => ui.getSentence().map(i => i.text);
+    check('las letras forman una palabra y no hablan', JSON.stringify(sent()) === '["HOL"]' && spoken.length === 0, JSON.stringify({ s: sent(), spoken }));
+    check('la frase se ve en la celda de frase del tablero', /HOL/.test(cell('cell-2-1').textContent), cell('cell-2-1').textContent);
+    const pred = cell('cell-0-1').dataset.word;
+    check('la predicción sugiere en mayúsculas lo que empieza igual', /^HOL/.test(pred) && pred === pred.toUpperCase(), pred);
+    await tap('cell-0-1');
+    check('tocar la sugerencia completa la palabra', JSON.stringify(sent()) === JSON.stringify([pred]), JSON.stringify(sent()));
+    await tap('cell-0-0');
+    check('después de completar, la letra empieza otra palabra', sent().length === 2 && sent()[1] === 'H', JSON.stringify(sent()));
+    await tap('cell-5-0');
+    check('"borrar letra" borra un carácter (y la palabra si queda vacía)', sent().length === 1, JSON.stringify(sent()));
+    spoken.length = 0;
+    await tap('cell-2-1');
+    check('tocar la celda de frase la dice', spoken.some(t => t.includes(pred)), JSON.stringify(spoken));
+    spoken.length = 0;
+    await tap('cell-3-2');
+    check('pictograma sin texto con "decir texto" dice ANALÍA', spoken.includes('ANALÍA'), JSON.stringify(spoken));
+    spoken.length = 0;
+    await tap('cell-1-2');
+    check('tocar YouTube no habla ni agrega a la frase', !spoken.length && !ui.getSentence().some(i => i.elData && i.elData.id === 'yt'), JSON.stringify(spoken));
+    await tap('cell-4-2');
+    check('la radio arranca la emisora del tablero', audios.includes('http://radio.example/stream.mp3'), JSON.stringify(audios));
+    const before = ui.getSentence().length;
+    await tap('cell-2-2');
+    check('el vínculo roto se comporta como celda común (habla y va a la frase)', S.currentGridId === 'home' && ui.getSentence().length === before + 1, S.currentGridId);
+    await tap('cell-0-2');
+    check('navegar a la página 2', S.currentGridId === 'p2', S.currentGridId);
+    spoken.length = 0;
+    const n0 = ui.getSentence().length;
+    await tap('cell-2-0');
+    check('"y" en una página común es una palabra: se dice y va a la frase', spoken.includes('y') && ui.getSentence().length === n0 + 1, JSON.stringify(spoken));
+    let overlayTargets = 'sin evento';
+    document.addEventListener('miravoz-overlay', (e) => { overlayTargets = e.detail.targets; }, { once: true });
+    await tap('cell-3-0');
+    const ov = document.getElementById('webpage-overlay');
+    check('abrir página web: panel con "Volver" y la mirada apunta solo a ese botón', ov && Array.isArray(overlayTargets) && overlayTargets.length === 1 && overlayTargets[0].element.textContent === 'Volver al tablero'
+        && !/allow-popups/.test(ov.querySelector('iframe').getAttribute('sandbox')), JSON.stringify({ ov: !!ov, t: typeof overlayTargets }));
+    ov.querySelector('button').click();
+    check('"Volver al tablero" cierra la página', !document.getElementById('webpage-overlay'), 'sigue abierta');
+    const media = await import(pathToFileURL(path.join(WEB, 'js/media.js')).href);
+    media.openWebpage({ openURL: location.origin + '/otra' });
+    check('nunca abre el propio MiraVoz dentro del panel', !document.getElementById('webpage-overlay'), 'se abrió');
+    await tap('cell-0-0');
+    check('"volver" regresa a la página anterior', S.currentGridId === 'home', S.currentGridId);
+    await tap('cell-0-2'); await tap('cell-1-0');
+    check('"ir al inicio" va a la página de inicio', S.currentGridId === 'home', S.currentGridId);
 }
 
 if (caseArg === 'xss') {

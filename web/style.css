@@ -1366,3 +1366,27 @@ body.test-board #btn-edit-board { display: none !important; }
 }
 .cell-nav-mark svg { position: absolute; top: 10%; right: 10%; width: 46%; height: 46%; }
 .dense-grid .cell-nav-mark { width: clamp(16px, 22%, 28px); }
+
+/* --- Compatibilidad con Asterics (10/10/2026) --- */
+.cell.cell-unavailable { opacity: 0.55 !important; }
+.cell-unavailable-badge {
+    position: absolute; left: 6px; bottom: 6px; z-index: 2; pointer-events: none;
+    padding: 2px 8px; border-radius: 999px; font: 700 0.7rem 'Inter', sans-serif;
+    background: var(--text-main); color: var(--bg-color);
+}
+body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
+.cell.cell-prediction { background: var(--surface-2); }
+.cell.cell-prediction.is-empty { opacity: 0.5; }
+.cell.cell-prediction .picto-label { font-weight: 700; }
+.cell.cell-collect { align-items: stretch; justify-content: center; padding: 6px 12px; }
+.cell-collect .collect-text {
+    font: 700 clamp(0.9rem, 2.2vw, 1.6rem) 'Inter', sans-serif; color: var(--text-main);
+    display: flex; justify-content: flex-end; white-space: nowrap; overflow: hidden; /* se ve el final de la frase */
+}
+#webpage-overlay {
+    position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; gap: 10px;
+    padding: 12px; background: var(--bg-color);
+}
+#webpage-overlay .webpage-back { align-self: flex-start; font-size: 1.4rem; padding: 18px 36px; }
+#webpage-overlay iframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--surface-1-border); border-radius: 12px; background: #fff; }
+#webpage-overlay .webpage-note { margin: 0; font-size: 0.85rem; color: var(--text-muted); }

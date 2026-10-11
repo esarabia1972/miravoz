@@ -258,3 +258,32 @@ Un respaldo de Asterics traía 5 tableros encadenados (preguntas "¿Cuál…?").
 - Tests: `tools/test-pages.mjs` (22) y el caso `paginas` en `test-boot.mjs` (21 verificaciones). El total de test-boot es 85. Revisión: deshacer ya no deja mudas las celdas, hay una carrera con la sincronización resuelta al releer antes de guardar, la importación ya no queda bloqueada por la red y las miniaturas usan una clave por tablero.
 - **Changed (pedido de Esteban)**: la franja de páginas ocupaba demasiado alto en el editor. Ahora es un selector compacto dentro de la barra del editor, "‹ Página 1 de 5 · Nombre ▾ ›": las flechas pasan de página y al tocar el nombre se despliega un panel con las miniaturas, "+ Página", renombrar, "Usar como inicio", "Borrar página" y "Mostrar texto de los pictogramas". Se cierra al elegir una página, al tocar afuera o con Escape. La barra pasa a dos renglones solo en pantallas de menos de 820 px.
 - **Added (pedido de Esteban)**: las celdas que abren otra página muestran una **esquina doblada con una flecha** arriba a la derecha, la convención de "carpeta" en CAA. El lector de pantalla anuncia "(abre otra página)".
+
+### Compatibilidad completa con Asterics Grid (10/10/2026)
+Analicé 6 respaldos completos de Leti: 812 tableros y 11.794 celdas. Con eso y con los modelos de AsTeRICS-Grid (`GridElement`, `GridData`, `GridAction*`), MiraVoz ahora contempla todo lo que puede traer un `.grd`, aunque se importe de a un tablero. La lógica nueva está en `web/js/asterics.js`, `prediction.js` y `media.js`.
+- **Fixed — textos**: se leen los textos en `es`, en variantes de español (`es-ar`, que antes se veían vacíos) o en otro idioma (`labelText`). Las etiquetas pueden venir como texto plano.
+- **Fixed — voz**: "decir texto personalizado" (`SpeakCustom`) ahora funciona también en tableros importados sin editar. Antes un pictograma sin texto que debía decir "ANALÍA" quedaba mudo. Se respeta el idioma de voz de la celda.
+- **Added — navegación**: "volver a la página anterior" y "ir al inicio" (231 y 13 celdas en los respaldos). El editor de celda tiene las dos opciones nuevas y conserva "agregar a la frase al navegar".
+- **Added — vínculos rotos**: un vínculo a un tablero que no se importó funciona como celda común, no lleva la marca de "abre otra página" y en el editor se ve con borde rojo.
+- **Added — botones de la frase**: hablar, hablar y borrar, borrar todo, borrar palabra, borrar letra, copiar, agregar al portapapeles y compartir.
+- **Added — teclados**: en páginas con 8 teclas o más, las letras forman palabras, el espacio cierra la palabra y "borrar letra" borra de a un carácter. Las teclas no hablan, como en Asterics. En tableros comunes, "y" u "o" siguen siendo palabras.
+- **Added — predicción de palabras**: las celdas de predicción sugieren palabras según lo que se escribe y respetan las mayúsculas del teclado. Las fuentes, de más a menos peso:
+  - lo que la persona ya escribió en ese dispositivo;
+  - el diccionario que trae el archivo;
+  - los textos del tablero;
+  - una lista base de palabras frecuentes.
+- **Added — celdas de frase**: las que Asterics pone dentro del tablero muestran la frase en vivo y la dicen al tocarlas.
+- **Added — multimedia**:
+  - radio por internet: iniciar, alternar, siguiente, anterior y volumen, con las emisoras del tablero (solo `http(s)`);
+  - abrir una página web en un panel con "Volver al tablero": mientras está abierto, la mirada y el barrido apuntan solo a ese botón, vuelve sola (60 s si no hay tiempo configurado) y nunca abre MiraVoz adentro;
+  - audios grabados (`GridActionAudio`);
+  - la radio, el audio y la página se cortan al salir del tablero.
+- **Added — celdas no disponibles**: lo que MiraVoz no puede hacer (YouTube, domótica AsTeRICS u openHAB, HTTP, puerto serie, Matrix, podcast, formas de palabra, cambio de idioma y acciones o tipos desconocidos) se marca con "No disponible". Al tocar esas celdas aparece un aviso; nunca queda una celda muda sin explicación.
+- **Added — informe al importar**: lista qué se adaptó, qué vínculos quedaron rotos y qué no se puede usar.
+- **Added — formato**: color y tamaño de letra por celda (`fontColor`, `fontSizePct`, `fontSizePx`), color de fondo de la página, `dontCollect` (no va a la frase) y `toggleInBar` (agregar o sacar de la frase).
+- **Changed — respaldo completo**: se usa el inicio declarado (`metadata.homeGridId`) y se descartan el tablero global (MiraVoz ya tiene su barra) y las miniaturas (17% del peso). Si no hay inicio declarado, se elige el tablero sin vínculos entrantes que lleva a más páginas, para no caer en un teclado suelto.
+- Tests:
+  - `tools/test-asterics.mjs` (13 pruebas).
+  - Caso `asterics` en `test-boot.mjs` (31 verificaciones; test-boot pasa a 113 en total).
+  - Prueba manual, no versionada, con los 6 respaldos reales: 806 páginas se importan y se dibujan sin errores.
+  - Revisión del equipo: se corrigieron la página web sin salida con la mirada, las celdas de una letra en tableros comunes, la tecla espacio en el editor y el sandbox del iframe.
