@@ -169,9 +169,24 @@ export function isLetterCell(el, text) {
 /** Página de teclado: tiene al menos 8 teclas de un carácter. Solo ahí las letras forman palabras
  * (en un tablero común, "y" u "o" son palabras que se dicen solas). */
 export function isKeyboardPage(grid) {
-    let n = 0;
-    for (const el of (grid && grid.gridElements) || []) { if (isLetterCell(el) && ++n >= 8) return true; }
-    return false;
+    // Igual que Asterics (collectElementService): si la página declara keyboardMode, manda eso; si no, es
+    // teclado cuando más del 40% de sus celdas comunes tienen un solo carácter.
+    if (!grid) return false;
+    if (grid.keyboardMode === 'KEYBOARD_ENABLED') return true;
+    if (grid.keyboardMode === 'KEYBOARD_DISABLED') return false;
+    let normal = 0, single = 0;
+    for (const el of grid.gridElements || []) {
+        if ((el.type || ELEMENT.NORMAL) !== ELEMENT.NORMAL) continue;
+        normal++;
+        if ([...labelText(el.label)].length === 1) single++;
+    }
+    return normal > 0 && single / normal > 0.4;
+}
+
+/** Como Asterics: en un teclado las letras van a la frase en minúscula, salvo que la celda de frase lo desactive. */
+export function keyboardLowercase(grid) {
+    const collect = ((grid && grid.gridElements) || []).find(el => el.type === ELEMENT.COLLECT);
+    return !(collect && collect.convertToLowercase === false);
 }
 
 /** Lo que la celda pide y MiraVoz no puede hacer: lista de nombres (vacía = todo soportado). */

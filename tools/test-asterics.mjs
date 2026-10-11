@@ -47,9 +47,12 @@ t('isLetterCell: teclas sí; pictogramas, palabras y botones no', () => {
     eq(isLetterCell(el({ label: { es: 'AB' } })), false);
     eq(isLetterCell(el({ label: { es: 'X' }, actions: [{ modelName: 'GridActionCollectElement', action: 'COLLECT_ACTION_CLEAR' }] })), false);
 });
-t('isKeyboardPage: solo con 8 o más teclas ("y", "o" sueltas son palabras)', () => {
+t('isKeyboardPage: como Asterics (más del 40% de celdas de un carácter, o keyboardMode)', () => {
     eq(isKeyboardPage({ gridElements: 'ABCDEFGH'.split('').map(c => el({ label: { es: c } })) }), true);
-    eq(isKeyboardPage({ gridElements: ['y', 'o', 'a'].map(c => el({ label: { es: c } })) }), false);
+    const words = ['Mamá', 'Papá', 'Comer', 'Agua', 'Baño', 'Sí', 'No', 'y', 'o'].map(c => el({ label: { es: c } }));
+    eq(isKeyboardPage({ gridElements: words }), false, '"y" y "o" en un tablero de palabras');
+    eq(isKeyboardPage({ keyboardMode: 'KEYBOARD_DISABLED', gridElements: 'ABCD'.split('').map(c => el({ label: { es: c } })) }), false);
+    eq(isKeyboardPage({ keyboardMode: 'KEYBOARD_ENABLED', gridElements: words }), true);
     eq(isKeyboardPage(null), false);
 });
 t('isSpecialCell', () => {

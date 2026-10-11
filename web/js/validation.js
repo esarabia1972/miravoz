@@ -119,23 +119,3 @@ export function summarizePhase(phase) {
     };
 }
 
-function buildGridBundle(n) {
-    const els = [];
-    for (let i = 1; i <= n * n; i++) {
-        els.push({
-            x: (i - 1) % n,
-            y: Math.floor((i - 1) / n),
-            label: { es: i.toString() },
-            image: null,
-            actions: []
-        });
-    }
-    return {
-        id: `benchmark_${n}x${n}`,
-        name: `Benchmark ${n}x${n}`,
-        type: 'test',
-        importerVersion: IMPORTER_VERSION,
-        mainBoard: 'main',
-        boards: { main: { id: 'main', rowCount: n, minColumnCount: n, gridElements: els } }
-    };
-}

@@ -258,7 +258,9 @@ boards.hooks.onGridRendered = (targets) => selectionContexts.setBase(targets);
 boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
 boards.hooks.onCellActivated = (elData) => benchmark.onActivated(elData);
 boards.hooks.onBundleOpened = () => {
-    clearSentence();
+    // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
+    // tableros. Se vacía solo con "borrar todo", una celda que la borra, o al cerrar sesión / desvincular.
+    if (S.currentBundle?.type === 'test' && String(S.currentBundle.id || '').startsWith('benchmark_')) clearSentence();
     // Tablet vinculada: el lápiz de edición solo aparece en copias editables
     document.body.classList.toggle('copy-editable', S.currentBundle?.permission === 'editable');
     // El tablero de prueba es fijo: no se edita ni se guarda (antes, editarlo lo dejaba en el inicio)

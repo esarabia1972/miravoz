@@ -17,6 +17,27 @@ const STORAGE_KEY = 'miravoz_benchmarks';
 export const TARGET_TIMEOUT_MS = 15000;
 export const REST_MS = 10000;
 
+function buildGridBundle(n) {
+    const els = [];
+    for (let i = 1; i <= n * n; i++) {
+        els.push({
+            x: (i - 1) % n,
+            y: Math.floor((i - 1) / n),
+            label: { es: i.toString() },
+            image: null,
+            actions: []
+        });
+    }
+    return {
+        id: `benchmark_${n}x${n}`,
+        name: `Benchmark ${n}x${n}`,
+        type: 'test',
+        importerVersion: IMPORTER_VERSION,
+        mainBoard: 'main',
+        boards: { main: { id: 'main', rowCount: n, minColumnCount: n, gridElements: els } }
+    };
+}
+
 export class Benchmark {
     constructor() {
         this.active = false;

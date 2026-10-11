@@ -8,7 +8,7 @@ import { getCellColor } from './colors.js';
 import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
 import { bundleTime } from './sync-plan.js';
 import { labelText, ELEMENT, COLLECT, navInfo, navigates, isUsable, unsupportedFeatures, isSpecialCell, isLetterCell,
-    customSpeech, speakLanguage, audioAction, normalizeGrd, analyzeBundle, compatibilityMessage, isKeyboardPage, collectActions } from './asterics.js';
+    customSpeech, speakLanguage, audioAction, normalizeGrd, analyzeBundle, compatibilityMessage, isKeyboardPage, keyboardLowercase, collectActions } from './asterics.js';
 import { suggest } from './prediction.js';
 import { radioAction, openWebpage, playRecordedAudio, stopRecordedAudio, stopRadio, closeWebpage } from './media.js';
 import { importedName, splitBundle, fetchArasaacWords, applyAutoLabels, missingLabelIds, visibleLabel, cellText, speechOnNavigate, pageCount } from './pages.js';
@@ -1079,7 +1079,7 @@ function runSpecialActions(el, bundle) {
 export function stopMedia() { stopRadio(); closeWebpage(); stopRecordedAudio(); }
 
 // --- Celdas que muestran la frase o sugerencias (se actualizan cuando cambia la frase) ---
-let dynamicCells = { collect: [], prediction: [], upper: false, extra: [], keyboard: false };
+let dynamicCells = { collect: [], prediction: [], upper: false, extra: [], keyboard: false, lowercase: true };
 
 function predictionExtra(bundle) {
     if (bundle.__predExtra) return bundle.__predExtra;
@@ -1180,7 +1180,10 @@ export function handleCellClick(cellElement, elementData) {
     } else {
         if (audio) playRecordedAudio(audio);
         else if (toSpeak) speak(toSpeak, { lang });
-        if (letter) addLetter(labelText(elementData.label), elementData);
+        if (letter) {
+            const ch = labelText(elementData.label);
+            addLetter(dynamicCells.lowercase ? ch.toLocaleLowerCase('es') : ch, elementData);
+        }
         else if (!special && !elementData.dontCollect && (text || imageUrl)) {
             if (elementData.toggleInBar) toggleInSentence(item); else addToSentence(item);
         }
@@ -1251,8 +1254,8 @@ export function renderGrid(gridId) {
     const bundleNow = S.currentBundle;
     const letterLabels = (gridData.gridElements || []).map(e => labelText(e.label)).filter(t => [...t].length === 1 && /\p{L}/u.test(t));
     dynamicCells = {
-        collect: [], prediction: [], keyboard: isKeyboardPage(gridData),
-        upper: letterLabels.length > 0 && letterLabels.filter(t => t === t.toLocaleUpperCase('es')).length >= letterLabels.length / 2,
+        collect: [], prediction: [], keyboard: isKeyboardPage(gridData), lowercase: keyboardLowercase(gridData),
+        upper: !keyboardLowercase(gridData) && letterLabels.length > 0 && letterLabels.filter(t => t === t.toLocaleUpperCase('es')).length >= letterLabels.length / 2,
         extra: predictionExtra(bundleNow)
     };
     gridContainer.style.backgroundColor = gridData.backgroundColor || '';

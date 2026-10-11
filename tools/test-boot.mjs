@@ -424,14 +424,14 @@ if (caseArg === 'asterics') {
     spoken.length = 0;
     await tap('cell-0-0'); await tap('cell-1-0'); await tap('cell-2-0');
     const sent = () => ui.getSentence().map(i => i.text);
-    check('las letras forman una palabra y no hablan', JSON.stringify(sent()) === '["HOL"]' && spoken.length === 0, JSON.stringify({ s: sent(), spoken }));
-    check('la frase se ve en la celda de frase del tablero', /HOL/.test(cell('cell-2-1').textContent), cell('cell-2-1').textContent);
+    check('las letras forman una palabra y no hablan', JSON.stringify(sent()) === '["hol"]' && spoken.length === 0, JSON.stringify({ s: sent(), spoken }));
+    check('la frase se ve en la celda de frase del tablero', /hol/.test(cell('cell-2-1').textContent), cell('cell-2-1').textContent);
     const pred = cell('cell-0-1').dataset.word;
-    check('la predicción sugiere en mayúsculas lo que empieza igual', /^HOL/.test(pred) && pred === pred.toUpperCase(), pred);
+    check('la predicción sugiere (en minúscula, como Asterics) lo que empieza igual', /^hol/.test(pred) && pred === pred.toLowerCase(), pred);
     await tap('cell-0-1');
     check('tocar la sugerencia completa la palabra', JSON.stringify(sent()) === JSON.stringify([pred]), JSON.stringify(sent()));
     await tap('cell-0-0');
-    check('después de completar, la letra empieza otra palabra', sent().length === 2 && sent()[1] === 'H', JSON.stringify(sent()));
+    check('después de completar, la letra empieza otra palabra', sent().length === 2 && sent()[1] === 'h', JSON.stringify(sent()));
     await tap('cell-5-0');
     check('"borrar letra" borra un carácter (y la palabra si queda vacía)', sent().length === 1, JSON.stringify(sent()));
     spoken.length = 0;
@@ -471,6 +471,16 @@ if (caseArg === 'asterics') {
     check('"volver" regresa a la página anterior', S.currentGridId === 'home', S.currentGridId);
     await tap('cell-0-2'); await tap('cell-1-0');
     check('"ir al inicio" va a la página de inicio', S.currentGridId === 'home', S.currentGridId);
+    // La frase se mantiene al cambiar de tablero (como Asterics)
+    const before2 = ui.getSentence().length;
+    boards.openBundle(boards.buildTestBundle());
+    await sleep(50);
+    check('la frase NO se vacía al abrir otro tablero', before2 > 0 && ui.getSentence().length === before2, `${before2} → ${ui.getSentence().length}`);
+    const { Benchmark } = await import(pathToFileURL(path.join(WEB, 'js/benchmark.js')).href);
+    const bm = new Benchmark();
+    bm.start();
+    check('el benchmark abre su grilla 3×3 y empieza con la frase vacía', S.currentBundle && S.currentBundle.id === 'benchmark_3x3' && ui.getSentence().length === 0, S.currentBundle && S.currentBundle.id);
+    bm.reset(); bm.active = false;
 }
 
 if (caseArg === 'xss') {

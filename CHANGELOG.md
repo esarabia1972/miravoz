@@ -425,3 +425,9 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
   - Nuevo título: "Una voz para cada persona" (también en el título de la página y en el manifest).
   - En lugar de "la profesional" se usa "**cuenta registrada**", también en los mensajes de la tablet: vinculación, desvinculación, tablero actualizado y sin tableros.
   - La política de privacidad y los términos hablan de "titulares de cuentas registradas".
+
+### La frase se mantiene entre tableros, como en Asterics (11/10/2026, pedido de Esteban)
+- **Fixed**: la frase se vaciaba cada vez que se abría otro tablero. Ahora, igual que en Asterics (`collectElementService`), se mantiene al cambiar de tablero, de página o al volver al inicio: una frase se arma con palabras de varios tableros. Se vacía solo con "borrar todo", con una celda que la borra, o al cerrar sesión o desvincular la tablet (la app se recarga). El benchmark empieza con la frase vacía.
+- **Changed**: detección de teclado igual que en Asterics. Una página es teclado si declara `keyboardMode` o si más del 40% de sus celdas comunes tienen un solo carácter; antes se exigían 8 teclas.
+- **Changed**: como en Asterics, en un teclado las letras van a la frase en minúscula, salvo que la celda de frase tenga `convertToLowercase: false`.
+- **Fixed**: el benchmark no abría su grilla. Un cambio de la etapa C había movido `buildGridBundle` a `validation.js` por error. Ahora hay una prueba en `test-boot.mjs` que lo cubre.
