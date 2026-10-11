@@ -1,7 +1,7 @@
 // main.js — Bootstrap y wiring de la aplicación (SPEC F1-1)
 // Único módulo que conoce a todos los demás. El loop de render vive acá.
 
-import { CONFIG, settings, initSettings, saveSettings } from './config.js';
+import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from './config.js';
 import { S } from './state.js';
 import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
@@ -19,6 +19,7 @@ import { ScanEngine } from './scanning.js';
 import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 import { initTheme } from './theme.js';
+import { PointerController, pauseMessage } from './selection.js';
 
 // --- Cuenta (decisión 10/10/2026): las profesionales entran SOLO con Google; no hay modo sin cuenta.
 // Sin sesión se muestra la pantalla de ingreso (Google o "vincular esta tablet con un código").
@@ -132,15 +133,14 @@ const selectTarget = (target) => {
     recordImplicitSelection(rect);
 };
 
-// --- Modo Iris: aprendizaje implícito ---
-// Cada selección por dwell que NO se corrige (borrar último / atrás) en los 3 s siguientes se toma
-// como "miraba ese objetivo" y sus muestras se suman al modelo (re-entrena cada N). Así el modo
-// mejora con el uso y se adapta a cambios de luz, postura o anteojos sin recalibrar.
-const implicitEnabled = urlParams.get('implicit') !== '0';
+// --- Modo Iris: aprendizaje implícito (EXPERIMENTAL, apagado por defecto: M07) ---
+// Con ?implicit=1, cada selección por dwell que NO se corrige (borrar último / atrás) en los 3 s
+// siguientes se suma al modelo. Un dwell no corregido no demuestra intención: por eso no se usa por defecto.
+const implicitEnabled = isImplicitEnabled();
 let pendingImplicit = null;
 
 function recordImplicitSelection(rect) {
-    if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || !rect || !rect.width) return;
+    if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || pointer.invalid || !rect || !rect.width) return;
     if (!calibration.isUsableProfile('OJOS', calibration.profiles.OJOS)) return;
     const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
     const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === gaze.RAW_NAMES.length);
@@ -172,6 +172,18 @@ async function commitPendingImplicit() {
 
 // --- Dwell engine (F0-6, F1-6) ---
 const dwell = new DwellEngine(selectTarget);
+
+// --- M01: el puntero solo selecciona con muestras nuevas, válidas y recientes ---
+const pointer = new PointerController({
+    dwell, filterX, filterY,
+    maxAgeMs: () => CONFIG.MAX_SAMPLE_AGE_MS,
+    onInvalidate: () => cancelPendingImplicit()
+});
+// Pestaña oculta, app en segundo plano o pantalla bloqueada: se cancela todo y, al volver, las muestras
+// anteriores no cuentan (no se ejecuta tiempo acumulado ni una selección inmediata)
+document.addEventListener('visibilitychange', () => pointer.invalidate(document.hidden ? 'hidden' : 'resumed', performance.now()));
+window.addEventListener('pagehide', () => pointer.invalidate('hidden', performance.now()));
+window.addEventListener('pageshow', () => pointer.invalidate('resumed', performance.now()));
 
 // --- Motor de barrido (F2) ---
 const scan = new ScanEngine(selectTarget);
@@ -260,6 +272,7 @@ function startCalibration() {
 
 function onCalibrationComplete(profile) {
     calibSession = null;
+    pointer.invalidate('calibrated', performance.now());
     if (!profile) {
         customAlert(S.trackingMode === 'OJOS' && tracking.engineName === 'legacy'
             ? 'El Modo Iris necesita el motor de cámara nuevo, que no pudo iniciar en este navegador. Probá con Chrome o Edge actualizados.'
@@ -347,6 +360,7 @@ function updateModeSegmented() {
 
 function applyMode(mode) {
     S.trackingMode = mode;
+    pointer.invalidate('mode', performance.now());
     updateModeSegmented();
     // 1 Euro por modo: el iris tiembla más que la nariz → suavizado más fuerte en modo Iris
     const iris = mode === 'OJOS';
@@ -561,6 +575,7 @@ function recordDiag(now) {
         t: Math.round(now), mode: S.trackingMode,
         f: tracking.currentFeatures, pose: fd?.pose || null, iris: fd?.iris || null,
         raw: S.rawX === null ? null : [Math.round(S.rawX), Math.round(S.rawY)],
+        sample: tracking.latestSample ? { seq: tracking.latestSample.sequence, valid: tracking.latestSample.valid, reason: tracking.latestSample.reason, lat: Math.round(tracking.latestSample.receivedAt - tracking.latestSample.capturedAt) } : null,
         smooth: S.smoothX === null ? null : [Math.round(S.smoothX), Math.round(S.smoothY)],
         target
     });
@@ -593,7 +608,8 @@ function appLoop() {
 
         if (diag) recordDiag(now);
         if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
-            calibSession.onFrame(tracking.currentFeatures, now);
+            // Una muestra por cuadro NUEVO de cámara (M04/T05): refrescar la pantalla no multiplica observaciones
+            calibSession.onFrame(pointer.takeNewFeatures(tracking.latestSample, now), now);
             // onFrame puede completar la sesión (onCalibrationComplete pone calibSession en null):
             // re-chequear antes de dibujar el punto.
             if (calibSession) {
@@ -604,20 +620,13 @@ function appLoop() {
             // En modo edición los motores de acceso quedan en pausa (se edita con mouse/touch)
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'SCAN') {
             scan.tick(now);
-        } else if ((S.state === 'BOARD' || S.state === 'HOME') && S.trackingMode === 'OJOS' && tracking.headOutOfPose) {
-            // Modo Iris: la cabeza salió de la posición de la calibración → cursor en pausa, sin selecciones
-            dwell.reset();
-            drawHeadWarning();
         } else if ((S.state === 'BOARD' || S.state === 'HOME') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
-            if (S.rawX !== null && S.rawY !== null && !isNaN(S.rawX) && !isNaN(S.rawY)) {
-                S.smoothX = filterX.filter(S.rawX, now);
-                S.smoothY = filterY.filter(S.rawY, now);
-
-                if (!isNaN(S.smoothX) && !isNaN(S.smoothY)) {
-                    dwell.tick(S.smoothX, S.smoothY, now);
-                    drawCursor(S.smoothX, S.smoothY);
-                }
-            }
+            // M01: sin rostro, ojos cerrados, cabeza fuera de pose, cámara congelada o muestra vieja → pausa y
+            // se reinicia la permanencia. El dwell solo avanza con muestras nuevas (reloj de captura).
+            const r = pointer.step(tracking.latestSample, now);
+            S.smoothX = r.x; S.smoothY = r.y;
+            if (r.x !== null) drawCursor(r.x, r.y);
+            else if (S.isCalibrated) { const msg = pauseMessage(r.reason); if (msg) drawPauseMessage(msg); }
         }
     } catch (e) {
         console.error('Error en appLoop (el loop continúa):', e);
@@ -661,8 +670,7 @@ function drawCalibPoint(info) {
     }
 }
 
-function drawHeadWarning() {
-    const msg = 'Volvé a poner la cabeza como en la calibración';
+function drawPauseMessage(msg) {
     ctxUI.font = 'bold 28px Inter';
     ctxUI.textAlign = 'center';
     ctxUI.textBaseline = 'middle';

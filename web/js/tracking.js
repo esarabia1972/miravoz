@@ -15,6 +15,7 @@ import { poseFromMatrix, pickEyeBlendshapes, irisInEye } from './headpose.js';
 import * as gaze from './gaze-model.js';
 import { CONFIG } from './config.js';
 import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
+import { buildSample, invalidSample } from './selection.js';
 
 const TASKS_VERSION = '1.1.0';
 const TASKS_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VERSION}`;
@@ -36,17 +37,35 @@ export let engineName = null;
 /** Cuadros procesados por segundo (promedio móvil) */
 export let fps = 0;
 
+// --- M01: muestras con sesión, secuencia y momento de captura ---
+// sessionId cambia al reiniciar la cámara o el motor (un resultado de la sesión anterior nunca reactiva
+// el control); sequence crece con cada cuadro nuevo. La última muestra publicada es lo único que mira main.js.
+let sessionId = 0;
+let sequence = 0;
+/** @type {import('./selection.js').TrackingSample|null} */
+export let latestSample = null;
+/** Revisión del perfil activo (M02) y geometría con la que se calibró: viajan en cada muestra */
+let profileRevision = null;
+function geometryId() { return `${window.innerWidth}x${window.innerHeight}`; }
+function publishInvalid(reason) {
+    latestSample = invalidSample(reason, { sessionId, sequence: ++sequence, now: performance.now(), mode: S.trackingMode });
+    S.rawX = null; S.rawY = null;
+}
+/** Para diagnóstico: latencias captura→resultado de los últimos cuadros (ms) */
+export const latencies = [];
+
 // --- Modelo de la calibración ---
 // CARA: pesos polinómicos sobre la nariz. OJOS: modelo híbrido cabeza+iris (gaze-model.js).
 let weightsX = null;
 let weightsY = null;
 let gazeModel = null;
 export function setWeights(wx, wy) { weightsX = wx; weightsY = wy; }
-export function clearWeights() { weightsX = null; weightsY = null; gazeModel = null; }
+export function clearWeights() { weightsX = null; weightsY = null; gazeModel = null; profileRevision = null; }
 export function hasWeights() { return S.trackingMode === 'OJOS' ? !!gazeModel : !!(weightsX && weightsY); }
 
 /** Aplica un perfil de calibración guardado al modo. */
 export function applyProfile(mode, profile) {
+    profileRevision = profile?.revision || null;
     if (mode === 'OJOS') { gazeModel = profile?.model || null; return; }
     setWeights(profile.weightsX, profile.weightsY);
 }
@@ -79,7 +98,7 @@ function predict(features) {
         const f = phi(features[0], features[1]);
         x = dot(weightsX, f); y = dot(weightsY, f);
     }
-    return [Math.max(0, Math.min(window.innerWidth, x)), Math.max(0, Math.min(window.innerHeight, y))];
+    return [x, y]; // sin recortar: buildSample decide si está demasiado afuera (M01)
 }
 
 // Últimas features (2 s) para el aprendizaje implícito del modo Iris
@@ -93,16 +112,22 @@ export function recentFeatures(ms, skipMs = 0) {
 // Procesamiento común a ambos motores
 let fpsWindowStart = 0, fpsFrames = 0;
 let waitingFirstFrame = false;
-function onLandmarks(landmarks, extra = {}) {
+function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
     const now = performance.now();
+    if (latencies.length >= 300) latencies.shift();
+    latencies.push(now - capturedAt);
     if (waitingFirstFrame) { waitingFirstFrame = false; hideSyncToast(); }
     fpsFrames++;
     if (now - fpsWindowStart >= 1000) { fps = fpsFrames * 1000 / (now - fpsWindowStart); fpsFrames = 0; fpsWindowStart = now; }
 
+    const sampleBase = { sessionId, sequence: ++sequence, capturedAt, receivedAt: now, mode: S.trackingMode,
+        engineVersion: `${engineName || 'iniciando'}-${TASKS_VERSION}-${landmarkerDelegate}`, profileRevision, geometryId: geometryId(),
+        viewport: { w: window.innerWidth, h: window.innerHeight } };
     if (!landmarks) {
         currentFeatures = null; faceData = null; headOutOfPose = false;
-        // Modo Iris: sin cara no hay cursor (si quedara congelado, el dwell podría seleccionar esa celda)
-        if (S.trackingMode === 'OJOS') { S.rawX = null; S.rawY = null; }
+        // M01: sin cara no hay cursor en NINGÚN modo (antes en Rostro quedaba congelado y el dwell seguía)
+        latestSample = buildSample({ ...sampleBase, face: false });
+        S.rawX = null; S.rawY = null;
         return;
     }
     faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, iris: irisInEye(landmarks), t: now };
@@ -122,11 +147,15 @@ function onLandmarks(landmarks, extra = {}) {
     } else {
         headOutOfPose = false;
     }
-    if ((S.state === 'BOARD' || S.state === 'HOME') && currentFeatures && hasWeights() && !headOutOfPose) {
-        const [px, py] = predict(currentFeatures);
-        S.rawX = px;
-        S.rawY = py;
-    }
+    // Parpadeo u ojos casi cerrados (modo Iris): el detector lo indica y la muestra es inválida
+    const blink = S.trackingMode === 'OJOS' && faceData.iris && faceData.iris.open !== undefined && faceData.iris.open < gaze.BLINK_OPEN_RATIO;
+    latestSample = buildSample({
+        ...sampleBase, face: true, features: currentFeatures, blink, headOutOfPose,
+        active: S.state === 'BOARD' || S.state === 'HOME',
+        predict: hasWeights() ? predict : null
+    });
+    S.rawX = latestSample.valid ? latestSample.x : null;
+    S.rawY = latestSample.valid ? latestSample.y : null;
 }
 
 // --- Motor 'tasks' (FaceLandmarker) ---
@@ -184,6 +213,8 @@ async function startTasks(video, gen) {
     const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
     if (gen !== generation) { s.getTracks().forEach(t => t.stop()); return false; } // arranque viejo: no tocar el vigente
     stream = s;
+    // Cámara cortada (otra app la tomó, se desconectó, permiso revocado): mirada inválida en el acto
+    s.getVideoTracks().forEach(tr => tr.addEventListener('ended', () => { if (gen === generation) publishInvalid('camera-ended'); }));
     video.muted = true;
     video.setAttribute('muted', '');
     video.setAttribute('playsinline', '');
@@ -206,21 +237,24 @@ async function startTasks(video, gen) {
             if (!recovering && video.readyState >= 2 && video.currentTime !== lastVideoTime && tNow - lastDetect >= minIntervalMs) {
                 lastVideoTime = video.currentTime;
                 lastDetect = tNow;
-                const res = landmarker.detectForVideo(video, performance.now());
+                const capturedAt = performance.now(); // momento de captura: viaja con el resultado aunque llegue tarde
+                const res = landmarker.detectForVideo(video, capturedAt);
                 consecutiveErrors = 0;
                 const lm = res.faceLandmarks && res.faceLandmarks[0];
                 onLandmarks(lm || null, lm ? {
                     pose: poseFromMatrix(res.facialTransformationMatrixes?.[0]?.data),
                     eyes: pickEyeBlendshapes(res.faceBlendshapes?.[0]?.categories)
-                } : {});
+                } : {}, capturedAt);
             }
         } catch (e) {
             consecutiveErrors++;
+            publishInvalid('engine-error'); // M01: un error invalida la mirada en el acto
             if (consecutiveErrors === 1) console.error('Error procesando cuadro (el loop sigue):', e);
             if (consecutiveErrors >= 30 && !recovering) {
                 recovering = true;
                 if (landmarkerDelegate === 'GPU') {
-                    fallbackToCpu().then(lm => { landmarker = lm; consecutiveErrors = 0; recovering = false; })
+                    // Motor nuevo = sesión nueva: un resultado del motor anterior nunca se mezcla con el nuevo
+                    fallbackToCpu().then(lm => { if (gen !== generation) return; sessionId++; landmarker = lm; consecutiveErrors = 0; recovering = false; })
                         .catch(() => { stopMediaPipe(); });
                 } else {
                     console.error('FaceLandmarker falla también en CPU: se detiene la cámara.');
@@ -248,6 +282,7 @@ function stopStream() {
 // --- Motor 'legacy' (FaceMesh), cargado solo si hace falta ---
 let faceMesh = null;
 let camera = null;
+let legacyCapturedAt = 0;
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -268,12 +303,12 @@ async function startLegacy(video, gen) {
         faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         faceMesh.onResults((results) => {
             const lm = results.multiFaceLandmarks && results.multiFaceLandmarks[0];
-            onLandmarks(lm || null);
+            onLandmarks(lm || null, {}, legacyCapturedAt);
         });
     }
     if (!camera) {
         camera = new window.Camera(video, {
-            onFrame: async () => { await faceMesh.send({ image: video }); },
+            onFrame: async () => { legacyCapturedAt = performance.now(); await faceMesh.send({ image: video }); },
             width: 640, height: 480
         });
     }
@@ -299,6 +334,8 @@ export function startMediaPipe() {
     if (running) return;
     running = true;
     const gen = ++generation;
+    sessionId++; // M01: sesión nueva
+    publishInvalid('starting');
     const video = document.getElementById('input-video');
 
     const useLegacy = forcedEngine === 'legacy' || engineName === 'legacy';
@@ -340,6 +377,8 @@ export function stopMediaPipe() {
     stopStream();
     if (camera) camera.stop();
     running = false;
+    sessionId++;
+    publishInvalid('stopped');
     currentFeatures = null;
     faceData = null;
     recent.length = 0;

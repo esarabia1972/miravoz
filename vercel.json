@@ -4,6 +4,12 @@
   "buildCommand": null,
   "outputDirectory": "web",
   "routes": [
-    { "src": "/(.*)", "headers": { "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate" } }
-  ]
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+      }
+    }
+  ],
+  "installCommand": "echo \"MiraVoz no tiene dependencias de producción\""
 }

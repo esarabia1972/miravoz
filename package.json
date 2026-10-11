@@ -1,0 +1,12 @@
+{
+  "name": "miravoz",
+  "private": true,
+  "description": "MiraVoz: comunicación aumentativa y alternativa en el navegador. Sin build: web/ se publica tal cual.",
+  "scripts": {
+    "test": "node tools/run-tests.mjs",
+    "test:unit": "node tools/run-tests.mjs --unit"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.2"
+  }
+}

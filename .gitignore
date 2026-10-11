@@ -3,3 +3,4 @@ venv/
 weights/
 .DS_Store
 *.log
+node_modules/

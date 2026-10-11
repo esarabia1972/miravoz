@@ -287,3 +287,28 @@ Analicé 6 respaldos completos de Leti: 812 tableros y 11.794 celdas. Con eso y 
   - Caso `asterics` en `test-boot.mjs` (31 verificaciones; test-boot pasa a 113 en total).
   - Prueba manual, no versionada, con los 6 respaldos reales: 806 páginas se importan y se dibujan sin errores.
   - Revisión del equipo: se corrigieron la página web sin salida con la mirada, las celdas de una letra en tableros comunes, la tecla espacio en el editor y el sandbox del iframe.
+
+## Especificación técnica de mejoras M01–M08 (11/10/2026)
+Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del proyecto MiraVoz), por etapas.
+
+### Etapa A — referencia y pruebas reproducibles
+- `package.json` con `jsdom` fijado como devDependency (`npm install` y después `npm test`). `tools/run-tests.mjs` corre todos los grupos. Vercel no instala nada (`installCommand` en `vercel.json`).
+
+### Etapa B — M01: nunca seleccionar con datos inválidos o viejos · M07: aprendizaje implícito apagado
+- **Fixed (M01)**: Rostro e Iris podían seleccionar una celda sin que la persona la mirara. Pasaba en tres casos:
+  - en Rostro, sin cara, el cursor quedaba congelado y el dwell seguía corriendo;
+  - en Iris, con los ojos cerrados, pasaba lo mismo;
+  - al volver de una pérdida de señal, la celda se seleccionaba en el acto porque el tiempo no se había reiniciado.
+- **Added (M01)**: cada cuadro de cámara produce una muestra (`TrackingSample`) con sesión, secuencia, momento de captura, validez y motivo. Lo construye `buildSample` en `web/js/selection.js`. Estos casos son inválidos en el acto:
+  - sin rostro, parpadeo o sin features;
+  - cabeza fuera de pose (modo Iris);
+  - sin calibrar o fuera de la pantalla (no se recorta al borde);
+  - error del motor, cámara cortada o detenida.
+- **Added (M01)**: `PointerController`. El dwell solo avanza con muestras **nuevas, válidas y recientes** (`MAX_SAMPLE_AGE_MS = 250`, a ajustar en el iPad) y usa el reloj de captura.
+  - Cualquier invalidez reinicia la permanencia, el candidato y los filtros, y cancela el aprendizaje pendiente.
+  - Pestaña oculta, `pagehide`, cambio de modo y calibración nueva cortan todo, y las muestras anteriores a la interrupción no cuentan.
+  - Un motor reiniciado (por ejemplo, de GPU a CPU) abre una sesión nueva: los resultados de la anterior se descartan.
+  - En el dwell, un hueco entre muestras mayor al límite es una interrupción, no tiempo de permanencia.
+- **Changed (M01)**: la calibración toma una muestra por cuadro nuevo de cámara: refrescar la pantalla a 60-120 Hz ya no multiplica observaciones. El aviso de pausa ("No se ve la cara", "La cámara no está enviando imágenes", "Volvé a poner la cabeza…") se muestra sobre el tablero.
+- **Changed (M07)**: el aprendizaje implícito del modo Iris queda **apagado por defecto**: un dwell no corregido no demuestra intención. Solo se activa con `?implicit=1`.
+- Tests: `tools/test-selection.mjs` (16), que cubre los escenarios T01 a T07 y T16 con el dwell, el filtro y el controlador reales y el reloj controlado.

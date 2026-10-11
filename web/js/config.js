@@ -6,6 +6,9 @@ export const CONFIG = {
     DWELL_MS: 1200,
     DWELL_COOLDOWN_MS: 800,
     HYSTERESIS_MS: 150,
+    // M01: una muestra de cámara más vieja que esto no sirve para seleccionar (límite de frescura, no de
+    // precisión). 250 ms es el punto de partida; ajustarlo con mediciones en el iPad.
+    MAX_SAMPLE_AGE_MS: 250,
 
     // Calibración
     COUNTDOWN_MS: 1500,
@@ -43,6 +46,14 @@ export const CONFIG = {
     // Experimental
     EXPERIMENTAL_IRIS: false
 };
+
+/**
+ * M07: el aprendizaje implícito del modo Iris está APAGADO por defecto (un dwell no corregido no demuestra
+ * intención). Solo se activa explícitamente con ?implicit=1, para experimentar.
+ */
+export function isImplicitEnabled(search = (typeof location !== 'undefined' ? location.search : '')) {
+    return new URLSearchParams(search).get('implicit') === '1';
+}
 
 const SETTINGS_KEY = 'miravoz_settings';
 

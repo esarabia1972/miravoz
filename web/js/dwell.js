@@ -21,8 +21,15 @@ export class DwellEngine {
         this.candidateTarget = null;
         this.candidateSince = 0;
         this.dwellStartTime = 0;
-        this.lastClickTime = 0;
+        this.lastClickTime = -Infinity;
+        this.lastTickAt = null;
     }
+
+    /**
+     * M01: la señal dejó de ser válida (sin rostro, ojos cerrados, cámara congelada, pestaña oculta…).
+     * Se pierde todo lo acumulado: al volver hay que completar una permanencia nueva y entera.
+     */
+    invalidate() { this.reset(); }
 
     // Reemplaza el conjunto de targets activos. Mide los rects en el próximo frame
     // (la vista puede no estar layouteada todavía).
@@ -57,9 +64,18 @@ export class DwellEngine {
     }
 
     // Llamar por frame con la posición suavizada del puntero.
+    // `now` es el momento de CAPTURA de la muestra (no el del refresco de pantalla): solo avanza con muestras nuevas.
     tick(x, y, now) {
         // Red de seguridad: refresco periódico del cache (layout pudo cambiar sin aviso)
-        if (now - this.lastRectRefresh > CONFIG.RECT_REFRESH_MS) this.refreshRects();
+        if (performance.now() - this.lastRectRefresh > CONFIG.RECT_REFRESH_MS) this.refreshRects();
+        // Hueco entre muestras mayor que el límite de frescura: es una interrupción, no tiempo de permanencia
+        if (this.lastTickAt !== null && now - this.lastTickAt > CONFIG.MAX_SAMPLE_AGE_MS) {
+            const keepCooldown = this.lastClickTime;
+            this.reset();
+            this.lastClickTime = keepCooldown;
+        }
+        if (this.lastTickAt !== null && now < this.lastTickAt) return; // muestra fuera de orden
+        this.lastTickAt = now;
 
         const hovered = this._hitTest(x, y);
 
@@ -97,7 +113,7 @@ export class DwellEngine {
             this.currentTarget.element.classList.add('clicked');
             const selected = this.currentTarget;
             this.dwellStartTime = now;
-            this.lastClickTime = performance.now();
+            this.lastClickTime = now;
             const bar = this._bar(selected);
             if (bar) bar.style.width = '0%';
             this.onSelect(selected);
