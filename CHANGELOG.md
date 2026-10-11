@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.2.1] - 2026-10-11
+
+- **Fixed**: sin internet en el iPad la voz decía la primera celda y después quedaba muda (Safari dejaba una frase "en curso" que nunca empezaba y todo se encolaba detrás). Ahora cada frase cancela la anterior, si una frase no empieza en 1,5 s se libera y se reintenta con la voz del sistema, y se prefieren voces locales.
+- **Fixed**: Configuración mostraba la última versión publicada aunque el iPad siguiera corriendo una anterior. Ahora muestra la que corre (`web/js/build-info.js`, generado) y avisa si hay una nueva esperando.
+
 ## [1.2.0] - 2026-10-11
 
 - **Changed**: la verificación del modo Rostro es a **lazo cerrado**: se ve el cursor (anillo celeste) y la persona lo lleva al punto y lo mantiene, como en el uso real. Los diagnósticos del iPad Air 4 mostraron que, sin cursor, la cabeza se desplaza unos 3-4° hacia abajo en menos de un minuto (sobre todo en vertical: todo el alto de la pantalla son ~9° de cabeceo), y eso hacía fallar la verificación aunque el cursor se pudiera usar. Iris sigue a lazo abierto. La cuenta regresiva de cada punto de verificación en Rostro es de 2,5 s para dar tiempo a acomodar el cursor.

@@ -51,6 +51,11 @@ export function buildManifest() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    // Versión que CORRE (va dentro del código cacheado por el Service Worker); version.json dice la publicada.
+    const BUILD_INFO = path.join(WEB, 'js/build-info.js');
+    const buildInfoText = `// Generado por tools/build-offline-manifest.mjs (no editar a mano)\nexport const APP_VERSION = '${APP_VERSION}';\n`;
+    if (!process.argv.includes('--check')) fs.writeFileSync(BUILD_INFO, buildInfoText);
+    else if (!fs.existsSync(BUILD_INFO) || fs.readFileSync(BUILD_INFO, 'utf8') !== buildInfoText) { console.error('web/js/build-info.js desactualizado: correr node tools/build-offline-manifest.mjs'); process.exit(1); }
     const m = buildManifest();
     const text = JSON.stringify(m, null, 1) + '\n';
     // M08: identificador de entrega = hash del contenido publicado (no un commit que podría no describir los archivos)

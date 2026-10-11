@@ -33,7 +33,10 @@ function pickVoice(lang) {
         const v = voices.find(x => (x.lang || '').toLowerCase() === l) || voices.find(x => (x.lang || '').toLowerCase().startsWith(l.slice(0, 2)));
         if (v) return v;
     }
-    const es = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
+    // Sin internet, una voz de red no suena: se prefieren las locales (si el navegador lo informa)
+    const all = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
+    const local = all.filter(v => v.localService !== false);
+    const es = local.length ? local : all;
     if (!es.length) return null;
     const prefer = ['es-AR', 'es-419', 'es-US', 'es-MX'];
     return es.find(v => /Google español|Paulina|Mónica|Luciana|Elena|Isabela|Sabina/i.test(v.name))
@@ -61,30 +64,58 @@ if (typeof window !== 'undefined') {
 
 export function isSpeechSupported() { return !!synth; }
 
-export function speak(text, { cancelPrevious = false, volume = 1.0, lang = null } = {}) {
+// Voz trabada (iPad sin conexión, 11/10/2026): la primera frase sonaba y las siguientes no. Safari puede dejar una
+// frase "en curso" que nunca empieza ni termina, y todo lo que se encola detrás queda mudo ("Probar voz" sí andaba
+// porque cancela antes de hablar). Por eso:
+//  - cada frase nueva CANCELA la anterior (en CAA la última selección es la que importa);
+//  - si una frase no empieza en START_TIMEOUT_MS, se cancela y se reintenta una vez con la voz del sistema;
+//  - se prefieren voces locales (las de red no funcionan sin internet).
+const START_TIMEOUT_MS = 1500;
+let startEvents = false; // el vigilante solo actúa si este navegador ya demostró que avisa cuando empieza a hablar
+let deferredGo = null; // frase esperando su turno después de un cancel()
+
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false } = {}) {
     if (!text || !synth) return;
-    if (cancelPrevious) synth.cancel();
+    let cancelled = false;
+    if (cancelPrevious) {
+        if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
+        if (synth.speaking || synth.pending) { synth.cancel(); cancelled = true; }
+    }
     if (synth.paused) synth.resume();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-ES';
     utterance.volume = volume;
-    const voice = pickVoice(lang);
+    const voice = _retry ? null : pickVoice(lang);
     if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
 
+    let started = false, finished = false;
     alive.add(utterance);
-    const done = () => alive.delete(utterance);
+    const done = () => { finished = true; alive.delete(utterance); };
+    utterance.onstart = () => { started = true; startEvents = true; };
     utterance.onend = done;
     utterance.onerror = (e) => {
         done();
         if (e && e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
             console.warn('Voz:', e.error);
+            if (!_retry) { speak(text, { cancelPrevious: true, volume, lang, _retry: true }); return; }
             // M08: la frase NO se borra; la app avisa y se puede reintentar con el botón de reproducir
             if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-error', { detail: { error: e.error } }));
         }
     };
 
+    const go = () => {
+        synth.speak(utterance);
+        setTimeout(() => {
+            if (!startEvents || started || finished || !alive.has(utterance)) return;
+            // Trabada: no empezó. Se libera la cola y se reintenta una vez con la voz por defecto del sistema.
+            alive.delete(utterance);
+            synth.cancel();
+            if (!_retry) setTimeout(() => speak(text, { cancelPrevious: false, volume, lang, _retry: true }), 60);
+            else if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-error', { detail: { error: 'stuck' } }));
+        }, START_TIMEOUT_MS);
+    };
     // Después de cancel(), Safari a veces ignora el speak inmediato: se difiere un instante
-    if (cancelPrevious) setTimeout(() => synth.speak(utterance), 30);
-    else synth.speak(utterance);
+    if (cancelled) deferredGo = setTimeout(() => { deferredGo = null; go(); }, 30);
+    else go();
 }

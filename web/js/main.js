@@ -3,6 +3,7 @@
 
 import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from './config.js';
 import { S } from './state.js';
+import { APP_VERSION } from './build-info.js';
 import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
 import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
@@ -1015,15 +1016,19 @@ window.addEventListener('miravoz:speech-error', () => {
 });
 
 // --- M08: versión real de lo publicado (hash del contenido, ver tools/build-offline-manifest.mjs) ---
-let appVersion = null, appBuild = null;
+// La versión mostrada es la del código que CORRE (build-info.js, cacheado junto con la app). version.json
+// (siempre de la red) dice la publicada: si difiere, se avisa que hay una nueva esperando a reabrir.
+let appVersion = APP_VERSION, appBuild = null;
+{
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = `Versión ${APP_VERSION}`;
+}
 fetch('/version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
-    appVersion = v && (v.app || v.version);
     appBuild = v && v.version;
     const el = document.getElementById('app-version');
-    if (el && appVersion) {
-        el.textContent = `Versión ${appVersion}`;
-        if (v.app && v.version) el.title = `Compilación ${v.version}`; // hash del contenido, para diagnóstico
-    }
+    if (!el || !v) return;
+    if (v.version) el.title = `Compilación publicada ${v.version}`;
+    if (v.app && v.app !== APP_VERSION) el.textContent = `Versión ${APP_VERSION} · hay una nueva (${v.app}): cerrá y volvé a abrir MiraVoz`;
 }).catch(() => {});
 
 // --- M08: panel de diagnóstico SOLO para desarrollo (?diag=1): métricas técnicas, sin video ni textos ---
