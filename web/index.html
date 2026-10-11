@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=55">
+    <link rel="stylesheet" href="style.css?v=56">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -59,8 +59,14 @@
                     <option value="CLICKS" selected>Modo Manual</option>
                 </select>
             </div>
-            <button id="btn-alinear" class="btn btn-secondary" hidden title="Volver a la posición de la calibración">Alinear</button>
-            <button id="btn-recalibrar" class="btn btn-secondary">Recalibrar</button>
+            <div class="recal-wrap">
+                <button id="btn-recalibrar" class="btn btn-secondary" aria-haspopup="menu" aria-expanded="false">Recalibrar</button>
+                <!-- 1.5.2: con una calibración de Rostro guardada, Recalibrar ofrece primero Alinear (más rápido) -->
+                <div id="recal-menu" class="recal-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" id="btn-menu-align"><strong>Alinear</strong><span>Volver a la posición de la calibración</span></button>
+                    <button type="button" role="menuitem" id="btn-menu-recal"><strong>Calibrar de nuevo</strong><span>Repetir los 9 puntos</span></button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -308,7 +314,7 @@
         <div class="align-top">
             <h2 id="align-title">Alinear la cara</h2>
             <p id="align-instruction" class="align-instruction" aria-live="polite"></p>
-            <p class="align-help">Llevá el círculo de la cara al centro del aro, del mismo tamaño. Se puede mover la cabeza o la tablet.</p>
+            <p class="align-help">Llevar el círculo de la cara al centro del aro, con el mismo tamaño. Se puede mover la cabeza o la pantalla.</p>
         </div>
         <div class="align-actions">
             <button type="button" id="btn-align-skip" class="btn btn-secondary">Seguir sin alinear</button>
@@ -577,6 +583,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=83"></script>
+    <script type="module" src="js/main.js?v=84"></script>
 </body>
 </html>

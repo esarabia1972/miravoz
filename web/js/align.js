@@ -50,12 +50,13 @@ export function alignmentState(pose, ref) {
 }
 
 export function instructionFor({ dx, dy, ratio, posOk, distOk }) {
-    if (!distOk) return ratio > 1 ? 'Acercate un poco a la tablet' : 'Alejate un poco de la tablet';
+    // Textos impersonales y sin nombrar el dispositivo (puede ser una tablet o una computadora)
+    if (!distOk) return ratio > 1 ? 'Más cerca de la pantalla' : 'Más lejos de la pantalla';
     if (!posOk) {
-        if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'Corré la cabeza un poco a tu izquierda' : 'Corré la cabeza un poco a tu derecha';
-        return dy > 0 ? 'Bajá un poco la cabeza (o subí la tablet)' : 'Subí un poco la cabeza (o bajá la tablet)';
+        if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'Mover la cabeza un poco hacia la izquierda' : 'Mover la cabeza un poco hacia la derecha';
+        return dy > 0 ? 'Bajar un poco la cabeza' : 'Subir un poco la cabeza';
     }
-    return 'Muy bien: quedate así';
+    return 'Bien: mantener la posición';
 }
 
 /** Offset de recentrado (features) con lo medido mirando el centro; null si es demasiado grande (recalibrar). */

@@ -302,17 +302,11 @@ function recordAlignSample(fresh, now) {
     if (info && info.sampling && info.stage === 'CAPTURE' && fresh.features &&
         Math.abs(info.x - window.innerWidth / 2) < 4 && Math.abs(info.y - window.innerHeight / 2) < 4) alignRec.center.push(fresh.features);
 }
-function updateAlignButton() {
-    const b = document.getElementById('btn-alinear');
-    if (b) b.hidden = !(S.trackingMode === 'CARA' && S.isCalibrated && loadAlignRef());
-}
-function sayAlign(text, now) {
+function updateAlignButton() { /* 1.5.2: Alinear vive en el menú de Recalibrar */ }
+function sayAlign(text) {
+    // Solo texto en pantalla (sin voz: la voz de MiraVoz es la del usuario, no de las indicaciones)
     const el = document.getElementById('align-instruction');
     if (el && el.textContent !== text) el.textContent = text;
-    if (alignSession && text !== alignSession.lastText && now - alignSession.lastSaid > 2200) {
-        alignSession.lastText = text; alignSession.lastSaid = now;
-        speak(text, { cancelPrevious: true });
-    }
 }
 function startAlignment({ onDone }) {
     const ref = loadAlignRef();
@@ -335,11 +329,11 @@ function finishAlignment(offset) {
 function returnFromAlignment(offset) {
     if (offset) tracking.setCenterOffset(offset);
     driftWatch.reset();
-    topBar.style.display = 'flex';
+    // Igual que al terminar una calibración: en el tablero las barras quedan ocultas; en el inicio, visibles
     if (S.currentBundle) { S.state = 'BOARD'; boardView.style.display = 'flex'; boardView.style.opacity = '1'; selectionContexts.setBase(boards.activeGridElements); }
     else goHome();
     pointer.invalidate('aligned', performance.now());
-    if (offset) showInfoToast('Listo: alineado.', 3000);
+    if (offset) showInfoToast('Alineado', 2500);
 }
 function alignTick(now) {
     const s = alignSession;
@@ -354,7 +348,7 @@ function alignTick(now) {
     ctxUI.beginPath(); ctxUI.arc(cx, cy, RT, 0, 2 * Math.PI); ctxUI.lineWidth = 4; ctxUI.strokeStyle = 'rgba(255,255,255,0.85)'; ctxUI.stroke();
     ctxUI.beginPath(); ctxUI.moveTo(cx - RT - 14, cy); ctxUI.lineTo(cx + RT + 14, cy); ctxUI.moveTo(cx, cy - RT - 14); ctxUI.lineTo(cx, cy + RT + 14);
     ctxUI.lineWidth = 1.5; ctxUI.strokeStyle = 'rgba(255,255,255,0.35)'; ctxUI.stroke();
-    if (!st) { sayAlign('No se ve la cara: mirá hacia la tablet', now); s.okSince = null; return; }
+    if (!st) { sayAlign('No se ve la cara'); s.okSince = null; return; }
     if (s.phase === 'position') {
         // la cara: posición (espejo) y tamaño (más cerca = más grande)
         const fx = cx + Math.max(-2.5, Math.min(2.5, st.dx / (ALIGN.posTolCm * 2))) * RT;
@@ -364,7 +358,7 @@ function alignTick(now) {
         ctxUI.beginPath(); ctxUI.arc(fx, fy, r, 0, 2 * Math.PI);
         ctxUI.fillStyle = st.ok ? 'rgba(0,255,136,0.35)' : 'rgba(255,190,70,0.3)'; ctxUI.fill();
         ctxUI.lineWidth = 5; ctxUI.strokeStyle = st.ok ? '#00ff88' : '#ffbe46'; ctxUI.stroke();
-        sayAlign(st.instruction, now);
+        sayAlign(st.instruction);
         if (st.ok) {
             if (s.okSince === null) s.okSince = now;
             const p = Math.min(1, (now - s.okSince) / ALIGN.holdMs);
@@ -375,15 +369,15 @@ function alignTick(now) {
     }
     // Recentrar: mirar (apuntar con la nariz) el punto del centro
     if (!st.posOk || !st.distOk) { s.phase = 'position'; s.okSince = null; return; }
-    sayAlign('Muy bien. Ahora apuntá con la nariz al punto del centro', now);
+    sayAlign('Apuntar con la nariz al punto del centro');
     if (fresh && fresh.features && now - s.okSince > 500) s.samples.push(fresh.features);
     const p = Math.min(1, (now - s.okSince) / (ALIGN.recenterMs + 500));
     ctxUI.beginPath(); ctxUI.arc(cx, cy, 16, 0, 2 * Math.PI); ctxUI.fillStyle = '#00ff88'; ctxUI.fill();
     ctxUI.beginPath(); ctxUI.arc(cx, cy, 34, -Math.PI / 2, -Math.PI / 2 + p * 2 * Math.PI); ctxUI.lineWidth = 6; ctxUI.strokeStyle = '#00ff88'; ctxUI.stroke();
     if (p >= 1) {
         const off = recenterOffset(s.samples, s.ref);
-        if (off) { speak('Listo', { cancelPrevious: true }); finishAlignment(off); }
-        else { s.phase = 'position'; s.okSince = null; showInfoToast('La posición cambió mucho respecto de la calibración: conviene recalibrar.', 6000); }
+        if (off) finishAlignment(off);
+        else { s.phase = 'position'; s.okSince = null; showInfoToast('La posición cambió mucho respecto de la calibración: conviene calibrar de nuevo.', 6000); }
     }
 }
 document.getElementById('btn-align-skip')?.addEventListener('click', () => finishAlignment(null));
@@ -392,10 +386,20 @@ document.getElementById('btn-align-recal')?.addEventListener('click', () => {
     document.getElementById('align-view').hidden = true;
     startCalibration();
 });
-document.getElementById('btn-alinear')?.addEventListener('click', () => {
-    if (S.trackingMode !== 'CARA' || !S.isCalibrated) return;
-    startAlignment({ onDone: returnFromAlignment });
+// Menú de Recalibrar (Rostro con referencia guardada): Alinear o Calibrar de nuevo
+const recalMenu = document.getElementById('recal-menu');
+function setRecalMenu(open) {
+    if (!recalMenu) return;
+    recalMenu.hidden = !open;
+    btnRecalibrar.setAttribute('aria-expanded', String(open));
+}
+document.getElementById('btn-menu-align')?.addEventListener('click', () => {
+    setRecalMenu(false);
+    if (S.trackingMode === 'CARA' && S.isCalibrated) startAlignment({ onDone: returnFromAlignment });
 });
+document.getElementById('btn-menu-recal')?.addEventListener('click', () => { setRecalMenu(false); recalibrateNow(); });
+document.addEventListener('pointerdown', (e) => { if (recalMenu && !recalMenu.hidden && !e.target.closest('.recal-wrap')) setRecalMenu(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setRecalMenu(false); });
 
 // --- Motor de barrido (F2) ---
 const scan = new ScanEngine(selectTarget);
@@ -622,7 +626,7 @@ btnIniciarCalibracion.addEventListener('click', () => {
     calibSession.begin(performance.now());
 });
 
-btnRecalibrar.addEventListener('click', async () => {
+async function recalibrateNow() {
     if (S.trackingMode === 'OJOS' || S.trackingMode === 'CARA') {
         await calibration.clearProfile(S.trackingMode);
         tracking.clearWeights();
@@ -631,6 +635,11 @@ btnRecalibrar.addEventListener('click', async () => {
     } else {
         customAlert('La calibración solo aplica a los modos con cámara (Rostro/Iris). El Modo Barrido y el Manual no la necesitan.');
     }
+}
+btnRecalibrar.addEventListener('click', () => {
+    // Con una calibración de Rostro y su referencia de posición: primero se ofrece Alinear (no pierde la calibración)
+    if (S.trackingMode === 'CARA' && S.isCalibrated && loadAlignRef()) { setRecalMenu(recalMenu ? recalMenu.hidden : false); return; }
+    recalibrateNow();
 });
 
 // --- Cambio de modo ---
@@ -1124,7 +1133,7 @@ function alignRefCache() {
     return alignRefMemo.ref;
 }
 function drawDriftHint() {
-    const text = 'Te corriste de la posición de la calibración: tocá Alinear';
+    const text = 'La posición cambió respecto de la calibración: Recalibrar → Alinear';
     ctxUI.font = 'bold 20px Inter'; ctxUI.textAlign = 'center'; ctxUI.textBaseline = 'middle';
     const w = Math.min(canvasUI.width - 40, ctxUI.measureText(text).width + 40), x = canvasUI.width / 2, y = 96;
     ctxUI.fillStyle = 'rgba(0,0,0,0.75)'; ctxUI.beginPath(); ctxUI.roundRect ? ctxUI.roundRect(x - w / 2, y - 22, w, 44, 22) : ctxUI.rect(x - w / 2, y - 22, w, 44); ctxUI.fill();

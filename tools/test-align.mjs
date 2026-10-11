@@ -15,17 +15,17 @@ t('referencia: medianas de la calibración; sin datos suficientes, null', () => 
 });
 t('en la misma posición: alineado', () => {
     const s = alignmentState(pose(-8.5, 6, -32), REF);
-    assert(s.ok && /quedate/.test(s.instruction), JSON.stringify(s));
+    assert(s.ok && /mantener/.test(s.instruction), JSON.stringify(s));
 });
 t('distancia: más lejos pide acercarse, más cerca pide alejarse (primero la distancia)', () => {
-    assert(/Acercate/.test(alignmentState(pose(-8.5, 6, -40), REF).instruction), 'lejos');
-    assert(/Alejate/.test(alignmentState(pose(-5, 6, -25), REF).instruction), 'cerca');
+    assert(/Más cerca/.test(alignmentState(pose(-8.5, 6, -40), REF).instruction), 'lejos');
+    assert(/Más lejos/.test(alignmentState(pose(-5, 6, -25), REF).instruction), 'cerca');
 });
 t('corrimientos: espejo para la persona (+x de la cámara = su izquierda) y +y arriba', () => {
     const left = alignmentState(pose(-8.5 + 4, 6, -32), REF); // la cámara la ve a la derecha de la imagen = izquierda de la persona
     assert(left.dx < 0 && /derecha/.test(left.instruction), JSON.stringify(left));
     const up = alignmentState(pose(-8.5, 6 + 4, -32), REF);
-    assert(up.dy > 0 && /Bajá/.test(up.instruction), JSON.stringify(up));
+    assert(up.dy > 0 && /Bajar/.test(up.instruction), JSON.stringify(up));
     assert(alignmentState(pose(-8.5 + ALIGN.posTolCm * 0.8, 6, -32), REF).ok, 'dentro de la tolerancia');
 });
 t('recentrar: offset = mediana mirando el centro − referencia; si es enorme, null (recalibrar)', () => {

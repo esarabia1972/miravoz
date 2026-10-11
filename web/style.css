@@ -1555,3 +1555,11 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .settings-panel .settings-grid label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .settings-panel .settings-section label { margin-top: 2px; }
 .settings-panel { max-height: 96dvh; padding: 16px 22px; }
+
+/* Menú de Recalibrar (1.5.2) */
+.recal-wrap { position: relative; }
+.recal-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2000; min-width: 260px; display: flex; flex-direction: column; padding: 6px; border-radius: 14px; background: var(--modal-solid); border: 1px solid var(--modal-border); box-shadow: var(--home-menu-shadow, 0 12px 32px rgba(0,0,0,0.5)); }
+.recal-menu[hidden] { display: none !important; }
+.recal-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 10px 14px; border: none; border-radius: 10px; background: transparent; color: var(--text-main); font: 600 1rem 'Inter', sans-serif; text-align: left; cursor: pointer; }
+.recal-menu button span { font-weight: 400; font-size: 0.85rem; color: var(--text-muted); }
+.recal-menu button:hover { background: var(--cell-hover); }

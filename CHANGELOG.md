@@ -2,6 +2,12 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.5.2] - 2026-10-11
+
+- **Changed**: Alinear sin voz (solo texto en pantalla) y con textos impersonales que no nombran el dispositivo ("Más cerca de la pantalla", "Mover la cabeza un poco hacia la derecha", "Bien: mantener la posición").
+- **Changed**: "Alinear" pasa a ser una opción dentro de **Recalibrar**: con una calibración de Rostro guardada, Recalibrar abre un menú con "Alinear" y "Calibrar de nuevo". Sin calibración, Recalibrar calibra directo.
+- **Fixed**: al terminar de alinear desde un tablero se mostraba la barra superior encima del tablero.
+
 ## [1.5.1] - 2026-10-11
 
 - **Changed**: Configuración compacta: textos más cortos, tres opciones por fila en Barrido y Parpadeo, "Voz" y "Sin conexión" juntas, versión en el pie. Entra sin scroll en el iPad horizontal y en ventanas de laptop chicas.
