@@ -1,5 +1,6 @@
 {
-  "version": "69c82b7634d4",
+  "app": "1.0.0",
+  "version": "1b4f8c548d69",
   "files": 73,
-  "note": "Hash del contenido de web/ (tools/build-offline-manifest.mjs). Describe exactamente los archivos publicados."
+  "note": "app = versión visible (package.json). version = hash del contenido de web/: describe exactamente los archivos publicados."
 }

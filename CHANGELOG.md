@@ -2,7 +2,13 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
-## [Unreleased]
+## [1.0.0] - 2026-10-11
+
+Primera versión numerada, publicada en www.miravoz.com.ar. Incluye todo lo listado abajo (fases 0 a 4, M01–M08, compatibilidad con Asterics Grid, landing con ingreso por Google) y:
+- **Added**: cuentas habilitadas (`supabase/06_cuentas_habilitadas.sql`): solo entran los correos de `allowed_emails`; el resto ve el aviso "Cuenta no registrada" en un toast rojo.
+- **Added**: versión visible "Versión 1.0.0" en Configuración (el hash del contenido queda como compilación, en el tooltip y en el diagnóstico).
+
+## Historial previo a 1.0.0
 
 ### Fase 0 - Estabilización
 - **Added**: CHANGELOG.md

@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, '../web');
 const OUT = path.join(WEB, 'offline-manifest.json');
+// Versión visible (semver) — fuente única: "version" de package.json. Se sube en cada publicación (ver EQUIPO.md).
+export const APP_VERSION = JSON.parse(fs.readFileSync(path.resolve(HERE, '../package.json'), 'utf8')).version;
 
 // Archivos locales que forman la app (se excluye lo que no se usa en el navegador)
 const EXCLUDE = new Set(['offline-manifest.json', 'sw.js', 'package.json', 'vercel.json', 'version.json', '.DS_Store', '.gitignore']);
@@ -44,8 +46,8 @@ export function buildManifest() {
         return { url: '/' + rel, sha256: sha(buf), bytes: buf.length };
     });
     const remote = REMOTE.map(r => ({ url: r.url, sha256: r.sha256 }));
-    const version = sha(JSON.stringify({ files: files.map(f => [f.url, f.sha256]), remote })).slice(0, 12);
-    return { schema: 1, version, files, remote, totalBytes: files.reduce((a, f) => a + f.bytes, 0) };
+    const version = sha(JSON.stringify({ app: APP_VERSION, files: files.map(f => [f.url, f.sha256]), remote })).slice(0, 12);
+    return { schema: 1, version, appVersion: APP_VERSION, files, remote, totalBytes: files.reduce((a, f) => a + f.bytes, 0) };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
@@ -53,7 +55,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const text = JSON.stringify(m, null, 1) + '\n';
     // M08: identificador de entrega = hash del contenido publicado (no un commit que podría no describir los archivos)
     const VERSION_FILE = path.join(WEB, 'version.json');
-    const versionText = JSON.stringify({ version: m.version, files: m.files.length, note: 'Hash del contenido de web/ (tools/build-offline-manifest.mjs). Describe exactamente los archivos publicados.' }, null, 2) + '\n';
+    const versionText = JSON.stringify({ app: m.appVersion, version: m.version, files: m.files.length, note: 'app = versión visible (package.json). version = hash del contenido de web/: describe exactamente los archivos publicados.' }, null, 2) + '\n';
     if (process.argv.includes('--check')) {
         const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
         const curV = fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf8') : '';

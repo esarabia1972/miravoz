@@ -38,8 +38,8 @@ export function statusText(st) {
     }
     if (st.imagesFailed > 0) return `La app está lista, pero ${st.imagesFailed} pictograma(s) no se pudieron guardar: sin conexión esas celdas se verán sin imagen.`;
     if (st.lowSpace) return 'La app está lista, pero el dispositivo tiene poco espacio: el navegador podría borrar datos guardados.';
-    if (st.imagesChecked === false) return `App lista para abrir sin conexión (versión ${st.version}). Tocá "Preparar" para guardar también los pictogramas de tus tableros.`;
-    return `Preparado para usar sin conexión (versión ${st.version}).`;
+    if (st.imagesChecked === false) return `App lista para abrir sin conexión (versión ${st.appVersion || st.version}). Tocá "Preparar" para guardar también los pictogramas de tus tableros.`;
+    return `Preparado para usar sin conexión (versión ${st.appVersion || st.version}).`;
 }
 
 /** Llamar cuando la app ya está en uso: a partir de ahí nada se aplica solo. */

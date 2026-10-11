@@ -179,7 +179,7 @@ self.addEventListener('message', (event) => {
                 for (const u of [...m.files.map(f => f.url), ...m.remote.map(r => r.url)]) {
                     if (!(await cache.match(u, { ignoreSearch: true }))) missing.push(u);
                 }
-                reply({ ready: missing.length === 0, version: m.version, missing, files: m.files.length + m.remote.length });
+                reply({ ready: missing.length === 0, version: m.version, appVersion: m.appVersion, missing, files: m.files.length + m.remote.length });
             } catch (e) { reply({ ready: false, error: String(e && e.message || e) }); }
         })());
         return;

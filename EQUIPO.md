@@ -42,6 +42,10 @@
    - **Regenerar el manifiesto sin conexión** si se tocó algo en `web/`: `node tools/build-offline-manifest.mjs` (M05). Sin esto, el Service Worker no instala la versión nueva y `npm test` falla.
    - Correr `npm test` (todos los grupos; `npm install` una vez para jsdom).
    - Probar contra `asterics/nuclear.grd`.
+8. **Versión visible (desde 1.0.0, 11/10/2026).** Fuente única: `"version"` en `package.json`; se muestra en Configuración y la escribe `build-offline-manifest.mjs` en `version.json` (`app`). Se sube en cada publicación a `main`, antes de regenerar el manifiesto, y se anota en `CHANGELOG.md`:
+   - **parche** (1.0.**1**): arreglos y cambios de texto;
+   - **menor** (1.**1**.0): funciones nuevas o cambios visibles de comportamiento;
+   - **mayor** (**2**.0.0): cambios que obligan a rehacer algo (datos, vinculación de tablets, formato de tableros).
 
 ## Flujo por tarea
 

@@ -1001,11 +1001,15 @@ window.addEventListener('miravoz:speech-error', () => {
 });
 
 // --- M08: versión real de lo publicado (hash del contenido, ver tools/build-offline-manifest.mjs) ---
-let appVersion = null;
+let appVersion = null, appBuild = null;
 fetch('/version.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(v => {
-    appVersion = v && v.version;
+    appVersion = v && (v.app || v.version);
+    appBuild = v && v.version;
     const el = document.getElementById('app-version');
-    if (el && appVersion) el.textContent = `Versión ${appVersion}`;
+    if (el && appVersion) {
+        el.textContent = `Versión ${appVersion}`;
+        if (v.app && v.version) el.title = `Compilación ${v.version}`; // hash del contenido, para diagnóstico
+    }
 }).catch(() => {});
 
 // --- M08: panel de diagnóstico SOLO para desarrollo (?diag=1): métricas técnicas, sin video ni textos ---
@@ -1021,7 +1025,7 @@ if (urlParams.get('diag') === '1') {
         const s = tracking.latestSample;
         const prof = (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') ? calibration.getProfile(S.trackingMode) : null;
         panel.textContent = [
-            `versión ${appVersion || '?'} · modo ${S.trackingMode} · motor ${v.engine || '-'} (${v.mode}${v.delegate ? ', ' + v.delegate : ''})`,
+            `versión ${appVersion || '?'} (${appBuild || '?'}) · modo ${S.trackingMode} · motor ${v.engine || '-'} (${v.mode}${v.delegate ? ', ' + v.delegate : ''})`,
             `inferencia p50/p95 ${v.inferP50 ?? '-'}/${v.inferP95 ?? '-'} ms · captura→resultado ${v.latencyP50 ?? '-'}/${v.latencyP95 ?? '-'} ms`,
             `resultados/s ${v.resultsPerSec} · descartados ${v.dropped} · antigüedad muestra ${v.sampleAgeMs ?? '-'} ms`,
             `muestra ${s ? (s.valid ? 'válida' : 'inválida: ' + s.reason) : '-'} · puntero ${pointer.invalid ? 'en pausa (' + pointer.reason + ')' : 'activo'}`,
@@ -1035,7 +1039,7 @@ if (urlParams.get('diag') === '1') {
 function downloadPerfReport() {
     const prof = calibration.getProfile(S.trackingMode);
     const report = {
-        kind: 'miravoz-rendimiento', version: appVersion, ua: navigator.userAgent, viewport: [innerWidth, innerHeight],
+        kind: 'miravoz-rendimiento', version: appVersion, build: appBuild, ua: navigator.userAgent, viewport: [innerWidth, innerHeight],
         mode: S.trackingMode, vision: tracking.visionStats(), snapshots: perfSnapshots,
         profileValidation: prof && prof.validation ? { status: prof.validation.status, rules: prof.validation.rules, metrics: { ...prof.validation.metrics, perPoint: undefined } } : null
     };
