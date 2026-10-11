@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de privacidad — MiraVoz</title>
+<meta name="description" content="Qué datos guarda MiraVoz, para qué, dónde y cómo pedir que se borren.">
+<link rel="icon" href="icon-192.png">
+<link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
+<link href="legal.css" rel="stylesheet">
+<script>try { var t = localStorage.getItem('miravoz_theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+</head>
+<body>
+<main class="legal">
+<a class="legal-back" href="/">← Volver a MiraVoz</a>
+<h1>Política de privacidad</h1>
+<p class="legal-date">Vigente desde el 11 de octubre de 2026</p>
+
+<p>MiraVoz (<a href="https://www.miravoz.com.ar">www.miravoz.com.ar</a>) es una plataforma gratuita de comunicación aumentativa y alternativa (CAA). Esta política explica qué datos se guardan, para qué, dónde y cómo ejercer tus derechos.</p>
+
+<h2>1. Responsable</h2>
+<p>Responsable del tratamiento: <strong>Esteban Sarabia</strong>, Argentina. Contacto: <a href="mailto:esteban@sarabia.com">esteban@sarabia.com</a>.</p>
+
+<h2>2. Quiénes usan MiraVoz</h2>
+<ul>
+<li><strong>Profesionales</strong> (terapeutas, docentes, familias): ingresan con su cuenta de Google, crean tableros y los asignan a sus usuarios.</li>
+<li><strong>Usuarios</strong>: las personas que se comunican con MiraVoz, muchas veces niñas, niños o personas con discapacidad. <strong>No tienen cuenta</strong>: usan una tablet vinculada con un código que genera la profesional.</li>
+</ul>
+
+<h2>3. Qué datos guardamos y para qué</h2>
+<table>
+<thead><tr><th>Dato</th><th>Para qué</th><th>Dónde</th></tr></thead>
+<tbody>
+<tr><td>De la cuenta de Google de la profesional: nombre, dirección de correo e identificador de la cuenta</td><td>Iniciar sesión y mostrar quién está conectado</td><td>Servidor (Supabase)</td></tr>
+<tr><td>Tableros: textos, pictogramas e imágenes que la profesional carga</td><td>Que estén disponibles en sus dispositivos</td><td>Servidor y dispositivo</td></tr>
+<tr><td>Usuarios: el nombre o apodo que la profesional elige, la configuración de acceso (modo, tiempos) y los tableros asignados</td><td>Que cada tablet muestre los tableros y ajustes de su usuario</td><td>Servidor y dispositivo</td></tr>
+<tr><td>Códigos de vinculación y tablets vinculadas (en el servidor solo se guarda una huella cifrada del token de la tablet, nunca el token)</td><td>Vincular una tablet y permitir desvincularla</td><td>Servidor y dispositivo</td></tr>
+<tr><td>Calibración de la cámara: números derivados (no imágenes), preferencias y palabras escritas con el teclado para sugerir palabras</td><td>Que el seguimiento y la predicción funcionen en ese dispositivo</td><td>Solo en el dispositivo</td></tr>
+</tbody>
+</table>
+<p>Recomendamos que las profesionales identifiquen a sus usuarios con un nombre de pila o un apodo, sin apellidos ni datos de salud.</p>
+
+<h2>4. La cámara</h2>
+<p>Los modos que usan la cámara procesan la imagen <strong>en el propio dispositivo</strong>. Las imágenes y el video <strong>nunca se envían</strong> a ningún servidor ni se guardan. Solo se guardan, en el dispositivo, los números de la calibración que permiten mover el cursor.</p>
+
+<h2>5. Con quién se comparten los datos</h2>
+<p>No vendemos datos, no mostramos publicidad y no los usamos para perfiles comerciales. Para funcionar, MiraVoz usa estos proveedores:</p>
+<ul>
+<li><strong>Supabase</strong>: base de datos y autenticación (guarda los datos del punto 3 marcados como "Servidor").</li>
+<li><strong>Google</strong>: inicio de sesión de las profesionales.</li>
+<li><strong>Vercel</strong>: alojamiento de la aplicación web.</li>
+<li><strong>ARASAAC</strong> (Gobierno de Aragón): al buscar o mostrar pictogramas, el navegador pide las imágenes a su servicio.</li>
+<li>La <strong>voz</strong> la genera el sistema operativo del dispositivo (por ejemplo, iPadOS); según su configuración, el fabricante puede procesar el texto que se dice.</li>
+</ul>
+
+<h2>6. Uso de los datos de Google</h2>
+<p>MiraVoz solo solicita los permisos básicos de identificación (nombre, correo e identificador) y los usa únicamente para iniciar sesión. El uso de la información recibida de las API de Google cumple con la <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios de API de Google</a>, incluidos los requisitos de uso limitado. No se transfieren a terceros ni se usan para publicidad.</p>
+
+<h2>7. Cuánto tiempo se guardan</h2>
+<p>Mientras la cuenta de la profesional exista. Si una profesional borra un tablero o un usuario, se borran del servidor; al desvincular una tablet se borran sus datos de vinculación y su calibración. Si pedís que borremos tu cuenta, eliminamos tus datos y los de tus usuarios en un plazo máximo de 30 días.</p>
+
+<h2>8. Tus derechos</h2>
+<p>Podés pedir acceso, rectificación, actualización o supresión de tus datos escribiendo a <a href="mailto:esteban@sarabia.com">esteban@sarabia.com</a>. Respondemos dentro de los plazos de la Ley 25.326 de Protección de Datos Personales. La Agencia de Acceso a la Información Pública, en su carácter de órgano de control de la Ley 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales.</p>
+
+<h2>9. Niñas, niños y personas con discapacidad</h2>
+<p>Los datos de los usuarios los carga la profesional, que debe contar con la autorización de la persona o de sus responsables legales. Los usuarios no crean cuentas ni dan datos por sí mismos.</p>
+
+<h2>10. Seguridad</h2>
+<p>Las comunicaciones viajan cifradas (HTTPS). En el servidor, cada profesional solo puede acceder a sus propios datos (reglas de seguridad por fila) y los tokens de las tablets se guardan cifrados. Ningún sistema es infalible: si detectamos un incidente que afecte tus datos, te lo vamos a informar.</p>
+
+<h2>11. Cambios</h2>
+<p>Si cambiamos esta política, publicaremos la nueva versión en esta página con su fecha.</p>
+</main>
+</body>
+</html>

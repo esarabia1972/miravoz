@@ -36,5 +36,15 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/privacidad",
+      "destination": "/privacidad.html"
+    },
+    {
+      "source": "/terminos",
+      "destination": "/terminos.html"
+    }
   ]
 }

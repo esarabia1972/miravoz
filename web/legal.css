@@ -1,0 +1,14 @@
+/* Páginas legales de MiraVoz (privacidad y términos): livianas, legibles, con modo Día/Noche */
+:root { --bg: #f4f6f9; --fg: #111827; --muted: #4b5563; --line: rgba(15, 23, 42, 0.12); --accent: #007a51; color-scheme: light; }
+html[data-theme="dark"] { --bg: #0d0f14; --fg: #eef0f4; --muted: #a3a9b5; --line: rgba(255, 255, 255, 0.12); --accent: #00ff88; color-scheme: dark; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 1rem/1.6 'Inter', system-ui, sans-serif; }
+.legal { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+.legal h1 { font-size: 2rem; font-weight: 800; margin: 18px 0 4px; }
+.legal h2 { font-size: 1.2rem; margin: 32px 0 8px; }
+.legal-date { color: var(--muted); margin-top: 0; }
+.legal a { color: var(--accent); }
+.legal-back { display: inline-block; font-weight: 600; text-decoration: none; }
+.legal table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin: 12px 0; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.legal th { font-weight: 700; }
+@media (max-width: 600px) { .legal table, .legal thead, .legal tbody, .legal tr, .legal th, .legal td { display: block; } .legal thead { display: none; } .legal td { border: none; padding: 2px 0; } .legal tr { border-bottom: 1px solid var(--line); padding: 8px 0; } }

@@ -128,9 +128,17 @@ self.addEventListener('fetch', (event) => {
         event.respondWith((async () => {
             const cache = await activeCache();
             if (cache) {
-                const key = req.mode === 'navigate' ? '/index.html' : url.pathname;
+                if (req.mode === 'navigate' && url.pathname !== '/' && url.pathname !== '/index.html') {
+                    // Páginas propias (privacidad, términos): la suya, con o sin ".html"
+                    const page = (await cache.match(url.pathname, { ignoreSearch: true })) || (await cache.match(url.pathname + '.html', { ignoreSearch: true }));
+                    if (page) return page;
+                }
+                const key = req.mode === 'navigate' ? (url.pathname === '/' ? '/index.html' : url.pathname) : url.pathname;
                 const hit = await cache.match(key, { ignoreSearch: true });
                 if (hit) return hit;
+                if (req.mode === 'navigate') {
+                    try { return await fetch(req); } catch { return (await cache.match('/index.html')) || Response.error(); }
+                }
             }
             return fetch(req);
         })());

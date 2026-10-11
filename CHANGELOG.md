@@ -411,3 +411,12 @@ Implementación de `especificacion-tecnica-miravoz-para-claude.md` (carpeta del 
   - al desvincular por servidor se borran los perfiles de ese usuario;
   - la regla de geometría pasa a 12% de ancho y 15% de alto.
 - **Docs**: `INFORME_M01-M08.md` (estado por requisito con evidencia, migración, actualizaciones, diagnóstico, publicación, licencias y lo que NO se afirma) y `PROTOCOLO_VALIDACION_IPAD.md` (planilla y recorrido para el iPad).
+
+### Dominio propio, landing y páginas legales (11/10/2026)
+- **Added**: **landing** en la pantalla de ingreso de www.miravoz.com.ar: qué es MiraVoz, los modos de acceso, la compatibilidad con Asterics, el rol de la profesional y la privacidad de la cámara, junto al ingreso con Google y "Vincular tablet".
+  - En pantallas angostas el ingreso aparece primero.
+  - Quien ya tiene sesión, o una tablet vinculada, entra directo como antes.
+- **Added**: `/privacidad` y `/terminos` (`web/privacidad.html`, `web/terminos.html`, `web/legal.css`). Responsable: Esteban Sarabia; contacto: esteban@sarabia.com.
+  - La política cubre la Ley 25.326 y el uso limitado de los datos de Google.
+  - Funcionan sin conexión (el Service Worker sirve cada página propia en lugar de la app).
+- **Changed**: `vercel.json` agrega las direcciones sin `.html` para las páginas legales.

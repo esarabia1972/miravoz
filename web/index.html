@@ -30,7 +30,7 @@
     <meta property="og:description" content="Tu mirada ya tiene voz. Plataforma de comunicación aumentativa mediante seguimiento ocular.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=43">
+    <link rel="stylesheet" href="style.css?v=45">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -214,12 +214,21 @@
     </div>
 
     <!-- Vista de Autenticación (Login / OTP) -->
-    <div id="auth-view" class="view-container" style="display: none; justify-content: center; align-items: center;">
+    <div id="auth-view" class="view-container landing-view" style="display: none;">
         <button type="button" class="btn-icon theme-toggle theme-toggle-auth" data-theme-toggle aria-label="Cambiar a modo día" aria-pressed="false"></button>
+        <main class="landing">
+        <section class="landing-hero" aria-labelledby="landing-title">
+            <img class="landing-logo" src="logo.png" alt="MiraVoz" />
+            <h1 id="landing-title">Tu mirada ya tiene voz</h1>
+            <p class="landing-lead">MiraVoz es una plataforma gratuita de comunicación aumentativa y alternativa (CAA) que funciona en el navegador de una tablet o una computadora. Está pensada para personas con discapacidad motora que no pueden acceder a un dispositivo especializado de seguimiento ocular.</p>
+            <ul class="landing-features">
+                <li><strong>Un acceso para cada persona.</strong> Tocando la pantalla, con barrido y un pulsador, o con la cámara siguiendo el rostro (el seguimiento de la mirada está en evaluación).</li>
+                <li><strong>Tableros con pictogramas.</strong> Pictogramas de ARASAAC, voz en español y tableros compatibles con Asterics Grid (.grd) y Open Board (.obz).</li>
+                <li><strong>La profesional organiza, el usuario comunica.</strong> Se crean y asignan tableros desde la cuenta profesional; la tablet del usuario se vincula con un código, sin cuenta ni contraseña.</li>
+                <li><strong>Privacidad.</strong> La imagen de la cámara se procesa en el propio dispositivo y nunca se envía. Una vez preparada, la app funciona sin conexión.</li>
+            </ul>
+        </section>
         <div class="auth-box glass-box">
-            <div class="auth-logo">
-                <img src="logo.png" onerror="this.src='logo.png';" alt="Miravoz" />
-            </div>
             
             <div id="auth-step-email">
                 <h2>Ingreso para profesionales</h2>
@@ -247,6 +256,14 @@
             </div>
 
         </div>
+        </main>
+        <footer class="landing-footer">
+            <span>© 2026 MiraVoz</span>
+            <a href="/privacidad">Política de privacidad</a>
+            <a href="/terminos">Términos de uso</a>
+            <a href="mailto:esteban@sarabia.com">Contacto</a>
+            <span>Pictogramas: Sergio Palao / ARASAAC (CC BY-NC-SA), Gobierno de Aragón</span>
+        </footer>
     </div>
 
     <!-- UI Overlay: Botón Iniciar Calibración (Modos oculares) -->
@@ -488,6 +505,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=59"></script>
+    <script type="module" src="js/main.js?v=60"></script>
 </body>
 </html>

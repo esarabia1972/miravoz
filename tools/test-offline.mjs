@@ -122,6 +122,8 @@ await t('T18 preparación completa → sin red abre la app, sus módulos, MediaP
     net.online = false;
     const page = await sw.fetch('/', 'navigate');
     assert(page && page.status === 200 && /<html/i.test(await page.text()), 'no abrió la página sin red');
+    const priv = await sw.fetch('/privacidad', 'navigate');
+    assert(priv && /Política de privacidad/.test(await priv.text()), 'la política de privacidad no abre sin red (o abre la app)');
     const js = await sw.fetch('/js/main.js?v=55');
     assert(js && js.status === 200, 'main.js sin red');
     const wasm = await sw.fetch('/vendor/mediapipe-tasks-vision-1.1.0/wasm/vision_wasm_internal.wasm');
