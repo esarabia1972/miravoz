@@ -7,7 +7,7 @@ import { OneEuroFilter } from './filters.js';
 import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
 import { customAlert, customConfirm, customChoice, showInfoToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
 import * as offline from './offline.js';
-import { initAuth, signOut, consumeOAuthReturn } from './auth.js';
+import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
 import { syncAll } from './sync.js';
 import * as deviceMod from './device.js';
@@ -1114,17 +1114,30 @@ setTimeout(() => {
         if (S.state === 'HOME') await boards.loadSavedBoards();
     }
 
+    // Cuentas habilitadas: si el servidor dice que no, se cierra la sesión acá mismo y se avisa.
+    // S.currentUser = null antes de signOut para que onSignedOut no recargue y se pierda el mensaje.
+    async function admitOrReject(user) {
+        if ((await accountEnabled()) !== false) return true;
+        S.currentUser = null;
+        try { await signOut(); } catch { /* sin red: igual queda afuera */ }
+        showAuthView(true);
+        updateAccountUI();
+        const err = document.getElementById('auth-error');
+        if (err) err.textContent = NOT_ENABLED_MESSAGE;
+        return false;
+    }
+
     initAuth({
         onReady: async (user) => {
             // Recién acá (supabase-js ya canjeó el ?code= de Google) se limpia la URL
             const oauthError = consumeOAuthReturn();
-            if (user) { await enterProfessionalApp(user); return; }
+            if (user) { if (await admitOrReject(user)) await enterProfessionalApp(user); return; }
             showAuthView(true);
             updateAccountUI();
             const err = document.getElementById('auth-error');
-            if (oauthError && err) err.textContent = `No se pudo ingresar con Google: ${oauthError}`;
+            if (oauthError && err) err.textContent = oauthErrorText(oauthError);
         },
-        onSignedIn: (user) => enterProfessionalApp(user),
+        onSignedIn: async (user) => { if (await admitOrReject(user)) await enterProfessionalApp(user); },
         onSignedOut: () => window.location.reload() // sesión cerrada o vencida: vuelve a la pantalla de ingreso
     });
 

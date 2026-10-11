@@ -12,6 +12,7 @@ La anon key de MiraVoz es pública (va en el cliente). Por eso la seguridad depe
 - ✅ `05_limpiar_cuentas_de_prueba.sql` corrido (10/10): queda solo esteban.sarabia@gmail.com con 3 tableros.
 - ✅ `03_tokens_de_tablet.sql` aplicado (10/10): todas las verificaciones en true y 0 usuarios anónimos. Comprobado desde el navegador con la anon key: `device_fetch` con un token falso da `{ok:false, unlinked:true}`; `device_tokens` da 401; `_device_token_hash` da 401; la RPC vieja da 404.
 - ✅ Google OAuth configurado (proyecto MiraVoz en Google Cloud, modo Testing con 2 usuarios de prueba). Verificado en `/auth/v1/settings`: google=true, anonymous_users=false. Site URL y Redirect URLs cargadas.
+- ⏳ `06_cuentas_habilitadas.sql` (11/10): solo entran los correos de `allowed_emails` (Auth Hook "Before User Created" + `account_enabled()` en la app). Falta correrlo y activar el hook en Authentication → Auth Hooks.
 - Pendiente: probar RLS con dos cuentas de Google; política de privacidad para publicar la app en Google (salir de Testing).
 
 ### Estado inicial

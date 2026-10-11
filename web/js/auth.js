@@ -127,6 +127,31 @@ export function consumeOAuthReturn() {
     return desc ? decodeURIComponent(desc.replace(/\+/g, ' ')) : null;
 }
 
+// --- Cuentas habilitadas (11/10/2026, supabase/06_cuentas_habilitadas.sql) ---
+// La barrera real está en el servidor (Auth Hook "Before User Created"); esto corta además a cuentas
+// creadas antes de la lista. Sin red o sin respuesta se deja pasar (null): lo local tiene que funcionar offline.
+export const NOT_ENABLED_MESSAGE = 'Tu cuenta no está habilitada en MiraVoz. Escribí a esteban@sarabia.com para pedir acceso.';
+
+/** true / false según la lista; null si no se pudo saber (sin red, función no instalada, demora > 4 s). */
+export async function accountEnabled() {
+    if (!supabaseClient) return null;
+    try {
+        const r = await Promise.race([
+            supabaseClient.rpc('account_enabled'),
+            new Promise(res => setTimeout(() => res(null), 4000))
+        ]);
+        if (!r || r.error || typeof r.data !== 'boolean') return null;
+        return r.data;
+    } catch { return null; }
+}
+
+/** Texto para mostrar cuando Google/Supabase devuelven un error al volver. */
+export function oauthErrorText(desc) {
+    if (!desc) return '';
+    if (/habilitad|before.user.created|hook|signups? not allowed|not allowed/i.test(desc)) return NOT_ENABLED_MESSAGE;
+    return `No se pudo ingresar con Google: ${desc}`;
+}
+
 export async function signOut() {
     // scope local: cierra la sesión en este dispositivo aunque no haya red
     if (supabaseClient) await supabaseClient.auth.signOut({ scope: 'local' });
