@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "0d12403170a9",
- "appVersion": "0.7.6",
+ "version": "c2206e9ae542",
+ "appVersion": "0.7.7",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "1d1b834578d6cf59df2b2a01a21d69ecc1000745f6c4607dd8df19cafdab45da",
-   "bytes": 47077
+   "sha256": "9c2a8a87c49e5699229bbb00c3d583f848433f7d3c084ba1f808ff6a4f301b1a",
+   "bytes": 47749
   },
   {
    "url": "/js/align.js",
@@ -65,7 +65,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "2326405727b093d9d324307cb31f3f7e00b86954ab82eda5044eca97a6239b38",
+   "sha256": "b8833e7f0d46a66d7e1ad7e80369a57da56e7a48a871f2907caa3cbeb6b1c872",
    "bytes": 104
   },
   {
@@ -80,8 +80,8 @@
   },
   {
    "url": "/js/config.js",
-   "sha256": "dc2279ae574cec7f0d250d0ad3a65bedf6e3bc38c899558cf61720a25a677eb3",
-   "bytes": 5125
+   "sha256": "ed138fc4fb9ded5d8490248f995ea7366c9e29ac82ce243c953555299c83da01",
+   "bytes": 4925
   },
   {
    "url": "/js/contexts.js",
@@ -130,8 +130,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "702135553487f5f27423c697e3da8d336695e2a6a9c10d40d54f68374b1387da",
-   "bytes": 86243
+   "sha256": "840c1e430a93dafe3575c8035ed1ad5f866f03ea2aebbd236cb51a7e58dbc7a4",
+   "bytes": 86014
   },
   {
    "url": "/js/media.js",
@@ -147,11 +147,6 @@
    "url": "/js/metrics.js",
    "sha256": "70d78890b3eb800f88fe0c87740a5d44f84b27766cbb5cd648bab03cff10c9ff",
    "bytes": 8697
-  },
-  {
-   "url": "/js/neural-voice.js",
-   "sha256": "e88b2ebc07c6044d87cfd6f65afaaa52272528e97eeb730b13ac8e8fd4491429",
-   "bytes": 8856
   },
   {
    "url": "/js/offline.js",
@@ -210,8 +205,8 @@
   },
   {
    "url": "/js/speech.js",
-   "sha256": "14b6614a1a459e5f5d7dc27bc664dba36fda58e4e23a22ddae223371c2ba42d5",
-   "bytes": 13261
+   "sha256": "93c83b227b87e83fa107dd38154b50535106f8cc6e8b590bb1276a2630ed8bd9",
+   "bytes": 11202
   },
   {
    "url": "/js/state.js",
@@ -265,13 +260,8 @@
   },
   {
    "url": "/js/voice-settings.js",
-   "sha256": "345d172ef955399ddc186ce49bec3a3a5bdec59c2001e81107b42a0eeeffb3c0",
-   "bytes": 5983
-  },
-  {
-   "url": "/js/voice-worker.js",
-   "sha256": "b84d07192a9074af8441b7807a18ddad03985d176389cc198fcdebad7fe582da",
-   "bytes": 5205
+   "sha256": "7bdc7dc2137141713b5cf8830eb7b6d4d8bc40cb79a978aadb9a64948c5e3689",
+   "bytes": 4864
   },
   {
    "url": "/legal.css",
@@ -447,11 +437,6 @@
    "url": "/vendor/supabase-js-2.117.3/supabase.js",
    "sha256": "d6a5c4414a5d4ce646d9c1de223aa7067d3ff664c15394ffeb7fcffc763354a3",
    "bytes": 217907
-  },
-  {
-   "url": "/voz-prueba.html",
-   "sha256": "9d7dfe43361714e36881eee9fa8ae2002538c921d9e78c22014f0abf08833be3",
-   "bytes": 2390
   }
  ],
  "remote": [
@@ -460,5 +445,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28976150
+ "totalBytes": 28956764
 }

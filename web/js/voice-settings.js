@@ -1,29 +1,49 @@
-// voice-settings.js — Sección "Voz" de Configuración (0.7.6)
-// Elegir entre la voz del dispositivo (con la lista de voces en español; las "mejoradas" primero) y una voz
-// natural (Piper) que se descarga una vez y anda sin conexión. "Probar" dice una frase y muestra la demora,
-// para medir en cada tablet si la voz natural responde a tiempo.
+// voice-settings.js — Sección "Voz" de Configuración (0.7.7)
+//
+// La voz es parte de la identidad de quien comunica: se elige POR PERSONA (en la tablet vinculada, la de ese
+// usuario; en la cuenta registrada, la de prueba) y se guarda en este dispositivo, porque cada equipo tiene su
+// propia lista de voces. Se usan las voces del sistema: hablan al instante y sin conexión. Las "mejoradas" o
+// "premium" (que se bajan gratis desde los ajustes del dispositivo) suenan mucho menos robóticas.
 
-import { settings, saveSettings } from './config.js';
 import { speak, setVoicePrefs, systemVoices, isEnhancedVoice } from './speech.js';
-import * as neural from './neural-voice.js';
-import { customChoice, customAlert } from './ui.js';
+import { personScope } from './person-scope.js';
 
+const KEY = 'miravoz_voice:';
+const DEFAULTS = { systemVoice: '', rate: 1, pitch: 1 };
 const TEST_PHRASE = 'Hola, ¿cómo estás? Quiero tomar un vaso de agua, por favor.';
 const $ = (id) => document.getElementById(id);
-let downloading = null;
+let current = { ...DEFAULTS }, loadedScope = null;
 
-function fillEngine() {
-    const sel = $('voice-engine');
-    if (!sel) return;
-    sel.replaceChildren();
-    const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
-    add('system', 'Del dispositivo');
-    for (const [id, v] of Object.entries(neural.NEURAL_VOICES)) add('neural:' + id, `Natural: ${v.label}`);
-    const v = settings.voice || {};
-    sel.value = v.engine === 'neural' ? 'neural:' + v.neuralId : 'system';
+/** Pura (para tests): cómo bajar voces mejoradas según el dispositivo. */
+export function enhancedVoiceHelp(ua = (typeof navigator !== 'undefined' ? navigator.userAgent : ''), touch = (typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0)) {
+    const ipad = /iPad|iPhone/.test(ua) || (/Macintosh/.test(ua) && touch > 1);
+    if (ipad) return 'Para una voz más natural: Ajustes → Accesibilidad → Contenido leído → Voces → Español, y bajá una "Mejorada" o "Premium" (por ejemplo Mónica o Paulina). Después cerrá y volvé a abrir MiraVoz.';
+    if (/Macintosh/.test(ua)) return 'Para una voz más natural: Configuración del Sistema → Accesibilidad → Contenido leído → Voz del sistema → Administrar voces → Español, y bajá una "Mejorada" o "Premium". Después recargá MiraVoz.';
+    if (/Android/.test(ua)) return 'Para una voz más natural: Ajustes → Accesibilidad → Salida de texto a voz → Motor de Google → Instalar datos de voz → Español, y bajá una voz para usar sin conexión.';
+    if (/Windows/.test(ua)) return 'Para más voces: Configuración → Hora e idioma → Voz → Agregar voces → Español.';
+    return 'Se pueden agregar voces en español desde los ajustes de voz del dispositivo.';
 }
 
-function fillSystem() {
+async function load(scope) {
+    let v = null;
+    try { v = await localforage.getItem(KEY + scope); } catch {}
+    return { ...DEFAULTS, ...(v && typeof v === 'object' ? v : {}) };
+}
+async function save() {
+    try { await localforage.setItem(KEY + loadedScope, current); } catch {}
+    setVoicePrefs(current);
+}
+
+/** Aplica la voz de la persona actual (llamar al arrancar y cuando cambia la tablet vinculada). */
+export async function applyPersonVoice() {
+    const scope = personScope();
+    current = await load(scope);
+    loadedScope = scope;
+    setVoicePrefs(current);
+    fill();
+}
+
+function fill() {
     const sel = $('voice-system');
     if (!sel) return;
     const list = systemVoices().slice().sort((a, b) => (isEnhancedVoice(b) - isEnhancedVoice(a)) || a.name.localeCompare(b.name));
@@ -35,82 +55,24 @@ function fillSystem() {
         o.textContent = `${v.name} (${v.lang})${isEnhancedVoice(v) ? ' · mejorada' : ''}`;
         sel.appendChild(o);
     }
-    sel.value = settings.voice?.systemVoice || '';
-    sel.hidden = settings.voice?.engine === 'neural';
-}
-
-async function status(text) { const el = $('voice-status'); if (el) el.textContent = text; }
-
-async function refreshStatus() {
-    const v = settings.voice || {};
-    if (v.engine !== 'neural') {
-        const enhanced = systemVoices().some(isEnhancedVoice);
-        return status(enhanced ? 'Voz del dispositivo. Para cambiarla, elegí otra de la lista.'
-            : 'Voz del dispositivo. En iPad se pueden bajar voces mejoradas en Ajustes → Accesibilidad → Contenido leído → Voces → Español.');
+    sel.value = list.some(v => v.voiceURI === current.systemVoice) ? current.systemVoice : '';
+    const rate = $('voice-rate'); if (rate) rate.value = String(current.rate);
+    const pitch = $('voice-pitch'); if (pitch) pitch.value = String(current.pitch);
+    const status = $('voice-status');
+    if (status) {
+        const hasEnhanced = list.some(isEnhancedVoice);
+        status.textContent = !list.length ? 'Este navegador no tiene voces en español instaladas. ' + enhancedVoiceHelp()
+            : hasEnhanced ? 'Se guarda para esta persona en este dispositivo.' : enhancedVoiceHelp();
     }
-    const info = neural.NEURAL_VOICES[v.neuralId];
-    if (!(await neural.isDownloaded(v.neuralId))) return status(`${info?.label || 'Voz natural'}: falta descargarla.`);
-    const ok = await neural.prepare(v.neuralId);
-    if (!ok) return status('No se pudo iniciar la voz natural en este navegador: se usa la del dispositivo.');
-    return status(`${info.label}: lista y disponible sin conexión.${neural.stats.initMs ? ` Cargó en ${(neural.stats.initMs / 1000).toFixed(1).replace('.', ',')} s.` : ''}`);
-}
-
-async function chooseEngine(value) {
-    if (value === 'system') {
-        await saveSettings({ voice: { ...settings.voice, engine: 'system' } });
-        setVoicePrefs(settings.voice);
-        fillSystem(); refreshStatus();
-        return;
-    }
-    const id = value.slice('neural:'.length);
-    const info = neural.NEURAL_VOICES[id];
-    if (!info) return;
-    if (!(await neural.isDownloaded(id))) {
-        const ok = await customChoice(`Para usar «${info.label}» hay que descargarla una vez (unos ${info.mb + neural.RUNTIME_MB} MB; conviene con wifi). Después funciona sin conexión.\n\n¿Descargar ahora?`, 'Descargar', 'Cancelar');
-        if (!ok) { fillEngine(); return; }
-        if (downloading) return;
-        downloading = new AbortController();
-        const sel = $('voice-engine'); if (sel) sel.disabled = true;
-        try {
-            await neural.download(id, { signal: downloading.signal, onProgress: (p) => status(`Descargando ${info.label}… ${Math.round(p * 100)}%`) });
-        } catch (e) {
-            customAlert(`No se pudo descargar la voz (${e?.message || e}). Revisá la conexión e intentá de nuevo.`);
-            fillEngine(); refreshStatus();
-            return;
-        } finally { downloading = null; if (sel) sel.disabled = false; }
-    }
-    await saveSettings({ voice: { ...settings.voice, engine: 'neural', neuralId: id } });
-    setVoicePrefs(settings.voice);
-    fillSystem();
-    await status('Preparando la voz…');
-    await refreshStatus();
-}
-
-async function test() {
-    const v = settings.voice || {};
-    if (v.engine === 'neural' && neural.isReady()) {
-        const t0 = performance.now();
-        try {
-            const a = await neural.synth(TEST_PHRASE, { fresh: true }); // sin usar lo ya guardado: mide de verdad
-            const ms = performance.now() - t0;
-            speak(TEST_PHRASE); // ya está en memoria: suena enseguida
-            const secs = (n) => (n / 1000).toFixed(1).replace('.', ',');
-            status(`Tardó ${secs(ms)} s en preparar ${secs(a.pcm.length / a.sampleRate * 1000)} s de voz. Las palabras del tablero se preparan antes, así salen al instante.`);
-        } catch (e) { status('La voz natural falló: se usa la del dispositivo.'); speak(TEST_PHRASE, { _system: true }); }
-        return;
-    }
-    speak(TEST_PHRASE);
 }
 
 export function initVoiceSettings() {
-    setVoicePrefs(settings.voice || {});
-    fillEngine(); fillSystem(); refreshStatus();
-    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', fillSystem);
-    $('voice-engine')?.addEventListener('change', (e) => chooseEngine(e.target.value));
-    $('voice-system')?.addEventListener('change', async (e) => {
-        await saveSettings({ voice: { ...settings.voice, systemVoice: e.target.value } });
-        setVoicePrefs(settings.voice);
-        speak('Hola, esta es mi voz.', { _system: true });
-    });
-    $('btn-voice-test')?.addEventListener('click', test);
+    applyPersonVoice();
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', fill);
+    $('voice-system')?.addEventListener('change', async (e) => { current.systemVoice = e.target.value; await save(); speak('Hola, esta es mi voz.'); });
+    $('voice-rate')?.addEventListener('change', async (e) => { current.rate = Number(e.target.value); await save(); speak('Así hablo.'); });
+    $('voice-pitch')?.addEventListener('change', async (e) => { current.pitch = Number(e.target.value); await save(); speak('Así hablo.'); });
+    $('btn-voice-test')?.addEventListener('click', () => speak(TEST_PHRASE));
+    // Quien probó la voz natural de 0.7.6: se libera el espacio que ocupaba
+    try { if (typeof caches !== 'undefined') caches.delete('miravoz-voz-v1').catch(() => {}); } catch {}
 }

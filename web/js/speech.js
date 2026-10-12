@@ -9,16 +9,17 @@
 //  - La lista de voces llega tarde (evento voiceschanged).
 //  - Con el iPad en modo silencio, Safari puede no emitir la voz (eso no se puede cambiar desde la web).
 
-import * as neural from './neural-voice.js';
-
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 
-// 0.7.6: qué voz usar. engine: 'system' (la del dispositivo) | 'neural' (Piper, natural, en el dispositivo).
-// systemVoice: voiceURI elegida de la lista del dispositivo ('' = automática). neuralId: voz de Piper.
-let prefs = { engine: 'system', systemVoice: '', neuralId: 'es_AR-daniela-high' };
+// 0.7.7: voz de cada persona. systemVoice: voiceURI elegida de la lista del dispositivo ('' = automática);
+// rate y pitch: velocidad y tono (1 = normal). (La voz neural Piper de 0.7.6 se sacó: era lenta.)
+export const RATE_LIMITS = [0.6, 1.4], PITCH_LIMITS = [0.7, 1.3];
+let prefs = { systemVoice: '', rate: 1, pitch: 1 };
+const clamp = (v, [a, b], d) => (Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
 export function setVoicePrefs(p = {}) {
     prefs = { ...prefs, ...p };
-    if (prefs.engine === 'neural') neural.prepare(prefs.neuralId);
+    prefs.rate = clamp(Number(prefs.rate), RATE_LIMITS, 1);
+    prefs.pitch = clamp(Number(prefs.pitch), PITCH_LIMITS, 1);
 }
 export const voicePrefs = () => ({ ...prefs });
 /** Voces en español del dispositivo (para elegir en Configuración). */
@@ -27,7 +28,6 @@ export function systemVoices() {
     return voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
 }
 export const isEnhancedVoice = (v) => /mejorad|enhanced|premium|neural|natural|siri/i.test(`${v?.name || ''} ${v?.voiceURI || ''}`);
-const useNeural = (lang) => prefs.engine === 'neural' && neural.isReady() && (!lang || /^es/i.test(lang));
 let voices = [];
 let unlocked = false;
 const alive = new Set(); // referencias a frases en curso (evita que se descarten)
@@ -43,7 +43,7 @@ if (synth) {
     else synth.onvoiceschanged = loadVoices;
 }
 
-function pickVoice(lang) {
+function pickVoice(lang, voiceURI = null) {
     if (!voices.length) loadVoices();
     // Idioma pedido por la celda (speakLanguage de Asterics), si no es español
     if (lang && !/^es/i.test(lang)) {
@@ -53,7 +53,8 @@ function pickVoice(lang) {
     }
     // Sin internet, una voz de red no suena: se prefieren las locales (si el navegador lo informa)
     const all = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
-    if (prefs.systemVoice) { const chosen = all.find(v => v.voiceURI === prefs.systemVoice); if (chosen) return chosen; }
+    const wanted = voiceURI || prefs.systemVoice;
+    if (wanted) { const chosen = all.find(v => v.voiceURI === wanted); if (chosen) return chosen; }
     const local = all.filter(v => v.localService !== false);
     const es = local.length ? local : all;
     if (!es.length) return null;
@@ -72,8 +73,7 @@ let pendingSpeech = null; // { text, opts, at }
 
 /** Desbloquea la voz en iOS: debe llamarse dentro de un gesto (toque o tecla). */
 export function unlockSpeech() {
-    neural.unlockAudio(); // voz natural: el audio también necesita un primer toque en iPad
-    if (!synth) { replayPending(); return; }
+    if (!synth) return;
     if (!unlocked || !startEvents) {
         unlocked = true;
         try {
@@ -89,15 +89,14 @@ export function unlockSpeech() {
 function replayPending() {
     if (pendingSpeech && Date.now() - pendingSpeech.at < 15000) {
         const p = pendingSpeech; pendingSpeech = null;
-        if (p.neural) setTimeout(() => speak(p.text, { ...p.opts, cancelPrevious: false }), 60); // que el audio termine de habilitarse
-        else speak(p.text, { ...p.opts, cancelPrevious: false, _retry: true });
+        speak(p.text, { ...p.opts, cancelPrevious: false, _retry: true });
     } else pendingSpeech = null;
 }
 // Cada toque o tecla (antes que cualquier otro manejador) hasta que la voz haya demostrado que funciona
 if (typeof window !== 'undefined') {
     const onGesture = () => {
         unlockSpeech();
-        if (startEvents && (prefs.engine !== 'neural' || neural.audioRunning())) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); }
+        if (startEvents) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); }
     };
     window.addEventListener('pointerdown', onGesture, true);
     window.addEventListener('keydown', onGesture, true);
@@ -128,7 +127,7 @@ function setSentenceUtterance(u) {
     sentenceUtterance = u;
     clearInterval(speakingPoll); speakingPoll = null;
     // Algunos navegadores no avisan el final (iPad interrumpido, Chrome con frases largas): si ya no habla, se suelta
-    if (u && synth && !u.neural) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
+    if (u && synth) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
     speakingListeners.forEach(fn => { try { fn(!!u); } catch {} });
 }
 export function isSpeakingSentence() { return !!sentenceUtterance; }
@@ -142,54 +141,12 @@ export function stopSpeech() {
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     alive.clear();
     try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
-    stopNeural();
     setSentenceUtterance(null);
 }
 
-// --- Voz natural (0.7.6) ---
-let neuralPlay = null, neuralSeq = 0;
-function stopNeural() { if (neuralPlay) { neuralPlay.stop(); neuralPlay = null; } neuralSeq++; }
-async function speakNeural(text, { cancelPrevious, volume, lang, sentence, gen }) {
-    if (cancelPrevious) {
-        stopNeural();
-        try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
-    }
-    const my = ++neuralSeq;
-    const token = { neural: true };
-    if (sentence) setSentenceUtterance(token);
-    const release = () => { if (sentenceUtterance === token) setSentenceUtterance(null); };
-    let audio;
-    try {
-        audio = await Promise.race([neural.synth(text), new Promise((_, rej) => setTimeout(() => rej(new Error('demora')), 6000))]);
-    } catch (e) {
-        release();
-        if (gen !== generation || my !== neuralSeq) return;
-        console.warn('[voz] natural falló, uso la del dispositivo:', e?.message || e);
-        speak(text, { cancelPrevious, volume, lang, sentence, _system: true });
-        return;
-    }
-    if (gen !== generation || my !== neuralSeq) { release(); return; } // se detuvo, se borró o se pidió otra cosa
-    if (!neural.audioRunning()) {
-        neural.unlockAudio();
-        if (!neural.audioRunning()) {
-            // iPad sin primer toque: se dice apenas alguien toque la pantalla
-            release();
-            pendingSpeech = { text, opts: { volume, lang, sentence }, at: Date.now(), neural: true };
-            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-blocked'));
-            return;
-        }
-    }
-    const h = neural.play(audio, { volume });
-    neuralPlay = h;
-    h.ended.then(() => { if (neuralPlay === h) neuralPlay = null; release(); });
-}
-
-export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, _system = false } = {}) {
-    if (!text) return;
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null } = {}) {
+    if (!text || !synth) return;
     const gen = generation;
-    if (!_system && !_retry && useNeural(lang)) { speakNeural(String(text), { cancelPrevious, volume, lang, sentence, gen }); return; }
-    if (!synth) return;
-    if (cancelPrevious) stopNeural();
     let cancelled = false;
     if (cancelPrevious) {
         if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
@@ -200,7 +157,9 @@ export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-ES';
     utterance.volume = volume;
-    const voice = _retry ? null : pickVoice(lang);
+    utterance.rate = Number.isFinite(rate) ? rate : prefs.rate;
+    utterance.pitch = Number.isFinite(pitch) ? pitch : prefs.pitch;
+    const voice = _retry ? null : pickVoice(lang, voiceURI);
     if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
 
     let started = false, finished = false;

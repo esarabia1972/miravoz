@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.7] - 2026-10-12
+
+- **Removed**: la voz natural Piper de 0.7.6 (era demasiado lenta incluso en una MacBook). Se borra el espacio que ocupaba si se había descargado.
+- **Changed**: Configuración → Voz: la voz se elige **por persona** (en la tablet vinculada, la de ese usuario), con **velocidad** (lenta a rápida) y **tono** (grave a agudo). En automático se prefieren las voces "mejoradas"/"premium" del dispositivo, y si no hay ninguna se explica cómo bajarlas (iPad, Mac, Android, Windows).
+
 ## [0.7.6] - 2026-10-12
 
 - **Added** (prototipo): **voz natural** en Configuración → Voz. Usa Piper, una voz neural que corre en el propio dispositivo (Safari en iPad, Chrome en Android o en la compu): suena mucho menos robótica, es la misma con y sin conexión y el texto nunca sale a internet. Voces: Daniela (Argentina, femenina) y Ald (México, masculina). Se descarga una vez (unos 145 o 95 MB); si falla, se usa la voz del dispositivo. Las palabras de la página se preparan de fondo para que suenen sin demora.

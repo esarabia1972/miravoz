@@ -18,8 +18,7 @@ export const APP_VERSION = JSON.parse(fs.readFileSync(path.resolve(HERE, '../pac
 // Archivos locales que forman la app (se excluye lo que no se usa en el navegador)
 const EXCLUDE = new Set(['offline-manifest.json', 'sw.js', 'package.json', 'vercel.json', 'version.json', '.DS_Store', '.gitignore', 'oauth-consent.html']);
 // api/ = funciones del servidor (MCP, 1.6.0): no son parte de la app sin conexión
-// piper-1.0.0 (voz natural, ~30 MB): no va en la preparación básica; se baja aparte solo si se elige esa voz
-const EXCLUDE_DIRS = new Set(['.vercel', 'api', 'piper-1.0.0']);
+const EXCLUDE_DIRS = new Set(['.vercel', 'api']);
 
 // Recursos externos fijados por versión: solo el modelo de FaceLandmarker (Google, Apache-2.0). No se pudo
 // descargar desde el entorno de desarrollo para calcular su sha256: se guarda tal cual lo entrega Google en su

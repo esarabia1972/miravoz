@@ -68,9 +68,7 @@ export const settings = {
         audio: 'none'            // none | beep | speak
     },
     // 1.4.0: parpadeo para elegir (blink.js). mode: off | long | double · selectWith (Rostro/Iris): both | blink
-    blink: { mode: 'off', holdMs: 600, threshold: 0.5, selectWith: 'both' },
-    // 0.7.6: voz. engine: system (la del dispositivo) | neural (natural, Piper, descargada en el dispositivo)
-    voice: { engine: 'system', systemVoice: '', neuralId: 'es_AR-daniela-high' }
+    blink: { mode: 'off', holdMs: 600, threshold: 0.5, selectWith: 'both' }
 };
 
 // Carga settings desde localforage, migrando la clave vieja de localStorage si existe (F0.1 pendiente)
@@ -86,11 +84,11 @@ export async function initSettings() {
         if (legacy) localStorage.removeItem('miravoz_dwell');
 
         if (stored && typeof stored === 'object') {
-            const scanDefaults = { ...settings.scan }, blinkDefaults = { ...settings.blink }, voiceDefaults = { ...settings.voice };
+            const scanDefaults = { ...settings.scan }, blinkDefaults = { ...settings.blink };
             Object.assign(settings, stored);
             settings.scan = { ...scanDefaults, ...(stored.scan || {}) }; // merge profundo de scan
             settings.blink = { ...blinkDefaults, ...(stored.blink || {}) };
-            settings.voice = { ...voiceDefaults, ...(stored.voice || {}) };
+            delete settings.voice; // 0.7.6 (Piper): la voz ahora se guarda por persona (voice-settings.js)
         }
     } catch (e) {
         console.error('Error cargando settings:', e);

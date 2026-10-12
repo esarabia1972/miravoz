@@ -105,5 +105,21 @@ await t('H04: la voz que esperaba el primer toque se descarta si la frase se bor
     assert(!said.includes('quiero agua'), JSON.stringify(said));
 });
 
+await t('0.7.7: la voz elegida, la velocidad y el tono se aplican al hablar', async () => {
+    const said = [];
+    const voices = [{ name: 'Mónica', lang: 'es-ES', voiceURI: 'monica', localService: true }, { name: 'Paulina (Mejorada)', lang: 'es-MX', voiceURI: 'paulina-e', localService: true }, { name: 'Jorge', lang: 'es-ES', voiceURI: 'jorge', localService: true }];
+    const synth = { speaking: false, pending: false, paused: false, getVoices: () => voices, speak: (u) => said.push(u), cancel() {}, resume() {}, addEventListener() {} };
+    globalThis.speechSynthesis = synth;
+    globalThis.SpeechSynthesisUtterance = function (text) { this.text = text; };
+    const sp = await import('../web/js/speech.js?v077');
+    sp.speak('hola');
+    assert(said[0].voice.voiceURI === 'paulina-e' && said[0].rate === 1 && said[0].pitch === 1, 'automática = mejorada: ' + said[0].voice?.voiceURI);
+    sp.setVoicePrefs({ systemVoice: 'jorge', rate: 0.85, pitch: 9 });
+    sp.speak('hola');
+    assert(said[1].voice.voiceURI === 'jorge' && said[1].rate === 0.85 && said[1].pitch === sp.PITCH_LIMITS[1], JSON.stringify({ v: said[1].voice?.voiceURI, r: said[1].rate, p: said[1].pitch }));
+    const { enhancedVoiceHelp } = await import('../web/js/voice-settings.js');
+    assert(/Contenido leído/.test(enhancedVoiceHelp('Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)', 5)) && /Google/.test(enhancedVoiceHelp('Mozilla/5.0 (Linux; Android 14)', 5)), 'ayuda por plataforma');
+});
+
 console.log(`\n${pass} ok, ${fail} fallidos`);
 process.exit(fail ? 1 : 0);

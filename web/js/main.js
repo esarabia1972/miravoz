@@ -31,8 +31,7 @@ import * as metrics from './metrics.js';
 import { setPersonScopeProvider } from './person-scope.js';
 import { initFavoritesUI, openFavorites, closeFavorites } from './favorites-ui.js';
 import { initBackupUI, downloadBackup, restoreBackupFile } from './backup-ui.js';
-import { initVoiceSettings } from './voice-settings.js';
-import * as neuralVoice from './neural-voice.js';
+import { initVoiceSettings, applyPersonVoice } from './voice-settings.js';
 import { labelText } from './asterics.js';
 import { gridName } from './pages.js';
 import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
@@ -522,8 +521,6 @@ boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionCo
 boards.hooks.onGridRendered = (targets) => {
     if (S.state !== 'PRACTICE') selectionContexts.setBase(targets);
     metrics.pageShown(metricsCtx());
-    // 0.7.6: con la voz natural, las palabras de la página se preparan de fondo para que suenen sin demora
-    if (neuralVoice.isReady()) neuralVoice.warm((targets || []).map(t => t.data && !t.isAccBtn ? (labelText(t.data.label) || t.data.autoLabel?.es || '') : '').filter(Boolean));
 };
 boards.hooks.onCellActivated = (elData) => {
     benchmark.onActivated(elData);
@@ -1360,6 +1357,7 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
 // 1.3.3 (decisión de Esteban): la configuración de acceso se hace EN la tablet (Configuración). Lo que haya
 // quedado guardado en aac_users.settings desde la cuenta registrada ya no se aplica; solo se restaura el modo local.
 async function applyDeviceSettings() {
+    applyPersonVoice(); // 0.7.7: la voz de este usuario
     const target = settings.accessMode || 'CLICKS';
     if (target !== S.trackingMode) { modeSelect.value = target; applyMode(target); }
 }
@@ -1577,7 +1575,7 @@ setTimeout(() => {
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
     wireBlinkSettings();
-    initVoiceSettings(); // 0.7.6: voz natural o del dispositivo
+    initVoiceSettings(); // 0.7.7: voz del dispositivo elegida por persona, con velocidad y tono
     editor.initEditor();
     initUsers();
     renderSentence();
