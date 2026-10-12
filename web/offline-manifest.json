@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "3db30ceb3003",
- "appVersion": "0.7.7c",
+ "version": "5c612d88a271",
+ "appVersion": "0.7.7d",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "040a01cc351e60d3898ec5b11fdf27b28c9932b7908ebe48891b78822a0b172e",
-   "bytes": 48035
+   "sha256": "bea7ce97df36af396bac9ee12c62d0bf816c24ba8d0005b210855095f1c87915",
+   "bytes": 47974
   },
   {
    "url": "/js/align.js",
@@ -65,7 +65,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "81378745651995520e4668d76c324166fafb26895da3a180450f8e3fb0790922",
+   "sha256": "b58549002e0177168eb33c0758b02e71b894df19f2d00b6ea87f6dc8ae014122",
    "bytes": 105
   },
   {
@@ -345,8 +345,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "f042962e30b031fadd89fca6819633f977f9c861ce6e7f463f0b4f3d5611dc58",
-   "bytes": 79395
+   "sha256": "b8619defaede51ee08c781d04fe977062271717a5196facbaad918cab1f749a2",
+   "bytes": 79278
   },
   {
    "url": "/terminos.html",
@@ -445,5 +445,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28957108
+ "totalBytes": 28956930
 }

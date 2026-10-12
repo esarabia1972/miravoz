@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=65">
+    <link rel="stylesheet" href="style.css?v=66">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -589,11 +589,9 @@
             <section class="settings-section" id="setting-voice">
                 <h3>Voz</h3>
                 <p class="settings-help">La voz de esta persona. Las "mejoradas" suenan más naturales y funcionan sin conexión.</p>
+                <label for="voice-system">Voz</label>
+                <select id="voice-system" class="glass-select"></select>
                 <div class="settings-grid settings-grid-3">
-                    <div>
-                        <label for="voice-system">Voz</label>
-                        <select id="voice-system" class="glass-select"></select>
-                    </div>
                     <div>
                         <label for="voice-rate">Velocidad</label>
                         <select id="voice-rate" class="glass-select">
@@ -613,11 +611,11 @@
                             <option value="1.2">Agudo</option>
                         </select>
                     </div>
+                    <div class="voice-test-cell">
+                        <button type="button" class="btn btn-secondary" id="btn-voice-test">Probar</button>
+                    </div>
                 </div>
-                <div class="settings-inline">
-                    <button type="button" class="btn btn-secondary" id="btn-voice-test">Probar</button>
-                    <p class="settings-help" id="voice-status" role="status" aria-live="polite"></p>
-                </div>
+                <p class="settings-help" id="voice-status" role="status" aria-live="polite"></p>
             </section>
             <section class="settings-section" id="setting-offline">
                 <h3>Sin conexión y respaldo</h3>

@@ -2,9 +2,9 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
-## [0.7.7c] - 2026-10-12
+## [0.7.7d] - 2026-10-12
 
-- **Fixed**: en Configuración → Voz, el nombre de la voz se cortaba ("Automátic…"): ahora ocupa más ancho que velocidad y tono.
+- **Fixed**: en Configuración → Voz, el nombre de la voz se cortaba (0.7.7c lo ensanchó pero cortaba velocidad y tono): ahora la voz va a lo ancho y debajo velocidad, tono y Probar.
 
 ## [0.7.7b] - 2026-10-12
 
