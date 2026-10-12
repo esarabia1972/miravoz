@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9a] - 2026-10-12
+
+- **Added**: en Rostro con Modo protegido, botón **Alinear** arriba (junto a "Salir") para quien asiste: vuelve a la posición de la calibración sin perderla (si no hay referencia, calibra). No es un objetivo de la fijación.
+- Versionado: desde acá cada publicación lleva letra (0.7.9a, 0.7.9b…) hasta que se decida pasar a 0.7.10.
+
 ## [0.7.9] - 2026-10-12
 
 - **Changed**: Barrido, Rostro y Mirada (e Iris, experimental) usan siempre el **Modo protegido**. Solo Manual queda sin protección. "Salir" (con confirmación) vuelve a Manual; para recalibrar Rostro: Salir → elegir Rostro de nuevo.

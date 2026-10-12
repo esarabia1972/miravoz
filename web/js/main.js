@@ -455,6 +455,12 @@ document.getElementById('btn-menu-align')?.addEventListener('click', () => {
     if (S.trackingMode === 'CARA' && S.isCalibrated) startAlignment({ onDone: returnFromAlignment });
 });
 document.getElementById('btn-menu-recal')?.addEventListener('click', () => { setRecalMenu(false); recalibrateNow(); });
+// 0.7.9a: Alinear dentro del Modo protegido (Rostro). Sin referencia guardada, calibra (eso la crea).
+document.getElementById('btn-protected-align')?.addEventListener('click', () => {
+    if (S.trackingMode !== 'CARA') return;
+    if (S.isCalibrated && loadAlignRef()) startAlignment({ onDone: returnFromAlignment });
+    else recalibrateNow();
+});
 document.addEventListener('pointerdown', (e) => { if (recalMenu && !recalMenu.hidden && !e.target.closest('.recal-wrap')) setRecalMenu(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setRecalMenu(false); });
 
@@ -759,6 +765,8 @@ function renderModeSegmented() {
 }
 function updateModeSegmented() {
     const current = miradaActive ? 'MIRADA' : S.trackingMode;
+    const pAlign = document.getElementById('btn-protected-align');
+    if (pAlign) pAlign.hidden = !(isProtected() && S.trackingMode === 'CARA');
     document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === current)));
     // Recalibrar solo tiene sentido con cámara (Rostro; Iris experimental): en Manual y Barrido, grisado
     const usesCamera = S.trackingMode === 'CARA' || S.trackingMode === 'OJOS';
