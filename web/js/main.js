@@ -22,7 +22,7 @@ import { Benchmark } from './benchmark.js';
 import * as editor from './editor.js';
 import { initTheme } from './theme.js';
 import { PointerController, pauseMessage } from './selection.js';
-import { selectionContexts } from './contexts.js';
+import { selectionContexts, buttonTargets } from './contexts.js';
 import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
 import { failureAdvice } from './validation.js';
 import * as practice from './practice.js';
@@ -32,6 +32,8 @@ import { setPersonScopeProvider } from './person-scope.js';
 import { initFavoritesUI, openFavorites, closeFavorites } from './favorites-ui.js';
 import { initBackupUI, downloadBackup, restoreBackupFile } from './backup-ui.js';
 import { initVoiceSettings, applyPersonVoice } from './voice-settings.js';
+import { initProtectedMode, enterProtected, exitProtected, isProtected } from './protected-mode.js';
+import { attachPager } from './pager.js';
 import { labelText } from './asterics.js';
 import { gridName } from './pages.js';
 import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
@@ -496,7 +498,7 @@ const benchmark = new Benchmark();
 const INERT_IDS = ['home-view', 'board-view', 'top-bar', 'bottom-bar', 'users-view', 'auth-view', 'practice-view'];
 selectionContexts.configure({
     apply: (targets) => { dwell.setTargets(targets); scan.setTargets(targets); },
-    baseTargets: () => (S.state === 'PRACTICE' ? practice.targets() : S.state === 'HOME' ? boards.activeHomeElements : boards.activeGridElements),
+    baseTargets: () => (S.state === 'PRACTICE' ? practice.targets() : S.state === 'HOME' ? homeTargets() : boards.activeGridElements),
     onChange: (blocked, top) => {
         // Entrar o salir de un contexto reinicia la permanencia: lo que quedó debajo no se activa solo
         pointer.invalidate('context', performance.now());
@@ -517,14 +519,21 @@ function syncCompanionContext() {
 }
 
 // --- Hooks de boards ---
-boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
+// 0.7.8: botones de página (arriba/abajo) en la lista de tableros: se pasan con la mirada, sin deslizar
+let homePager = null;
+const homeTargets = () => [...boards.activeHomeElements, ...(homePager ? buttonTargets(homePager.buttons()) : [])];
+boards.hooks.onHomeRendered = () => { if (S.state === 'HOME') selectionContexts.setBase(homeTargets()); };
+{
+    const list = document.getElementById('board-list'), host = document.getElementById('home-view');
+    if (list && host) homePager = attachPager(list, host, { onChange: () => { if (S.state === 'HOME') selectionContexts.setBase(homeTargets()); } });
+}
 boards.hooks.onGridRendered = (targets) => {
     if (S.state !== 'PRACTICE') selectionContexts.setBase(targets);
     metrics.pageShown(metricsCtx());
 };
 boards.hooks.onCellActivated = (elData) => {
     benchmark.onActivated(elData);
-    metrics.cellSelected(elData, metricsCtx(), pendingMethod || 'toque', labelText(elData?.label) || elData?.autoLabel?.es || '');
+    metrics.cellSelected(elData, metricsCtx(), pendingMethod || (isProtected() ? 'mirada' : 'toque'), labelText(elData?.label) || elData?.autoLabel?.es || '');
 };
 boards.hooks.onBundleOpened = () => {
     // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
@@ -706,26 +715,40 @@ btnRecalibrar.addEventListener('click', () => {
 });
 
 // --- Cambio de modo ---
+// 0.7.8: "Mirada" = Manual (sin cámara de MiraVoz; el Seguimiento ocular del sistema toca por la persona) + Modo protegido
+function setAccessMode(v) {
+    if (v === 'MIRADA') {
+        if (S.trackingMode !== 'CLICKS') applyMode('CLICKS');
+        enterProtected();
+        metrics.modeChanged('MIRADA');
+        updateModeSegmented();
+    } else {
+        exitProtected();
+        applyMode(v);
+    }
+}
 modeSelect.addEventListener('change', (e) => {
-    applyMode(e.target.value);
+    setAccessMode(e.target.value);
     saveSettings({ accessMode: e.target.value }); // persistir entre sesiones
 });
+initProtectedMode({ onExit: () => { modeSelect.value = 'CLICKS'; setAccessMode('CLICKS'); saveSettings({ accessMode: 'CLICKS' }); } });
 
 // --- Modo de acceso como botones visibles (el <select> oculto sigue siendo la fuente de verdad) ---
-const MODE_LABELS = { CLICKS: 'Manual', CARA: 'Rostro', SCAN: 'Barrido', OJOS: 'Iris (exp.)' };
+const MODE_LABELS = { CLICKS: 'Manual', MIRADA: 'Mirada', CARA: 'Rostro', SCAN: 'Barrido', OJOS: 'Iris (exp.)' };
 function renderModeSegmented() {
     const box = document.getElementById('mode-segmented');
     if (!box) return;
     box.innerHTML = '';
     const available = [...modeSelect.options].map(o => o.value);
-    for (const v of ['CLICKS', 'SCAN', 'CARA', 'OJOS'].filter(m => available.includes(m))) {
+    for (const v of ['CLICKS', 'MIRADA', 'SCAN', 'CARA', 'OJOS'].filter(m => available.includes(m))) {
         const b = document.createElement('button');
         b.type = 'button';
         b.setAttribute('role', 'radio');
         b.dataset.mode = v;
         b.textContent = MODE_LABELS[v];
+        if (v === 'MIRADA') b.title = 'Con el Seguimiento ocular del dispositivo (iPad: Accesibilidad → Seguimiento ocular). Activa el modo protegido.';
         b.onclick = () => {
-            if (S.trackingMode === v) return;
+            if (v === 'MIRADA' ? isProtected() : (S.trackingMode === v && !isProtected())) return;
             modeSelect.value = v;
             modeSelect.dispatchEvent(new Event('change'));
         };
@@ -734,7 +757,8 @@ function renderModeSegmented() {
     updateModeSegmented();
 }
 function updateModeSegmented() {
-    document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === S.trackingMode)));
+    const current = isProtected() ? 'MIRADA' : S.trackingMode;
+    document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === current)));
     // Recalibrar solo tiene sentido con cámara (Rostro; Iris experimental): en Manual y Barrido, grisado
     const usesCamera = S.trackingMode === 'CARA' || S.trackingMode === 'OJOS';
     if (btnRecalibrar) {
@@ -776,7 +800,7 @@ function applyMode(mode) {
         }
 
         if (S.trackingMode === 'SCAN') {
-            selectionContexts.setBase((S.state === 'HOME') ? boards.activeHomeElements : boards.activeGridElements);
+            selectionContexts.setBase((S.state === 'HOME') ? homeTargets() : boards.activeGridElements);
             scan.start();
         } else {
             scan.stop();
@@ -807,7 +831,7 @@ function goHome() {
     bottomBar.style.display = 'flex';
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
-    selectionContexts.setBase(boards.activeHomeElements);
+    selectionContexts.setBase(homeTargets());
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
@@ -1359,7 +1383,7 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
 async function applyDeviceSettings() {
     applyPersonVoice(); // 0.7.7: la voz de este usuario
     const target = settings.accessMode || 'CLICKS';
-    if (target !== S.trackingMode) { modeSelect.value = target; applyMode(target); }
+    if (target === 'MIRADA' ? !isProtected() : target !== S.trackingMode) { modeSelect.value = target; setAccessMode(target); }
 }
 
 
@@ -1632,7 +1656,7 @@ setTimeout(() => {
         if (savedMode === 'OJOS' && !document.getElementById('opt-ojos')) savedMode = 'CLICKS';
         if (savedMode && savedMode !== 'CLICKS' && savedMode !== S.trackingMode) {
             modeSelect.value = savedMode;
-            applyMode(savedMode);
+            setAccessMode(savedMode);
         }
     }
 

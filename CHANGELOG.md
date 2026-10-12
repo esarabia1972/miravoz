@@ -2,6 +2,12 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.8] - 2026-10-12
+
+- **Added**: modo de acceso **Mirada**: para usar MiraVoz con el Seguimiento ocular del propio dispositivo (iPad: Accesibilidad → Seguimiento ocular). Funciona como Manual (MiraVoz no usa su cámara) y activa el **Modo protegido**. Si en unos segundos no se detecta el puntero del sistema, avisa cómo activarlo. Las selecciones quedan registradas como "mirada".
+- **Added**: **Modo protegido**: pantalla completa; quedan los tableros, Practicar y las etiquetas. Se ocultan el selector de modo, Recalibrar, Configuración, buscar, ordenar, usuarios y todo lo que edita. Se sale con "Salir" + confirmación.
+- **Added**: botones grandes de **página anterior / siguiente** en la lista de tableros, para pasar con la mirada (o con Rostro y Barrido) sin deslizar.
+
 ## [0.7.7e] - 2026-10-12
 
 - **Added**: Configuración → Voz: opción "La de Ajustes del dispositivo" (España, México o Argentina). Safari en iPad no lista las voces "Mejoradas" descargadas; con esta opción MiraVoz no elige voz y el sistema usa la configurada en Accesibilidad → Contenido leído.

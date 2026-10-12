@@ -10,7 +10,7 @@ let panel = null;
 function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
 const secs = (ms) => (ms == null ? '—' : `${(ms / 1000).toFixed(1).replace('.', ',')} s`);
 const fmtDate = (iso) => { try { return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return iso; } };
-const METHOD_NAMES = { permanencia: 'Fijación', parpadeo: 'Parpadeo', barrido: 'Barrido', toque: 'Toque' };
+const METHOD_NAMES = { permanencia: 'Fijación', parpadeo: 'Parpadeo', barrido: 'Barrido', toque: 'Toque', mirada: 'Mirada (Seguimiento ocular del dispositivo)' };
 
 function ensurePanel() {
     if (panel) return panel;

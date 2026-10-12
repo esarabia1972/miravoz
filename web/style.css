@@ -1665,3 +1665,24 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 /* 0.7.7d: Voz a lo ancho; debajo velocidad, tono y Probar */
 #setting-voice .voice-test-cell { justify-content: flex-end; }
 #setting-voice .voice-test-cell .btn { width: 100%; }
+
+/* 0.7.8: botones de página (pasar la lista de tableros con la mirada, sin deslizar) */
+#home-view { position: relative; }
+.pager { position: absolute; right: max(10px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 14px; z-index: 5; }
+.pager-btn { width: 72px; height: 96px; border-radius: 18px; border: 1px solid var(--btn-acc-border); background: var(--btn-acc-bg); color: var(--text-main);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px var(--shadow); position: relative; overflow: hidden; }
+.pager-btn:hover { background: var(--btn-acc-hover); }
+.pager-btn.scan-highlight { outline: 5px solid var(--accent-text); outline-offset: 2px; }
+#home-view.has-pager .board-grid { padding-right: 92px; box-sizing: border-box; }
+
+/* 0.7.8: Modo protegido (modo Mirada): solo tableros, Practicar y etiquetas */
+.protected-only { display: none !important; }
+body.protected-mode .protected-only { display: inline-flex !important; align-items: center; gap: 6px; }
+body.protected-mode #mode-segmented, body.protected-mode .recal-wrap, body.protected-mode #btn-settings, body.protected-mode #btn-theme,
+body.protected-mode #btn-nav-users, body.protected-mode .home-create, body.protected-mode .home-search, body.protected-mode .home-sort,
+body.protected-mode #user-filter-wrap, body.protected-mode .board-card-actions, body.protected-mode #btn-edit-board,
+body.protected-mode #btn-account, body.protected-mode #btn-unlink-device, body.protected-mode #btn-align,
+body.protected-mode .bottom-group .divider, body.protected-mode .user-profile-bottom > span { display: none !important; }
+.protected-banner { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 12000; max-width: min(720px, 92vw);
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 14px; background: var(--glass-bg); border: 1px solid var(--cell-border);
+    box-shadow: 0 10px 30px var(--shadow); font-size: 1rem; line-height: 1.4; }

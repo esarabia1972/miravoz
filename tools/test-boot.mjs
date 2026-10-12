@@ -539,6 +539,16 @@ if (caseArg === 'practicar') {
     check('"Nuevo usuario" abre el modal del nombre', visible($('new-user-modal')) && !!$('new-user-name'), $('new-user-modal').style.display);
     $('btn-cancel-new-user').click(); await sleep(10);
     check('Cancelar cierra el modal sin crear', !visible($('new-user-modal')) && !sbCalls.some(c => c.table === 'aac_users' && c.op === 'insert'), '');
+    // 0.7.8: modo Mirada = Manual + Modo protegido; se sale con botón y confirmación
+    const mirada = [...document.querySelectorAll('#mode-segmented button')].find(b => b.dataset.mode === 'MIRADA');
+    check('hay botón de modo "Mirada"', !!mirada, '');
+    mirada.click(); await sleep(30);
+    check('Mirada: modo protegido sin cámara (como Manual)', document.body.classList.contains('protected-mode') && S.trackingMode === 'CLICKS' && mirada.getAttribute('aria-checked') === 'true', `${document.body.className} ${S.trackingMode}`);
+    check('Mirada: "Salir" visible y botón Practicar disponible', !!$('btn-exit-protected') && !!$('btn-practice'), '');
+    $('btn-exit-protected').click(); await sleep(30);
+    const okBtn = $('btn-dialog-ok'); okBtn && okBtn.click(); await sleep(30);
+    check('"Salir" + confirmar vuelve a Manual sin protección', !document.body.classList.contains('protected-mode') && S.trackingMode === 'CLICKS', document.body.className);
+    check('lista de tableros con botones de página', !!document.querySelector('#home-view .pager .pager-btn[data-dir="down"]'), '');
     $('btn-practice').click();
     await sleep(50);
     const pv = $('practice-view');

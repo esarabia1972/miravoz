@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "889daaa126ee",
- "appVersion": "0.7.7e",
+ "version": "6bac5648a48f",
+ "appVersion": "0.7.8",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "a516fbd421d1ec20e734c0d0dad20e68b19e097e98f176236a8f02deb7a018d9",
-   "bytes": 47974
+   "sha256": "8e0cb9ba41bf6d6cc9ff20c84822d43a45e04476a569bff543c83cd3718bea29",
+   "bytes": 48596
   },
   {
    "url": "/js/align.js",
@@ -65,8 +65,8 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "9faec3e8ba00e97e898e3ad7f4a6dafe1820680047c537d75bf8672846e1caae",
-   "bytes": 105
+   "sha256": "a31b40f0d10a8af7ff9181f50d3ffdc3aa848a565309f80582ccf6a9e5f0b016",
+   "bytes": 104
   },
   {
    "url": "/js/calibration.js",
@@ -130,8 +130,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "840c1e430a93dafe3575c8035ed1ad5f866f03ea2aebbd236cb51a7e58dbc7a4",
-   "bytes": 86014
+   "sha256": "a72960caea34442b8296b182a53c81a99cb874cd5d4c132cd301948ae6b3d49e",
+   "bytes": 87547
   },
   {
    "url": "/js/media.js",
@@ -152,6 +152,11 @@
    "url": "/js/offline.js",
    "sha256": "a40f04d448731c4e64c990dc277ed061375568c6036be19593276c55e4b2259c",
    "bytes": 7637
+  },
+  {
+   "url": "/js/pager.js",
+   "sha256": "4951aebba6bd6f65fde8002bf0db94e0ba7506a0a774e6a0f73d8132ff69018f",
+   "bytes": 2744
   },
   {
    "url": "/js/pages.js",
@@ -185,8 +190,13 @@
   },
   {
    "url": "/js/progress.js",
-   "sha256": "f646ce2798550e3a1d7a16f306c02a32a31d3b4a84eac90ad2fd6f2939df96d9",
-   "bytes": 9656
+   "sha256": "c26b5f2e0c374692ed25e1c889385f3b03c56a2482806c4a6d07e73039359c95",
+   "bytes": 9711
+  },
+  {
+   "url": "/js/protected-mode.js",
+   "sha256": "a4bf898855f2d1d8d87f43065ce4e93387f1e67be80632cb95bac517f0d8117b",
+   "bytes": 4009
   },
   {
    "url": "/js/regression.js",
@@ -345,8 +355,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "b8619defaede51ee08c781d04fe977062271717a5196facbaad918cab1f749a2",
-   "bytes": 79278
+   "sha256": "9f749e205f0da80bc692a7ab122393e5d4ec6142285a1ceac3401e23acba794d",
+   "bytes": 81350
   },
   {
    "url": "/terminos.html",
@@ -445,5 +455,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28958451
+ "totalBytes": 28969485
 }
