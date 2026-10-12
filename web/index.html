@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=71">
+    <link rel="stylesheet" href="style.css?v=72">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -511,20 +511,22 @@
             <div class="settings-columns">
                 <div class="settings-col">
             <section class="settings-section" id="setting-dwell">
-                <h3>Modo Rostro</h3>
-                <p class="settings-help">El cursor sigue el movimiento de la cabeza. Se elige manteniendo el cursor quieto sobre una celda.</p>
-                <label for="dwell-select">Tiempo de fijación</label>
-                <select id="dwell-select" class="glass-select">
+                <h3>Fijación (Rostro y Mirada)</h3>
+                <div class="settings-row">
+                    <label for="dwell-select">Tiempo para elegir</label>
+                    <select id="dwell-select" class="glass-select">
                     <option value="800">0,8 segundos</option>
                     <option value="1200" selected>1,2 segundos</option>
                     <option value="2000">2 segundos</option>
                     <option value="3000">3 segundos</option>
                     <option value="5000">5 segundos</option>
-                </select>
+                    </select>
+                </div>
+                <p class="settings-help">Se elige manteniendo el cursor quieto sobre la celda ese tiempo.</p>
             </section>
             <section class="settings-section" id="setting-scan">
                 <h3>Modo Barrido</h3>
-                <p class="settings-help">Se resalta de a una opción; se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+                <p class="settings-help">Se resalta de a una opción; se elige con pulsador, espacio o tocando la pantalla.</p>
                 <div class="settings-grid settings-grid-3">
                     <div>
                         <label for="scan-pattern">Patrón</label>
@@ -557,7 +559,7 @@
             </section>
             <section class="settings-section" id="setting-blink">
                 <h3>Parpadeo</h3>
-                <p class="settings-help">Elegir cerrando los ojos un momento. En Barrido reemplaza al pulsador; los parpadeos comunes no cuentan.</p>
+                <p class="settings-help">Elegir cerrando los ojos un momento (en Barrido, reemplaza al pulsador).</p>
                 <div class="settings-grid settings-grid-3">
                     <div>
                         <label for="blink-mode">Usar</label>
@@ -595,7 +597,7 @@
                 <div class="settings-col">
             <section class="settings-section" id="setting-voice">
                 <h3>Voz</h3>
-                <p class="settings-help">La voz de esta persona. Las "mejoradas" suenan más naturales y funcionan sin conexión.</p>
+                <p class="settings-help">La voz de esta persona (las "mejoradas" suenan más naturales).</p>
                 <label for="voice-system">Voz</label>
                 <select id="voice-system" class="glass-select"></select>
                 <div class="settings-grid settings-grid-3">
@@ -637,8 +639,10 @@
             </section>
             <section class="settings-section" id="setting-metrics" hidden>
                 <h3>Registro de uso</h3>
-                <p class="settings-help" id="metrics-status">Se registra el uso para analizar el progreso (con consentimiento).</p>
-                <div class="settings-inline"><button type="button" class="btn btn-secondary" id="btn-metrics-pause">Pausar el registro</button></div>
+                <div class="settings-inline">
+                    <p class="settings-help" id="metrics-status">Se registra el uso para analizar el progreso (con consentimiento).</p>
+                    <button type="button" class="btn btn-secondary" id="btn-metrics-pause">Pausar el registro</button>
+                </div>
             </section>
                 </div>
             </div>
@@ -652,6 +656,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=113"></script>
+    <script type="module" src="js/main.js?v=114"></script>
 </body>
 </html>

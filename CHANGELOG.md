@@ -2,6 +2,13 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.0a] - 2026-10-12
+
+Primera versión de la serie 0.8: Manual, Barrido, Rostro y Mirada; Modo protegido; voz por persona; Favoritas, Deshacer y Detener; respaldo; ayuda para Claude.
+
+- **Fixed**: Configuración sin scroll también en el iPad (Safari deja menos alto): textos de ayuda de una línea, controles más compactos en pantallas bajas, el registro de uso con su botón en la misma línea.
+- **Changed**: la sección "Modo Rostro" pasa a **"Fijación (Rostro y Mirada)"**, porque el mismo tiempo se usa en los dos modos.
+
 ## [0.7.9f] - 2026-10-12
 
 - **Removed**: el modo **Iris** (seguimiento de la mirada con la cámara, experimental) y todo lo relacionado: su modelo (`gaze-model.js`), el aprendizaje implícito (`?implicit=1`), el parámetro `?iris=1`, sus ramas en la cámara y la calibración, textos y tests. Quedan Manual, Barrido, Rostro y Mirada (Seguimiento ocular del dispositivo). Si un dispositivo tenía guardado Iris, arranca en Manual.

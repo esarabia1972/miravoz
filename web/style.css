@@ -1694,3 +1694,23 @@ body.protected-mode .bottom-group .divider, body.protected-mode .user-profile-bo
 .pager-btn:disabled:hover { background: var(--btn-acc-bg); }
 
 body:not(.protected-mode) #btn-protected-align { display: none !important; }
+
+/* 0.8.0a: Configuración sin scroll también en iPad (Safari deja ~750 px de alto) */
+.settings-row { display: flex; align-items: center; gap: 12px; }
+.settings-row label { margin: 0 !important; white-space: nowrap; }
+.settings-row select { flex: 1 1 auto; min-width: 0; }
+.settings-panel .glass-select { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+.settings-panel .settings-section .btn { min-height: 44px; padding: 8px 16px; }
+#setting-offline .settings-inline { flex-wrap: wrap; gap: 8px; }
+#setting-metrics .settings-inline .settings-help { flex: 1 1 200px; }
+@media (max-height: 900px) {
+    .settings-panel { padding: 12px 18px; gap: 8px; max-height: 98dvh; }
+    .settings-panel .modal-header h2 { font-size: 1.3rem; }
+    .settings-panel .settings-columns, .settings-panel .settings-col { gap: 8px; }
+    .settings-panel .settings-section { padding: 9px 12px; gap: 3px; }
+    .settings-panel .settings-section h3 { font-size: 1rem; }
+    .settings-panel .settings-help { font-size: 0.82rem; line-height: 1.3; }
+    .settings-panel .settings-section label { font-size: 0.88rem; }
+    .settings-panel .glass-select, .settings-panel .settings-section .btn { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-size: 0.95rem; }
+    .settings-panel .modal-footer .btn { min-height: 44px; padding: 8px 18px; }
+}

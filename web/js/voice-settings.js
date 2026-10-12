@@ -17,7 +17,7 @@ let current = { ...DEFAULTS }, loadedScope = null;
 /** Pura (para tests): cómo bajar voces mejoradas según el dispositivo. */
 export function enhancedVoiceHelp(ua = (typeof navigator !== 'undefined' ? navigator.userAgent : ''), touch = (typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0)) {
     const ipad = /iPad|iPhone/.test(ua) || (/Macintosh/.test(ua) && touch > 1);
-    if (ipad) return 'Safari no lista las voces "Mejoradas": elegila en Ajustes → Accesibilidad → Contenido leído → Voces → Español y acá usá "La de Ajustes del dispositivo".';
+    if (ipad) return 'Para una "Mejorada": elegila en Ajustes → Accesibilidad → Contenido leído y usá acá "La de Ajustes del dispositivo".';
     if (/Macintosh/.test(ua)) return 'Más natural: Ajustes del Sistema → Accesibilidad → Contenido leído → bajá una voz "Mejorada".';
     if (/Android/.test(ua)) return 'Más natural: Ajustes → Accesibilidad → Texto a voz → Google → instalar la voz en español.';
     if (/Windows/.test(ua)) return 'Más voces: Configuración → Hora e idioma → Voz → Agregar voces.';
@@ -67,6 +67,7 @@ function fill() {
     if (status) {
         const hasEnhanced = list.some(isEnhancedVoice);
         status.textContent = !list.length ? 'Este navegador no tiene voces en español instaladas. ' + enhancedVoiceHelp()
+            : current.systemVoice === SYSTEM_DEFAULT ? 'Usa la voz elegida en los ajustes del dispositivo.'
             : hasEnhanced ? 'Se guarda para esta persona en este dispositivo.' : enhancedVoiceHelp();
         status.title = 'Después de bajar una voz, recargá MiraVoz para verla en la lista.';
     }

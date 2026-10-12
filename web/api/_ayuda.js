@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.7.9c';
+export const AYUDA_VERSION = '0.8.0a';
 
 export const TEMAS = {
     general: {
@@ -39,7 +39,7 @@ Después de varias vueltas sin elegir, el barrido se pausa; cualquier pulsación
     rostro: {
         titulo: 'Modo Rostro',
         alias: ['cabeza', 'cara', 'calibrar', 'calibracion', 'alinear', 'recalibrar', 'camara'],
-        texto: `La cámara frontal sigue el movimiento de la cabeza (la imagen nunca sale del dispositivo). Se elige manteniendo el cursor quieto sobre una celda el "Tiempo de fijación" (Configuración → Modo Rostro: 0,8 s a 5 s).
+        texto: `La cámara frontal sigue el movimiento de la cabeza (la imagen nunca sale del dispositivo). Se elige manteniendo el cursor quieto sobre una celda el "tiempo para elegir" (Configuración → Fijación (Rostro y Mirada): 0,8 s a 5 s).
 - Calibración: la primera vez se siguen 9 puntos; después alcanza con una verificación rápida. Se guarda por usuario y por orientación de la pantalla.
 - Alinear: si la persona o la tablet se movieron, vuelve a la posición de la calibración sin perderla. En Modo protegido, "Alinear" está arriba junto a "Salir" (lo usa quien asiste).
 - Recalibrar (fuera del Modo protegido): ofrece Alinear o calibrar de nuevo.
@@ -116,7 +116,7 @@ Cada guardado deja una versión que se puede restaurar. También se puede editar
         titulo: 'Configuración',
         alias: ['ajustes', 'settings', 'engranaje'],
         texto: `Engranaje abajo a la izquierda (no visible en Modo protegido). Sin scroll, en dos columnas:
-- Izquierda: Modo Rostro (tiempo de fijación), Modo Barrido (patrón, velocidad, sonido), Parpadeo (usar, duración, con fijación, ajuste personalizado).
+- Izquierda: Fijación de Rostro y Mirada (tiempo para elegir), Modo Barrido (patrón, velocidad, sonido), Parpadeo (usar, duración, con fijación, ajuste personalizado).
 - Derecha: Voz (voz, velocidad, tono, Probar), Sin conexión y respaldo (Preparar sin conexión, Actualizar ahora cuando hay versión nueva, Descargar/Restaurar respaldo), Registro de uso (en la tablet, si está activado: Pausar).
 - Abajo: Cerrar sesión o Desvincular tablet (en rojo) y la versión.`
     },
