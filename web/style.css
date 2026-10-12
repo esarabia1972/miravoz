@@ -1628,3 +1628,6 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 .progress-foot { display: flex; gap: 10px; flex-wrap: wrap; }
 .user-boards-body { display: flex; flex-direction: column; gap: 10px; }
 .user-main .user-tablet-info { flex: 0 0 auto; }
+/* 1.9.9: "+ Nuevo usuario" alineado (ícono y texto centrados, misma altura que el buscador) */
+.users-new-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; height: 44px; padding: 0 16px; line-height: 1; white-space: nowrap; }
+.users-new-btn svg { flex: 0 0 auto; display: block; }
