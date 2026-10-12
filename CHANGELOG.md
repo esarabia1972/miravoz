@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.8b] - 2026-10-12
+
+- **Changed**: los botones de página están siempre visibles; cuando no hay más para ver en esa dirección quedan grisados (antes aparecían y desaparecían).
+
 ## [0.7.8] - 2026-10-12
 
 - **Added**: modo de acceso **Mirada**: para usar MiraVoz con el Seguimiento ocular del propio dispositivo (iPad: Accesibilidad → Seguimiento ocular). Funciona como Manual (MiraVoz no usa su cámara) y activa el **Modo protegido**. Si en unos segundos no se detecta el puntero del sistema, avisa cómo activarlo. Las selecciones quedan registradas como "mirada".

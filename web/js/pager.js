@@ -1,6 +1,6 @@
 // pager.js — Pasar de página con botones grandes en lugar de deslizar (0.7.8)
 // Con la mirada (Seguimiento ocular del iPad, Rostro o Barrido) no se puede "arrastrar" una lista: estos dos
-// botones mueven una pantalla para arriba o para abajo y se ocultan cuando no hay más para ver.
+// botones mueven una pantalla para arriba o para abajo; quedan grisados cuando no hay más para ver.
 
 /**
  * @param {HTMLElement} scrollEl  contenedor con scroll
@@ -35,9 +35,9 @@ export function attachPager(scrollEl, host, { onChange = () => {} } = {}) {
         const max = scrollEl.scrollHeight - scrollEl.clientHeight;
         const canUp = scrollEl.scrollTop > 4;
         const canDown = scrollEl.scrollTop < max - 4;
-        up.hidden = !canUp; down.hidden = !canDown;
-        box.hidden = !canUp && !canDown;
-        host.classList.toggle('has-pager', canUp || canDown);
+        // 0.7.8b: los botones están siempre; sin más para ver quedan grisados (no aparecen y desaparecen)
+        for (const [b, can] of [[up, canUp], [down, canDown]]) { b.disabled = !can; b.setAttribute('aria-disabled', String(!can)); }
+        host.classList.add('has-pager');
         const key = `${canUp}|${canDown}`;
         if (key !== last) { last = key; onChange(); }
     };
@@ -48,5 +48,5 @@ export function attachPager(scrollEl, host, { onChange = () => {} } = {}) {
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(schedule).observe(scrollEl);
     if (typeof MutationObserver !== 'undefined') new MutationObserver(schedule).observe(scrollEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
     update();
-    return { buttons: () => [up, down].filter(b => !b.hidden && !box.hidden), update };
+    return { buttons: () => [up, down].filter(b => !b.disabled), update };
 }

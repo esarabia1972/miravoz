@@ -1686,3 +1686,7 @@ body.protected-mode .bottom-group .divider, body.protected-mode .user-profile-bo
 .protected-banner { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 12000; max-width: min(720px, 92vw);
     display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 14px; background: var(--glass-bg); border: 1px solid var(--cell-border);
     box-shadow: 0 10px 30px var(--shadow); font-size: 1rem; line-height: 1.4; }
+
+/* 0.7.8b: flecha sin más para ver: grisada, sin desaparecer */
+.pager-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+.pager-btn:disabled:hover { background: var(--btn-acc-bg); }
