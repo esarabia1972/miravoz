@@ -42,10 +42,11 @@
    - **Regenerar el manifiesto sin conexión** si se tocó algo en `web/`: `node tools/build-offline-manifest.mjs` (M05). Sin esto, el Service Worker no instala la versión nueva y `npm test` falla.
    - Correr `npm test` (todos los grupos; `npm install` una vez para jsdom).
    - Probar contra `asterics/nuclear.grd`.
-8. **Versión visible (desde 1.0.0, 11/10/2026).** Fuente única: `"version"` en `package.json`; se muestra en Configuración y la escribe `build-offline-manifest.mjs` en `version.json` (`app`). Se sube en cada publicación a `main`, antes de regenerar el manifiesto, y se anota en `CHANGELOG.md`:
-   - **parche** (1.0.**1**): arreglos y cambios de texto;
-   - **menor** (1.**1**.0): funciones nuevas o cambios visibles de comportamiento;
-   - **mayor** (**2**.0.0): cambios que obligan a rehacer algo (datos, vinculación de tablets, formato de tableros).
+8. **Versión visible (renumerada a 0.7.0 el 12/10/2026).** Fuente única: `"version"` en `package.json`; se muestra en Configuración y la escribe `build-offline-manifest.mjs` en `version.json` (`app`). Se sube en cada publicación a `main`, antes de regenerar el manifiesto, y se anota en `CHANGELOG.md`. Mientras no esté en producción vamos por la serie 0.x:
+   - **tercer dígito** (0.7.**1**): cada publicación, sea arreglo, ajuste visual o función chica;
+   - **segundo dígito** (0.**8**.0, 0.**9**.0): solo cuando se decide sacar un release importante;
+   - **1.0.0**: cuando se use en producción con usuarios reales. Recién ahí rige semver completo (mayor = cambios que obligan a rehacer datos, vinculación o formato de tableros).
+   - Las versiones 1.0.0 a 1.9.9 (11 y 12/10/2026) fueron una numeración anterior: quedan en el CHANGELOG y en los tags como historia y no se reutilizan como referencia.
 
 ## Flujo por tarea
 

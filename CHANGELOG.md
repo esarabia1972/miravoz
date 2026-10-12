@@ -2,6 +2,14 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.0] - 2026-10-12
+
+- **Changed**: renumeración de versiones. MiraVoz todavía no está en producción, así que pasa a la serie 0.x: esta versión (el mismo código que 1.9.9) es la **0.7.0**. Desde acá cada publicación sube el tercer dígito (0.7.1, 0.7.2…); 0.8 y 0.9 serán releases importantes y la 1.0.0 llega cuando se use en producción. Las entradas 1.0.0–1.9.9 de abajo son la numeración anterior y quedan como historia.
+
+---
+
+_Numeración anterior (1.0.0 – 1.9.9), reemplazada por 0.7.0:_
+
 ## [1.9.9] - 2026-10-12
 
 - **Fixed**: el botón "+ Nuevo usuario" de Mis usuarios tenía el ícono desalineado del texto; ahora quedan centrados y con la misma altura que el buscador.
