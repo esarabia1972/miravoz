@@ -9,7 +9,25 @@
 //  - La lista de voces llega tarde (evento voiceschanged).
 //  - Con el iPad en modo silencio, Safari puede no emitir la voz (eso no se puede cambiar desde la web).
 
+import * as neural from './neural-voice.js';
+
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+
+// 0.7.6: qué voz usar. engine: 'system' (la del dispositivo) | 'neural' (Piper, natural, en el dispositivo).
+// systemVoice: voiceURI elegida de la lista del dispositivo ('' = automática). neuralId: voz de Piper.
+let prefs = { engine: 'system', systemVoice: '', neuralId: 'es_AR-daniela-high' };
+export function setVoicePrefs(p = {}) {
+    prefs = { ...prefs, ...p };
+    if (prefs.engine === 'neural') neural.prepare(prefs.neuralId);
+}
+export const voicePrefs = () => ({ ...prefs });
+/** Voces en español del dispositivo (para elegir en Configuración). */
+export function systemVoices() {
+    if (!voices.length) loadVoices();
+    return voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
+}
+export const isEnhancedVoice = (v) => /mejorad|enhanced|premium|neural|natural|siri/i.test(`${v?.name || ''} ${v?.voiceURI || ''}`);
+const useNeural = (lang) => prefs.engine === 'neural' && neural.isReady() && (!lang || /^es/i.test(lang));
 let voices = [];
 let unlocked = false;
 const alive = new Set(); // referencias a frases en curso (evita que se descarten)
@@ -35,9 +53,13 @@ function pickVoice(lang) {
     }
     // Sin internet, una voz de red no suena: se prefieren las locales (si el navegador lo informa)
     const all = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
+    if (prefs.systemVoice) { const chosen = all.find(v => v.voiceURI === prefs.systemVoice); if (chosen) return chosen; }
     const local = all.filter(v => v.localService !== false);
     const es = local.length ? local : all;
     if (!es.length) return null;
+    // 0.7.6: las voces "mejoradas"/"premium" del dispositivo suenan mucho menos robóticas
+    const enhanced = es.filter(isEnhancedVoice);
+    if (enhanced.length) return enhanced.find(v => /es-(AR|419|US|MX)/i.test(v.lang)) || enhanced[0];
     const prefer = ['es-AR', 'es-419', 'es-US', 'es-MX'];
     return es.find(v => /Google español|Paulina|Mónica|Luciana|Elena|Isabela|Sabina/i.test(v.name))
         || prefer.map(p => es.find(v => v.lang === p)).find(Boolean)
@@ -50,7 +72,8 @@ let pendingSpeech = null; // { text, opts, at }
 
 /** Desbloquea la voz en iOS: debe llamarse dentro de un gesto (toque o tecla). */
 export function unlockSpeech() {
-    if (!synth) return;
+    neural.unlockAudio(); // voz natural: el audio también necesita un primer toque en iPad
+    if (!synth) { replayPending(); return; }
     if (!unlocked || !startEvents) {
         unlocked = true;
         try {
@@ -61,16 +84,20 @@ export function unlockSpeech() {
             synth.speak(u);
         } catch { /* sin soporte */ }
     }
+    replayPending();
+}
+function replayPending() {
     if (pendingSpeech && Date.now() - pendingSpeech.at < 15000) {
         const p = pendingSpeech; pendingSpeech = null;
-        speak(p.text, { ...p.opts, cancelPrevious: false, _retry: true });
+        if (p.neural) setTimeout(() => speak(p.text, { ...p.opts, cancelPrevious: false }), 60); // que el audio termine de habilitarse
+        else speak(p.text, { ...p.opts, cancelPrevious: false, _retry: true });
     } else pendingSpeech = null;
 }
 // Cada toque o tecla (antes que cualquier otro manejador) hasta que la voz haya demostrado que funciona
 if (typeof window !== 'undefined') {
     const onGesture = () => {
         unlockSpeech();
-        if (startEvents) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); }
+        if (startEvents && (prefs.engine !== 'neural' || neural.audioRunning())) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); }
     };
     window.addEventListener('pointerdown', onGesture, true);
     window.addEventListener('keydown', onGesture, true);
@@ -101,7 +128,7 @@ function setSentenceUtterance(u) {
     sentenceUtterance = u;
     clearInterval(speakingPoll); speakingPoll = null;
     // Algunos navegadores no avisan el final (iPad interrumpido, Chrome con frases largas): si ya no habla, se suelta
-    if (u && synth) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
+    if (u && synth && !u.neural) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
     speakingListeners.forEach(fn => { try { fn(!!u); } catch {} });
 }
 export function isSpeakingSentence() { return !!sentenceUtterance; }
@@ -115,12 +142,54 @@ export function stopSpeech() {
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     alive.clear();
     try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
+    stopNeural();
     setSentenceUtterance(null);
 }
 
-export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false } = {}) {
-    if (!text || !synth) return;
+// --- Voz natural (0.7.6) ---
+let neuralPlay = null, neuralSeq = 0;
+function stopNeural() { if (neuralPlay) { neuralPlay.stop(); neuralPlay = null; } neuralSeq++; }
+async function speakNeural(text, { cancelPrevious, volume, lang, sentence, gen }) {
+    if (cancelPrevious) {
+        stopNeural();
+        try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
+    }
+    const my = ++neuralSeq;
+    const token = { neural: true };
+    if (sentence) setSentenceUtterance(token);
+    const release = () => { if (sentenceUtterance === token) setSentenceUtterance(null); };
+    let audio;
+    try {
+        audio = await Promise.race([neural.synth(text), new Promise((_, rej) => setTimeout(() => rej(new Error('demora')), 6000))]);
+    } catch (e) {
+        release();
+        if (gen !== generation || my !== neuralSeq) return;
+        console.warn('[voz] natural falló, uso la del dispositivo:', e?.message || e);
+        speak(text, { cancelPrevious, volume, lang, sentence, _system: true });
+        return;
+    }
+    if (gen !== generation || my !== neuralSeq) { release(); return; } // se detuvo, se borró o se pidió otra cosa
+    if (!neural.audioRunning()) {
+        neural.unlockAudio();
+        if (!neural.audioRunning()) {
+            // iPad sin primer toque: se dice apenas alguien toque la pantalla
+            release();
+            pendingSpeech = { text, opts: { volume, lang, sentence }, at: Date.now(), neural: true };
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-blocked'));
+            return;
+        }
+    }
+    const h = neural.play(audio, { volume });
+    neuralPlay = h;
+    h.ended.then(() => { if (neuralPlay === h) neuralPlay = null; release(); });
+}
+
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, _system = false } = {}) {
+    if (!text) return;
     const gen = generation;
+    if (!_system && !_retry && useNeural(lang)) { speakNeural(String(text), { cancelPrevious, volume, lang, sentence, gen }); return; }
+    if (!synth) return;
+    if (cancelPrevious) stopNeural();
     let cancelled = false;
     if (cancelPrevious) {
         if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }

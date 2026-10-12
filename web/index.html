@@ -586,6 +586,18 @@
                     </div>
                 </div>
             </section>
+            <section class="settings-section" id="setting-voice">
+                <h3>Voz</h3>
+                <p class="settings-help">La natural suena más cálida y, una vez descargada, funciona igual sin conexión. Se genera en el dispositivo: el texto no sale a internet.</p>
+                <div class="settings-inline">
+                    <select id="voice-engine" class="glass-select" aria-label="Voz">
+                        <option value="system">Del dispositivo</option>
+                    </select>
+                    <select id="voice-system" class="glass-select" aria-label="Voz del dispositivo"></select>
+                    <button type="button" class="btn btn-secondary" id="btn-voice-test">Probar</button>
+                </div>
+                <p class="settings-help" id="voice-status" role="status" aria-live="polite"></p>
+            </section>
             <section class="settings-section" id="setting-offline">
                 <h3>Sin conexión y respaldo</h3>
                 <p class="settings-help" id="offline-status" role="status">Revisando…</p>
@@ -614,6 +626,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=100"></script>
+    <script type="module" src="js/main.js?v=101"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
   "name": "miravoz",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "private": true,
   "description": "MiraVoz: comunicación aumentativa y alternativa en el navegador. Sin build: web/ se publica tal cual.",
   "scripts": {

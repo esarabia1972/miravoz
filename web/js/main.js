@@ -31,6 +31,8 @@ import * as metrics from './metrics.js';
 import { setPersonScopeProvider } from './person-scope.js';
 import { initFavoritesUI, openFavorites, closeFavorites } from './favorites-ui.js';
 import { initBackupUI, downloadBackup, restoreBackupFile } from './backup-ui.js';
+import { initVoiceSettings } from './voice-settings.js';
+import * as neuralVoice from './neural-voice.js';
 import { labelText } from './asterics.js';
 import { gridName } from './pages.js';
 import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
@@ -517,7 +519,12 @@ function syncCompanionContext() {
 
 // --- Hooks de boards ---
 boards.hooks.onHomeRendered = (targets) => { if (S.state === 'HOME') selectionContexts.setBase(targets); };
-boards.hooks.onGridRendered = (targets) => { if (S.state !== 'PRACTICE') selectionContexts.setBase(targets); metrics.pageShown(metricsCtx()); };
+boards.hooks.onGridRendered = (targets) => {
+    if (S.state !== 'PRACTICE') selectionContexts.setBase(targets);
+    metrics.pageShown(metricsCtx());
+    // 0.7.6: con la voz natural, las palabras de la página se preparan de fondo para que suenen sin demora
+    if (neuralVoice.isReady()) neuralVoice.warm((targets || []).map(t => t.data && !t.isAccBtn ? (labelText(t.data.label) || t.data.autoLabel?.es || '') : '').filter(Boolean));
+};
 boards.hooks.onCellActivated = (elData) => {
     benchmark.onActivated(elData);
     metrics.cellSelected(elData, metricsCtx(), pendingMethod || 'toque', labelText(elData?.label) || elData?.autoLabel?.es || '');
@@ -1570,6 +1577,7 @@ setTimeout(() => {
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
     wireBlinkSettings();
+    initVoiceSettings(); // 0.7.6: voz natural o del dispositivo
     editor.initEditor();
     initUsers();
     renderSentence();
