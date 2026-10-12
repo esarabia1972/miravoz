@@ -48,8 +48,10 @@ const CELL_SCHEMA = {
         dice: { type: 'string', description: 'Texto que dice la voz si es distinto del visible (vacío = dice el texto).' },
         silenciosa: { type: 'boolean', description: 'true = no dice nada al elegirla (por ejemplo, una celda que solo navega).' },
         navega_a: { type: 'string', description: 'Nombre o id de otra página, "volver", "inicio", "nueva" (crea una página con el texto de la celda), "nueva:Nombre" o "ninguna".' },
-        ancho: { type: 'integer', minimum: 1, maximum: 16 },
-        alto: { type: 'integer', minimum: 1, maximum: 12 }
+        ancho: { type: 'integer', minimum: 1, maximum: 16, description: 'Columnas que ocupa (celda grande).' },
+        alto: { type: 'integer', minimum: 1, maximum: 12, description: 'Filas que ocupa (celda grande).' },
+        imagen_url: { type: 'string', description: 'Imagen propia desde una dirección https pública (PNG, JPEG, GIF o WebP, hasta 1 MB). Reemplaza al pictograma. Usar solo imágenes que la cuenta tenga derecho a usar.' },
+        oculta: { type: 'boolean', description: 'true = la celda queda oculta en uso (se ve al editar); false = se vuelve a mostrar.' }
     },
     required: ['fila', 'columna'],
     additionalProperties: false
@@ -76,8 +78,9 @@ export const WRITE_TOOLS = [
       description: 'Agrega una página al tablero (por defecto del mismo tamaño que la de inicio). Para vincularla, usar navega_a en poner_celdas.',
       inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 } }, []) },
     { name: 'editar_pagina', title: 'Editar página', annotations: RW,
-      description: 'Renombra una página, cambia su tamaño (filas/columnas) o la hace página de inicio.',
-      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 }, inicio: { type: 'boolean' } }, ['pagina']) },
+      description: 'Renombra una página, cambia su tamaño (filas/columnas), su color de fondo o la hace página de inicio.',
+      inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE, nombre: { type: 'string' }, filas: { type: 'integer', minimum: 1, maximum: 12 }, columnas: { type: 'integer', minimum: 1, maximum: 16 }, inicio: { type: 'boolean' },
+          fondo: { type: 'string', description: 'Color de fondo: código #rrggbb o nombre (negro, blanco, gris, gris claro, azul, celeste, verde, amarillo, naranja, rojo, rosa, violeta, beige, crema); "ninguno" lo quita.' } }, ['pagina']) },
     { name: 'borrar_pagina', title: 'Borrar página', annotations: RWD,
       description: 'Borra una página (las celdas que llevaban a ella quedan sin ese vínculo). Confirmar antes con la persona. Se puede deshacer con restaurar_version.',
       inputSchema: obj({ tablero: T_ID, asignacion: T_ASG, pagina: T_PAGE }, ['pagina']) },
@@ -280,7 +283,7 @@ export function describeBoard(row, { pagina, base } = {}) {
             if (el.hidden) c.oculta = true;
             cells.push(c);
         }
-        return { id, nombre: nameOf(id), inicio: id === bundle.mainBoard, filas: rows, columnas: cols, celdas: cells };
+        return { id, nombre: nameOf(id), inicio: id === bundle.mainBoard, filas: rows, columnas: cols, ...(g.backgroundColor ? { fondo: g.backgroundColor } : {}), celdas: cells };
     });
     return {
         id: row.id, nombre: row.name, actualizado: row.updated_at,
@@ -434,6 +437,37 @@ export async function callTool(name, args, ctx) {
 // (solo si la fila sigue como se leyó; si otro dispositivo guardó en el medio, se reintenta). La app de MiraVoz
 // detecta la versión nueva (updatedAt/syncedAt) y la baja sola.
 
+// 0.8.1b: imagen propia por dirección: se descarga en el servidor (solo https público, solo imágenes de mapa de
+// bits, hasta 1 MB) y se guarda dentro del tablero como data URL, igual que "Subir imagen propia" en la app.
+export const MAX_IMAGE_BYTES = 1024 * 1024;
+export function checkImageUrl(raw) {
+    let u;
+    try { u = new URL(String(raw || '').trim()); } catch { return 'la dirección no es válida.'; }
+    if (u.protocol !== 'https:') return 'tiene que ser una dirección https.';
+    const h = u.hostname.toLowerCase();
+    if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal') || h === '0.0.0.0' || h.startsWith('[') ||
+        /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || /^\d+$/.test(h)) return 'esa dirección no es pública.';
+    return null;
+}
+async function resolveImages(cells, db) {
+    const out = [];
+    for (const c of cells) {
+        if (!c.imagen_url) continue;
+        const bad = checkImageUrl(c.imagen_url);
+        if (bad) { out.push({ fila: c.fila, columna: c.columna, error: bad }); continue; }
+        try {
+            const img = await db.fetchImage(c.imagen_url, MAX_IMAGE_BYTES);
+            if (!/^image\/(png|jpeg|gif|webp)$/i.test(img.type || '')) { out.push({ fila: c.fila, columna: c.columna, error: `no es una imagen PNG, JPEG, GIF o WebP (${img.type || 'tipo desconocido'}).` }); continue; }
+            c.imagen_data = `data:${img.type.toLowerCase()};base64,${img.base64}`;
+            delete c.pictograma_id;
+            out.push({ fila: c.fila, columna: c.columna, ok: true });
+        } catch (e) {
+            out.push({ fila: c.fila, columna: c.columna, error: e?.tooBig ? 'pesa más de 1 MB: conviene subirla desde MiraVoz ("Subir imagen propia"), que la achica sola.' : 'no se pudo descargar.' });
+        }
+    }
+    return out;
+}
+
 async function resolvePictograms(cells, db) {
     const chosen = [];
     for (const c of cells) {
@@ -555,6 +589,9 @@ async function writeTool(name, args, ctx) {
                 if (!cells.length) return toolError('No se indicó ninguna celda.');
                 if (cells.length > E.LIMITS.maxCellsPerCall) return toolError(`Hasta ${E.LIMITS.maxCellsPerCall} celdas por llamada.`);
                 const pics = await resolvePictograms(cells, db);
+                const imgs = await resolveImages(cells, db);
+                const badImg = imgs.find(i => i.error);
+                if (badImg) return toolError(`Imagen de fila ${badImg.fila}, columna ${badImg.columna}: ${badImg.error}`);
                 let pid;
                 const { result } = await mutate(ctx, tgt(args), `poner ${cells.length} celda(s)`, (b) => {
                     pid = E.resolvePage(b, args.pagina);
@@ -724,6 +761,20 @@ export function supabaseDb({ url, anonKey, token, fetchImpl = fetch }) {
             const r = await fetchImpl(`${url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             if (!r.ok) { const t = await r.text().catch(() => ''); throw Object.assign(new Error(`rpc ${fn}: ${r.status} ${t.slice(0, 200)}`), { status: r.status }); }
             return r.json();
+        },
+        async fetchImage(imgUrl, maxBytes) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), 10000);
+            try {
+                const r = await fetchImpl(imgUrl, { signal: ctl.signal, redirect: 'follow' });
+                if (!r.ok) throw new Error('http ' + r.status);
+                if (r.url && checkImageUrl(r.url)) throw new Error('redirección a una dirección no pública');
+                const len = Number(r.headers.get('content-length') || 0);
+                if (len > maxBytes) throw Object.assign(new Error('grande'), { tooBig: true });
+                const buf = Buffer.from(await r.arrayBuffer());
+                if (buf.length > maxBytes) throw Object.assign(new Error('grande'), { tooBig: true });
+                return { type: (r.headers.get('content-type') || '').split(';')[0].trim(), base64: buf.toString('base64') };
+            } finally { clearTimeout(timer); }
         },
         async arasaac(word) {
             const r = await fetchImpl(`https://api.arasaac.org/api/pictograms/es/search/${encodeURIComponent(word)}`);

@@ -193,6 +193,30 @@ await t('errores claros: página o tablero inexistente, borrar la única página
     assert(/No hay un tablero/.test((await call('editar_tablero', { id: 'otro', nombre: 'x' })).err), 'tablero');
     assert(/única página/.test((await call('borrar_pagina', { tablero: id, pagina: 'T' })).err), 'única');
 });
+await t('0.8.1b: fondo de página, ocultar/mostrar e imagen propia por dirección', async () => {
+    const b = E.newBundle({ nombre: 'T' }); const p = b.mainBoard;
+    E.editPage(b, p, { fondo: 'negro' }); assert(b.boards[p].backgroundColor === '#000000', 'negro');
+    E.editPage(b, p, { fondo: '#ABC' }); assert(b.boards[p].backgroundColor === '#aabbcc', '#abc');
+    E.editPage(b, p, { fondo: 'ninguno' }); assert(!('backgroundColor' in b.boards[p]), 'ninguno');
+    throwsEdit(() => E.editPage(b, p, { fondo: 'fucsia eléctrico' }), /No reconozco el color/);
+    E.setCell(b, p, { fila: 1, columna: 1, texto: 'x', oculta: true }); assert(b.boards[p].gridElements[0].hidden === true, 'oculta');
+    E.setCell(b, p, { fila: 1, columna: 1, oculta: false }); assert(!b.boards[p].gridElements[0].hidden, 'mostrar');
+    const { checkImageUrl } = await import('../web/api/_mcp.js');
+    assert(!checkImageUrl('https://example.org/foto.png') && checkImageUrl('http://example.org/a.png') && checkImageUrl('https://127.0.0.1/a.png') && checkImageUrl('https://localhost/a.png') && checkImageUrl('https://192.168.0.2/x.jpg'), 'solo https público');
+    const db = fakeDb(), call = callWith(db);
+    db.fetchImage = async (u) => u.includes('grande') ? Promise.reject(Object.assign(new Error('x'), { tooBig: true })) : u.includes('svg') ? { type: 'image/svg+xml', base64: 'PHN2Zy8+' } : { type: 'image/png', base64: 'iVBORw0KGgo=' };
+    const id = (await call('crear_tablero', { nombre: 'Fotos' })).data.id;
+    const r = await call('poner_celdas', { tablero: id, celdas: [{ fila: 1, columna: 1, texto: 'Mamá', imagen_url: 'https://example.org/mama.png' }] });
+    const saved = JSON.parse(JSON.stringify(db.boards.get(id))).bundle;
+    const el = saved.boards[saved.mainBoard].gridElements[0];
+    assert(!r.err && el.image.data === 'data:image/png;base64,iVBORw0KGgo=' && el.image.searchProviderName === 'propia', r.err || JSON.stringify(el.image));
+    assert(/1 MB/.test((await call('poner_celdas', { tablero: id, celdas: [{ fila: 1, columna: 2, imagen_url: 'https://example.org/grande.jpg' }] })).err), 'tope 1 MB');
+    assert(/PNG, JPEG/.test((await call('poner_celdas', { tablero: id, celdas: [{ fila: 1, columna: 2, imagen_url: 'https://example.org/a.svg' }] })).err), 'sin SVG');
+    const v = await call('ver_tablero', { id });
+    assert(v.data.paginas[0].celdas[0].imagen === 'propia', JSON.stringify(v.data.paginas[0].celdas[0]));
+    const f = await call('editar_pagina', { tablero: id, pagina: 'Fotos', fondo: 'celeste' });
+    assert(!f.err && f.data.fondo === '#b3e5fc', f.err || JSON.stringify(f.data));
+});
 await t('herramientas: las de escritura están marcadas; borrar es destructivo', () => {
     const by = Object.fromEntries(TOOLS.map(x => [x.name, x.annotations]));
     assert(by.poner_celdas.readOnlyHint === false && by.borrar_celdas.destructiveHint && by.borrar_pagina.destructiveHint && by.revisar_tablero.readOnlyHint, JSON.stringify(by));

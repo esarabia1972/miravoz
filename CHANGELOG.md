@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1b] - 2026-10-12
+
+- **Added** (Claude): `editar_pagina` acepta **fondo** (código #rrggbb o nombre como "negro", "celeste"; "ninguno" lo quita) y `ver_tablero` lo muestra.
+- **Added** (Claude): `poner_celdas` acepta **oculta** (true/false) e **imagen_url**: imagen propia desde una dirección https pública (PNG, JPEG, GIF o WebP, hasta 1 MB). El servidor la descarga y la guarda dentro del tablero; rechaza direcciones no públicas, SVG y archivos grandes.
+
 ## [0.8.1a] - 2026-10-12
 
 - **Added**: **imagen propia** en las celdas ("Subir imagen propia": foto o dibujo, también la cámara del iPad). Se achica a 512 px (PNG si tiene transparencia, JPEG si es foto), queda dentro del tablero y anda sin conexión. "Quitar imagen" la saca.

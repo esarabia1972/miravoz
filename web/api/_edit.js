@@ -147,6 +147,11 @@ export function setCell(bundle, pageId, spec) {
     if (spec.color !== undefined) { const k = colorKey(spec.color === 'ninguno' ? null : spec.color); if (k) el.colorCategory = k; else delete el.colorCategory; }
     if (spec.pictograma_id) el.image = arasaacImage(Number(spec.pictograma_id));
     if (spec.sin_pictograma) delete el.image;
+    // 0.8.1b: imagen propia traída de una dirección (ya descargada y validada por _mcp.js)
+    if (spec.imagen_data) el.image = { id: uid('grid-image'), modelName: 'GridImage', data: spec.imagen_data, url: spec.imagen_url || undefined, searchProviderName: 'propia' };
+    // 0.8.1b: ocultar / mostrar (oculta en uso, visible al editar)
+    if (spec.oculta === true) el.hidden = true;
+    if (spec.oculta === false) delete el.hidden;
     let others = (el.actions || []).filter(a => !SPEAK.includes(a.modelName) && !isNavA(a));
     let speak = (el.actions || []).filter(a => SPEAK.includes(a.modelName));
     let nav = (el.actions || []).filter(isNavA);
@@ -202,7 +207,20 @@ export function addPage(bundle, { nombre, filas, columnas, copiar_tamano_de } = 
     return { id: g.id, nombre: gridName(g), filas: g.rowCount, columnas: g.minColumnCount };
 }
 
-export function editPage(bundle, pageId, { nombre, filas, columnas, inicio } = {}) {
+// 0.8.1b: color de fondo de la página (hex #rrggbb o un nombre común)
+const BG_NAMES = { negro: '#000000', blanco: '#ffffff', gris: '#9e9e9e', 'gris claro': '#e0e0e0', 'gris oscuro': '#424242', amarillo: '#fff59d',
+    verde: '#a5d6a7', azul: '#90caf9', 'azul oscuro': '#0d47a1', celeste: '#b3e5fc', naranja: '#ffcc80', rojo: '#ef9a9a', rosa: '#f8bbd0', violeta: '#ce93d8', beige: '#f5f0e1', crema: '#fff8e1' };
+export function bgColor(v) {
+    if (v === null || v === undefined) return undefined;
+    const s = norm(v);
+    if (s === '' || s === 'ninguno' || s === 'sin fondo' || s === 'quitar') return null;
+    if (/^#?[0-9a-f]{6}$/i.test(String(v).trim())) return '#' + String(v).trim().replace('#', '').toLowerCase();
+    if (/^#?[0-9a-f]{3}$/i.test(String(v).trim())) { const h = String(v).trim().replace('#', ''); return '#' + [...h].map(c => c + c).join('').toLowerCase(); }
+    if (BG_NAMES[s]) return BG_NAMES[s];
+    fail(`No reconozco el color "${v}". Usá un código como #000000 o: ${Object.keys(BG_NAMES).join(', ')}, o "ninguno".`);
+}
+
+export function editPage(bundle, pageId, { nombre, filas, columnas, inicio, fondo } = {}) {
     const g = bundle.boards[pageId];
     const out = {};
     if (nombre !== undefined) {
@@ -225,6 +243,11 @@ export function editPage(bundle, pageId, { nombre, filas, columnas, inicio } = {
         g.minColumnCount = c; out.columnas = c;
     }
     if (inicio === true) { bundle.mainBoard = pageId; out.inicio = true; }
+    if (fondo !== undefined) {
+        const c = bgColor(fondo);
+        if (c) g.backgroundColor = c; else delete g.backgroundColor;
+        out.fondo = c || 'ninguno';
+    }
     g.lastUpdateTime = Date.now();
     return out;
 }

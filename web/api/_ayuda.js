@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1a';
+export const AYUDA_VERSION = '0.8.1b';
 
 export const TEMAS = {
     general: {
@@ -114,7 +114,7 @@ En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas
 - Mover: arrastrar una celda a otro lugar (dos celdas de 1×1 se intercambian; una grande se mueve solo si entra).
 - Barra de edición: nombre, Dificultad (nivel de vocabulario), filas y columnas, y "Fondo" (color de fondo de la página; "Sin fondo" lo quita). Páginas en la franja de miniaturas.
 - Si una celda más grande tapa otras, se avisa antes de quitarlas; todo se puede deshacer y cada guardado deja una versión restaurable.
-Desde Claude también se pueden armar celdas grandes (ancho/alto en poner_celdas).`
+Desde Claude: celdas grandes (ancho/alto en poner_celdas), ocultar/mostrar (oculta), imagen propia desde una dirección https pública (imagen_url, hasta 1 MB; las fotos adjuntas en el chat no llegan al conector: esas se suben desde MiraVoz) y color de fondo de la página (fondo en editar_pagina).`
     },
     configuracion: {
         titulo: 'Configuración',
