@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.7c] - 2026-10-12
+
+- **Fixed**: en Configuración → Voz, el nombre de la voz se cortaba ("Automátic…"): ahora ocupa más ancho que velocidad y tono.
+
 ## [0.7.7b] - 2026-10-12
 
 - **Changed**: Configuración sin scroll: a la izquierda Rostro, Barrido y Parpadeo; a la derecha Voz (voz, velocidad y tono en una fila), Sin conexión y respaldo, y Registro. Textos de ayuda de la voz más cortos.

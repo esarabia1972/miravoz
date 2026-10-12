@@ -1,6 +1,6 @@
 {
-  "app": "0.7.7b",
-  "version": "f287d32d7f90",
+  "app": "0.7.7c",
+  "version": "3db30ceb3003",
   "files": 87,
   "note": "app = versión visible (package.json). version = hash del contenido de web/: describe exactamente los archivos publicados."
 }
