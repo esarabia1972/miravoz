@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9d] - 2026-10-12
+
+- **Fixed**: las flechas de página quedaban pegadas al borde derecho y centradas en la pantalla; ahora van dentro del margen derecho de la lista y centradas sobre ella.
+
 ## [0.7.9c] - 2026-10-12
 
 - **Added**: herramienta **`ayuda_miravoz`** en el conector de Claude: guía de uso por tema (modos, Mirada, Barrido, Rostro, parpadeo, Modo protegido, tablero, frase, Favoritas, inicio, editor, Configuración, voz, sin conexión, respaldo, Practicar, Mis usuarios, vinculación, Estadística, versiones). Las instrucciones le piden a Claude consultarla antes de responder preguntas de uso. La guía vive en `web/api/_ayuda.js` y se actualiza con cada publicación. Hay que volver a conectar el conector en Claude para verla.

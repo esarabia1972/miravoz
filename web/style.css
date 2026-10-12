@@ -1668,7 +1668,7 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 
 /* 0.7.8: botones de página (pasar la lista de tableros con la mirada, sin deslizar) */
 #home-view { position: relative; }
-.pager { position: absolute; right: max(10px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 14px; z-index: 5; }
+.pager { position: fixed; transform: translateY(-50%); display: flex; flex-direction: column; gap: 14px; z-index: 5; }
 .pager-btn { width: 72px; height: 96px; border-radius: 18px; border: 1px solid var(--btn-acc-border); background: var(--btn-acc-bg); color: var(--text-main);
     display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px var(--shadow); position: relative; overflow: hidden; }
 .pager-btn:hover { background: var(--btn-acc-hover); }
