@@ -165,7 +165,8 @@ function resetFilters() {
 let pendingMethod = null;
 const metricsCtx = () => ({ bundle: S.currentBundle, gridId: S.currentGridId, pageName: S.currentBundle?.boards?.[S.currentGridId] ? gridName(S.currentBundle.boards[S.currentGridId]) : null });
 const selectTarget = (target) => {
-    pendingMethod = pendingMethod || (S.trackingMode === 'SCAN' ? 'barrido' : 'permanencia');
+    pendingMethod = pendingMethod || (S.trackingMode === 'SCAN' ? 'barrido' : miradaActive ? 'mirada' : 'permanencia');
+    if (miradaActive) miradaSelectedAt = { t: performance.now(), el: target.element };
     setTimeout(() => { pendingMethod = null; }, 0);
     // El centro del objetivo se toma ANTES de actuar (la acción puede re-renderizar el tablero)
     const rect = target.element?.getBoundingClientRect?.();
@@ -726,12 +727,38 @@ btnRecalibrar.addEventListener('click', () => {
 // "Salir" (con confirmación) vuelve a Manual.
 const PROTECTED_MODES = new Set(['SCAN', 'CARA', 'OJOS', 'MIRADA']);
 let miradaActive = false;
+// 0.7.9b: en Mirada la fijación la hace MiraVoz con el puntero del Seguimiento ocular (el del iPad se apaga:
+// Accesibilidad → Seguimiento ocular → Control por permanencia). Si el iPad igual "toca", no se elige dos veces.
+let gazePointer = null;            // { x, y } último punto del puntero del sistema (sin tocar)
+let miradaSelectedAt = null;       // { t, el } última selección hecha por nuestra fijación
+let warnedSystemDwell = false, toldMiradaHowTo = false;
+window.addEventListener('pointermove', (e) => {
+    if (!miradaActive || e.pointerType === 'touch') return;
+    gazePointer = { x: e.clientX, y: e.clientY };
+}, { passive: true });
+document.addEventListener('pointerout', (e) => { if (miradaActive && !e.relatedTarget) { gazePointer = null; dwell.invalidate(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') gazePointer = null; });
+window.addEventListener('click', (e) => {
+    if (!miradaActive || !e.isTrusted || e.pointerType === 'touch' || e.detail === 0) return;
+    const t = e.target && e.target.closest && e.target.closest('.cell, .board-card, .btn-acc, .pager-btn, .favorite-card, .favorites-btn, .practice-card, .practice-back, .practice-target, .practice-choice');
+    if (!t) return;
+    const now = performance.now();
+    if (miradaSelectedAt && now - miradaSelectedAt.t < 3000 && (miradaSelectedAt.el === t || miradaSelectedAt.el?.contains?.(t) || t.contains?.(miradaSelectedAt.el))) {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); // ya lo eligió nuestra fijación
+        return;
+    }
+    dwell.markSelected(now); // eligió el iPad: la nuestra no repite
+    if (!warnedSystemDwell) { warnedSystemDwell = true; showInfoToast('El iPad también está eligiendo. Para usar la fijación de MiraVoz, apagá Accesibilidad → Seguimiento ocular → Control por permanencia.', 8000); }
+}, true);
 function setAccessMode(v) {
     miradaActive = v === 'MIRADA';
     const mode = miradaActive ? 'CLICKS' : v;
     if (mode !== S.trackingMode || !miradaActive) applyMode(mode);
     if (PROTECTED_MODES.has(v)) enterProtected({ checkPointer: miradaActive }); else exitProtected();
-    if (miradaActive) metrics.modeChanged('MIRADA');
+    if (miradaActive) {
+        metrics.modeChanged('MIRADA');
+        if (!toldMiradaHowTo) { toldMiradaHowTo = true; showInfoToast('Mirada: MiraVoz elige con su tiempo de fijación. En el iPad dejá el Seguimiento ocular prendido y el Control por permanencia apagado.', 7000); }
+    } else gazePointer = null;
     updateModeSegmented();
 }
 modeSelect.addEventListener('change', (e) => {
@@ -1214,6 +1241,12 @@ function appLoop() {
         } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && S.trackingMode === 'SCAN') {
             scan.tick(now);
             if (S.state === 'PRACTICE') practice.tickPractice(now, null);
+        } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && miradaActive) {
+            // 0.7.9b: Mirada — el puntero del Seguimiento ocular del sistema es el cursor; la fijación es la de MiraVoz
+            if (gazePointer) {
+                dwell.tick(gazePointer.x, gazePointer.y, now);
+                if (S.state === 'PRACTICE') practice.tickPractice(now, { x: gazePointer.x, y: gazePointer.y });
+            } else if (S.state === 'PRACTICE') practice.tickPractice(now, null);
         } else if (S.state === 'PRACTICE' && S.trackingMode === 'CLICKS') {
             practice.tickPractice(now, null); // Manual: el cursor es el dedo (lo toma practice.js)
         } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {

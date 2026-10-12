@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9b] - 2026-10-12
+
+- **Changed**: en **Mirada** la fijación la hace MiraVoz (su tiempo, la barra de progreso en la celda, la pausa después de elegir y el registro): el puntero del Seguimiento ocular del iPad es el cursor. En el iPad se deja prendido el Seguimiento ocular y se apaga "Control por permanencia". Si el iPad igual elige, no se elige dos veces y se avisa cómo apagarlo.
+
 ## [0.7.9a] - 2026-10-12
 
 - **Added**: en Rostro con Modo protegido, botón **Alinear** arriba (junto a "Salir") para quien asiste: vuelve a la posición de la calibración sin perderla (si no hay referencia, calibra). No es un objetivo de la fijación.
