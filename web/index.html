@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=73">
+    <link rel="stylesheet" href="style.css?v=74">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -61,6 +61,8 @@
             </div>
             <!-- 0.7.9a: en Rostro protegido, quien asiste puede volver a alinear (no es objetivo de la fijación) -->
             <button type="button" id="btn-protected-align" class="btn btn-secondary" hidden>Alinear</button>
+            <!-- 0.8.1c: en Rostro protegido también se puede volver a calibrar (en la demo no había cómo) -->
+            <button type="button" id="btn-protected-recal" class="btn btn-secondary" hidden>Calibrar</button>
             <!-- 0.7.8: Modo protegido (modo Mirada): única salida, con confirmación -->
             <button type="button" id="btn-exit-protected" class="btn btn-secondary protected-only">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -178,6 +180,8 @@
             <form id="new-user-form" autocomplete="off">
                 <label for="new-user-name" class="assign-note">Nombre</label>
                 <input type="text" id="new-user-name" name="miravoz-aac-display-name" class="glass-input" placeholder="Por ejemplo: Mateo" autocomplete="off" autocapitalize="words" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="60" style="width: 100%; box-sizing: border-box;" />
+                <!-- 0.8.1c: el registro de uso viene activado (con la declaración de consentimiento) -->
+                <label class="new-user-consent"><input type="checkbox" id="new-user-metrics" checked> Registrar el uso para la Estadística (tengo el consentimiento de la persona o de su familia)</label>
                 <div class="modal-footer">
                     <button id="btn-cancel-new-user" type="button" class="btn btn-secondary">Cancelar</button>
                     <button id="btn-create-user" type="submit" class="btn btn-primary">Crear</button>
@@ -380,6 +384,10 @@
                 <button id="btn-acc-undo" class="btn-acc" title="Deshacer el último borrado" aria-label="Deshacer el último borrado" data-word="Deshacer" hidden>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
                 </button>
+                <!-- 0.8.1c: menú de quien asiste dentro del tablero en Modo protegido (no es objetivo de la mirada) -->
+                <button type="button" id="btn-caregiver" class="btn-edit-toggle protected-only" title="Opciones de quien asiste" aria-label="Opciones de quien asiste">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </button>
                 <button id="btn-edit-board" class="btn-edit-toggle" title="Editar tablero">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                 </button>
@@ -434,6 +442,8 @@
                 <div class="ce-col">
                     <label class="ce-label">Texto</label>
                     <input type="text" id="ce-label" class="glass-input ce-dark" style="width:100%;" placeholder="Ej: QUIERO" />
+                    <!-- 0.8.1c: celda solo con imagen (el texto se usa igual para la voz y la frase) -->
+                    <label class="ce-check"><input type="checkbox" id="ce-show-label" checked> Mostrar el texto en la celda</label>
 
                     <label class="ce-label">Al seleccionarla…</label>
                     <select id="ce-speak-mode" class="glass-select ce-dark" style="width:100%;">
@@ -545,7 +555,7 @@
             <section class="settings-section" id="setting-scan">
                 <h3>Modo Barrido</h3>
                 <p class="settings-help">Se resalta de a una opción; se elige con pulsador, espacio o tocando la pantalla.</p>
-                <div class="settings-grid settings-grid-3">
+                <div class="settings-grid settings-grid-4">
                     <div>
                         <label for="scan-pattern">Patrón</label>
                         <select id="scan-pattern" class="glass-select">
@@ -571,6 +581,21 @@
                             <option value="none" selected>Silencio</option>
                             <option value="beep">Beep</option>
                             <option value="speak">Decir</option>
+                        </select>
+                    </div>
+                    <div>
+                        <!-- 0.8.1c: recuadro más llamativo para quien no lo ve -->
+                        <label for="scan-frame" title="Grosor y color del recuadro que marca la opción">Recuadro</label>
+                        <select id="scan-frame" class="glass-select">
+                            <option value="normal">Normal</option>
+                            <option value="grueso:amarillo">Grueso amarillo</option>
+                            <option value="grueso:rojo">Grueso rojo</option>
+                            <option value="grueso:azul">Grueso azul</option>
+                            <option value="grueso:negro">Grueso negro</option>
+                            <option value="muy:amarillo">Muy grueso amarillo</option>
+                            <option value="muy:rojo">Muy grueso rojo</option>
+                            <option value="muy:azul">Muy grueso azul</option>
+                            <option value="muy:negro">Muy grueso negro</option>
                         </select>
                     </div>
                 </div>
@@ -674,6 +699,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=115"></script>
+    <script type="module" src="js/main.js?v=116"></script>
 </body>
 </html>

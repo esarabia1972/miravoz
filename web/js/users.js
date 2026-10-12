@@ -75,14 +75,15 @@ export async function fetchUsers() {
     return users;
 }
 
-export async function createUser(displayName) {
+export async function createUser(displayName, { metrics = false } = {}) {
     if (!currentProfessionalId) return;
 
     const { data: newUser, error: userError } = await supabaseClient
         .from('aac_users')
         .insert([{
             professional_id: currentProfessionalId,
-            display_name: displayName
+            display_name: displayName,
+            ...(metrics ? { settings: { metrics: { enabled: true, consent_at: new Date().toISOString() } } } : {})
         }])
         .select()
         .single();
@@ -474,7 +475,7 @@ export function initUsers() {
         if (!name || btnCreate.disabled) return;
         btnCreate.disabled = true;
         btnCreate.textContent = 'Creando...';
-        try { await createUser(name); } finally {
+        try { await createUser(name, { metrics: !!document.getElementById('new-user-metrics')?.checked }); } finally {
             btnCreate.disabled = false;
             btnCreate.textContent = 'Crear';
         }

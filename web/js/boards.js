@@ -26,7 +26,8 @@ export const hooks = {
     onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
     onCellDropped: () => {},      // editor (F3)
     onPageRendered: () => {},     // editor: actualiza la franja de páginas
-    cellContextMenu: () => false  // 0.8.1 editor: botón derecho sobre una celda (true = lo manejó)
+    cellContextMenu: () => false, // 0.8.1 editor: botón derecho sobre una celda (true = lo manejó)
+    onCellResize: () => {}        // 0.8.1c editor: tamaño nuevo al arrastrar la esquina
 };
 
 const gridContainer = document.getElementById('grid-container');
@@ -1193,6 +1194,54 @@ export function handleCellClick(cellElement, elementData) {
     hooks.onCellActivated(elementData);
 }
 
+/**
+ * 0.8.1c: esquina para agrandar/achicar una celda arrastrando (editor). Muestra el tamaño en vivo y al soltar
+ * avisa al editor (hooks.onCellResize), que valida que no tape otras celdas y guarda con deshacer.
+ */
+function trackPositions(str) {
+    // "120px 120px 120px" → [{start, end}]; gap aparte
+    return String(str || '').split(/\s+/).map(parseFloat).filter(Number.isFinite);
+}
+function attachResizeHandle(cell, elData, grid, cols, rows) {
+    const h = document.createElement('div');
+    h.className = 'resize-handle';
+    h.title = 'Arrastrar para cambiar el tamaño';
+    h.setAttribute('aria-hidden', 'true');
+    h.draggable = false;
+    cell.appendChild(h);
+    h.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        cell.draggable = false;
+        const cs = getComputedStyle(grid);
+        const colW = trackPositions(cs.gridTemplateColumns), rowH = trackPositions(cs.gridTemplateRows);
+        const gapX = parseFloat(cs.columnGap) || 0, gapY = parseFloat(cs.rowGap) || 0;
+        const gr = grid.getBoundingClientRect();
+        const padL = parseFloat(cs.paddingLeft) || 0, padT = parseFloat(cs.paddingTop) || 0;
+        const indexAt = (pos, sizes, gap) => { let acc = 0; for (let i = 0; i < sizes.length; i++) { acc += sizes[i]; if (pos < acc + gap / 2) return i; acc += gap; } return sizes.length - 1; };
+        let w = elData.width || 1, hh = elData.height || 1;
+        const move = (ev) => {
+            const cx = indexAt(ev.clientX - gr.left - padL + grid.scrollLeft, colW, gapX);
+            const cy = indexAt(ev.clientY - gr.top - padT + grid.scrollTop, rowH, gapY);
+            w = Math.max(1, Math.min(cols - elData.x, cx - elData.x + 1));
+            hh = Math.max(1, Math.min(rows - elData.y, cy - elData.y + 1));
+            cell.style.gridColumn = `${elData.x + 1} / span ${w}`;
+            cell.style.gridRow = `${elData.y + 1} / span ${hh}`;
+            cell.classList.add('is-resizing');
+            cell.dataset.size = `${w}×${hh}`;
+        };
+        const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            cell.classList.remove('is-resizing');
+            cell.draggable = true;
+            if (w !== (elData.width || 1) || hh !== (elData.height || 1)) hooks.onCellResize(elData, w, hh);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+    });
+    h.addEventListener('click', (e) => e.stopPropagation());
+}
+
 export function renderGrid(gridId) {
     if (!S.currentBundle || !S.currentBundle.boards[gridId]) {
         console.error('No se encontró el grid:', gridId);
@@ -1226,8 +1275,12 @@ export function renderGrid(gridId) {
     const rows = gridData.rowCount || 3;
     const cols = gridData.minColumnCount || 4;
 
-    // Gap dinámico para grillas densas (teclados)
-    if (cols > 8) {
+    // Gap dinámico para grillas densas (teclados); 0.8.1c: la página puede fijar su propio espacio entre celdas
+    if (Number.isFinite(gridData.cellGap)) {
+        gridContainer.style.gap = `${gridData.cellGap}px`;
+        gridContainer.style.padding = cols > 8 ? '5px 10px' : '10px 30px';
+        gridContainer.classList.toggle('dense-grid', cols > 8);
+    } else if (cols > 8) {
         gridContainer.style.gap = '4px';
         gridContainer.style.padding = '5px 10px';
         gridContainer.classList.add('dense-grid');
@@ -1261,6 +1314,8 @@ export function renderGrid(gridId) {
         extra: predictionExtra(bundleNow)
     };
     gridContainer.style.backgroundColor = gridData.backgroundColor || '';
+    // 0.8.1c: con color de fondo, las celdas vacías son transparentes (sirven de separador)
+    gridContainer.classList.toggle('has-page-bg', !!gridData.backgroundColor);
 
     const renderedCells = new Set();
     for (let y = 0; y < rows; y++) {
@@ -1318,6 +1373,7 @@ export function renderGrid(gridId) {
                 }
 
                 const shown = visibleLabel(elData, S.currentBundle);
+                if (elData.labelHidden) cell.classList.add('label-hidden');
                 if (shown) {
                     const label = document.createElement('div');
                     label.className = 'picto-label';
@@ -1400,6 +1456,7 @@ export function renderGrid(gridId) {
                 activeGridElements.push({ element: cell, data: elData, isAccBtn: false });
                 
                 if (hooks.isEditMode()) {
+                    attachResizeHandle(cell, elData, gridContainer, cols, rows);
                     cell.draggable = true;
                     cell.addEventListener('dragstart', (e) => {
                         e.dataTransfer.setData('text/plain', JSON.stringify({ x: elData.x, y: elData.y, gridId }));

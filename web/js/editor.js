@@ -455,6 +455,20 @@ function buildToolbar() {
     divCols.append(btnColMinus, mkLabel('Columnas'), btnColPlus);
     tb.appendChild(divCols);
 
+    // 0.8.1c: espacio entre celdas de esta página (para separar estímulos)
+    const spacer5 = document.createElement('div');
+    spacer5.style.width = '12px';
+    tb.appendChild(spacer5);
+    const gapSel = document.createElement('select');
+    gapSel.className = 'glass-select et-dark';
+    gapSel.title = 'Espacio entre celdas de esta página';
+    gapSel.setAttribute('aria-label', 'Espacio entre celdas');
+    [['', 'Automático'], ['4', 'Chico'], ['15', 'Normal'], ['32', 'Grande'], ['56', 'Muy grande']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; gapSel.appendChild(o); });
+    gapSel.value = Number.isFinite(grid()?.cellGap) ? String(grid().cellGap) : '';
+    if (gapSel.value === '' && Number.isFinite(grid()?.cellGap)) gapSel.value = '';
+    gapSel.onchange = () => withUndo(() => { const g = grid(); if (gapSel.value === '') delete g.cellGap; else g.cellGap = parseInt(gapSel.value, 10); });
+    tb.append(mkLabel('Espacio'), gapSel);
+
     // 0.8.1: color de fondo de la página (la grilla)
     const spacer4 = document.createElement('div');
     spacer4.style.width = '12px';
@@ -475,6 +489,9 @@ function buildToolbar() {
         showUndoToast(async () => { Object.assign(S.currentBundle, backupBundle); await persistBundle(); renderSafe(S.currentGridId); });
     };
     bgInput.onchange = () => setBg(bgInput.value);
+    // iPad: el selector de color avisa con 'input' (a veces sin 'change' al cerrarse)
+    let bgTimer = null;
+    bgInput.oninput = () => { clearTimeout(bgTimer); bgTimer = setTimeout(() => { if (grid()?.backgroundColor !== bgInput.value) setBg(bgInput.value); }, 600); };
     const bgClear = mkBtn('Sin fondo', () => { bgInput.value = '#ffffff'; setBg(null); }, 'Quitar el color de fondo de esta página');
     bgClear.style.padding = '4px 10px';
     bgWrap.append(mkLabel('Fondo'), bgInput, bgClear);
@@ -497,6 +514,7 @@ export function openCellEditor(gridId, elData, x, y) {
 
     const get = id => document.getElementById(id);
     get('ce-label').value = labelText(elData?.label);
+    get('ce-show-label').checked = !elData?.labelHidden;
     // Texto completado desde ARASAAC: se sugiere como placeholder (escribir un texto lo reemplaza)
     get('ce-label').placeholder = elData?.autoLabel?.es ? `${elData.autoLabel.es} (de ARASAAC)` : '';
 
@@ -665,6 +683,7 @@ async function saveCell() {
     const labelText = rawLabel.trim() === '' && rawLabel.length > 0 ? ' ' : rawLabel.trim();
     elData.label = { es: labelText };
     elData.width = w; elData.height = h;
+    if (get('ce-show-label').checked) delete elData.labelHidden; else elData.labelHidden = true;
 
     // Color
     elData.colorCategory = get('ce-color').value || null;
@@ -811,6 +830,23 @@ export function initEditor() {
     };
     boards.hooks.isEditMode = () => editMode;
     boards.hooks.onPageRendered = () => { if (editMode) renderPagesStrip(); };
+
+    // 0.8.1c: agrandar/achicar una celda arrastrando su esquina
+    boards.hooks.onCellResize = async (elData, w, h) => {
+        if (!editMode) return;
+        const grid = S.currentBundle.boards[S.currentGridId];
+        const rect = { x: elData.x, y: elData.y, width: w, height: h };
+        if (!insideGrid(grid, rect)) { boards.renderGrid(S.currentGridId); return; }
+        const hit = covered(grid, rect, elData);
+        if (hit.length) {
+            const names = hit.map(e => labelText(e.label) || e.autoLabel?.es || 'sin texto').slice(0, 4).join(', ');
+            if (!(await customConfirm(`Con ese tamaño, la celda tapa ${hit.length === 1 ? 'otra celda' : `${hit.length} celdas`} (${names}). ¿Quitarlas? Se puede deshacer.`))) { boards.renderGrid(S.currentGridId); return; }
+        }
+        await withUndo(() => {
+            if (hit.length) grid.gridElements = grid.gridElements.filter(e => !hit.includes(e));
+            elData.width = w; elData.height = h;
+        });
+    };
 
     // 0.8.1: imagen propia
     const fileInput = document.getElementById('ce-upload-file');

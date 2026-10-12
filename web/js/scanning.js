@@ -142,7 +142,8 @@ export class ScanEngine {
         const cfg = this._cfg();
         if (cfg.audio === 'beep') {
             beep();
-        } else if (cfg.audio === 'speak' && this.phase === 'ITEMS' && set[0] && set[0].data) {
+        } else if (cfg.audio === 'speak' && this.phase === 'ITEMS' && set[0] && set[0].data && performance.now() >= (this.quietUntil || 0)) {
+            // 0.8.1c: después de elegir, no se anuncia el resaltado hasta que se dijo la palabra elegida (antes la cortaba)
             const label = (set[0].element && set[0].element.dataset && set[0].element.dataset.word) || (set[0].data.label ? (labelText(set[0].data.label) || null) : null);
             if (label) speak(label, { cancelPrevious: true, volume: 0.5 });
         }
@@ -237,7 +238,9 @@ export class ScanEngine {
             const target = (this.groups[this.gIdx] || [])[this.iIdx];
             if (target) {
                 this._clearHighlights();
-                this.selectionPauseUntil = now + 600; // respiro post-selección
+                const speakMode = this._cfg().audio === 'speak';
+                this.selectionPauseUntil = now + (speakMode ? 1500 : 600); // respiro post-selección (más largo si se anuncia en voz)
+                if (speakMode) this.quietUntil = now + 2500;
                 this.onSelect(target);
                 // Si la selección re-renderizó (navegación), setTargets ya reinició el motor.
                 // Si no, volver al barrido de filas desde el inicio:
@@ -249,7 +252,7 @@ export class ScanEngine {
                     this.gIdx = 0;
                     this.iIdx = 0;
                     this.cycleCount = 0;
-                    this.lastAdvance = now + 600;
+                    this.lastAdvance = now + (speakMode ? 1500 : 600);
                     this._applyHighlight(true);
                 }
             }

@@ -2,6 +2,17 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1c] - 2026-10-12
+
+Mejoras de la demo con Leti.
+
+- **Fixed**: en Rostro con Modo protegido no había cómo volver a calibrar: ahora hay "Calibrar" junto a "Alinear" y, dentro del tablero, un candado en la barra de la frase con Alinear, Calibrar de nuevo, Ir al inicio y Salir (no es objetivo de la mirada ni del barrido).
+- **Fixed**: en Barrido con sonido "Decir", el anuncio del siguiente resaltado cortaba la palabra elegida ("elegís batido y no dice batido"): después de elegir se espera a que se diga.
+- **Fixed**: la barra de edición se desbordaba en el iPad (ahora pasa a otra línea) y el color de fondo no se aplicaba con el selector del iPad.
+- **Changed**: al crear un usuario (en la app o desde Claude) el **registro de uso viene activado**, con la declaración de consentimiento visible y destildable.
+- **Added**: con color de fondo, las **celdas vacías son transparentes** (separadores); **espacio entre celdas** por página (Automático, Chico, Normal, Grande, Muy grande); **"Mostrar el texto en la celda"** (solo imagen); **agrandar/achicar una celda arrastrando su esquina**.
+- **Added**: **recuadro del barrido** configurable (normal, grueso o muy grueso; amarillo, rojo, azul o negro).
+
 ## [0.8.1b] - 2026-10-12
 
 - **Added** (Claude): `editar_pagina` acepta **fondo** (código #rrggbb o nombre como "negro", "celeste"; "ninguno" lo quita) y `ver_tablero` lo muestra.

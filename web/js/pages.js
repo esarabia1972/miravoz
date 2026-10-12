@@ -206,6 +206,7 @@ export async function enrichAutoLabels(bundle, fetchImpl) {
 
 /** Texto visible de la celda: el propio, o el automático solo si el tablero pide mostrarlo. */
 export function visibleLabel(el, bundle) {
+    if (el?.labelHidden) return ''; // 0.8.1c: celda solo con imagen (el texto se sigue usando para la voz y la frase)
     const own = String(labelText(el?.label));
     if (own.trim()) return own;
     return bundle?.showAutoLabels && el?.autoLabel ? String(el.autoLabel.es || '') : '';

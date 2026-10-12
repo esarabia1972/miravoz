@@ -104,8 +104,8 @@ export const WRITE_TOOLS = [
       inputSchema: obj({ id: T_ID, asignacion: T_ASG, version: { type: 'integer', description: 'Número de versión de historial_tablero.' } }, ['version']) },
     // --- Etapa 3: usuarios, asignaciones y borrar tableros (cambian lo que ve un usuario: confirmar antes) ---
     { name: 'crear_usuario', title: 'Crear usuario', annotations: RW,
-      description: 'Da de alta un usuario (persona que se comunica con MiraVoz) y devuelve su código para vincular la tablet (4 caracteres, vence a los 30 minutos).',
-      inputSchema: obj({ nombre: { type: 'string' } }, ['nombre']) },
+      description: 'Da de alta un usuario (persona que se comunica con MiraVoz) y devuelve su código para vincular la tablet (4 caracteres, vence a los 30 minutos). El registro de uso (Estadística) queda activado salvo que se indique registro_de_uso: false; activarlo implica que la cuenta tiene el consentimiento de la persona o su familia (mencionarlo).',
+      inputSchema: obj({ nombre: { type: 'string' }, registro_de_uso: { type: 'boolean', description: 'true por defecto (con consentimiento); false para no registrar.' } }, ['nombre']) },
     { name: 'generar_codigo', title: 'Generar código de vinculación', annotations: RW,
       description: 'Genera un código nuevo para vincular la tablet de un usuario (4 caracteres; invalida el anterior no usado; vence a los 30 minutos). Mostrarlo solo si la persona lo pidió.',
       inputSchema: obj({ usuario: T_USER }, ['usuario']) },
@@ -646,10 +646,11 @@ async function writeTool(name, args, ctx) {
             case 'crear_usuario': {
                 const n = String(args.nombre || '').trim().slice(0, 60);
                 if (!n) return toolError('Falta el nombre del usuario.');
-                const [u] = await db.insertReturning('aac_users', { professional_id: user.id, display_name: n });
+                const metricsOn = args.registro_de_uso !== false;
+                const [u] = await db.insertReturning('aac_users', { professional_id: user.id, display_name: n, ...(metricsOn ? { settings: { metrics: { enabled: true, consent_at: new Date().toISOString(), via: 'claude' } } } : {}) });
                 let code = null;
                 try { code = await db.rpc('create_access_code', { p_aac_user_id: u.id }); } catch { /* el usuario queda creado igual */ }
-                return toolText({ creado: true, id: u.id, nombre: n, ...(code ? { codigo_de_vinculacion: formatCode(code.code), vence: code.expires_at } : { aviso: 'No se pudo generar el código: usar generar_codigo.' }) });
+                return toolText({ creado: true, id: u.id, nombre: n, registro_de_uso: metricsOn, ...(code ? { codigo_de_vinculacion: formatCode(code.code), vence: code.expires_at } : { aviso: 'No se pudo generar el código: usar generar_codigo.' }) });
             }
             case 'generar_codigo': {
                 const c = await db.rpc('create_access_code', { p_aac_user_id: args.usuario }).catch(() => null);

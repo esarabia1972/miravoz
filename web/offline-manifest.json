@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "66980d42189f",
- "appVersion": "0.8.1b",
+ "version": "661f2d7b381c",
+ "appVersion": "0.8.1c",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "c62158bdf7157aebf1cb38e89c53bb6248ced25f7525357912d2a6fc9461ed02",
-   "bytes": 50024
+   "sha256": "3d42771bce0418541ddc37ea0b7ff3b1cb3d6020eb1d0d3e03faf9a670777f20",
+   "bytes": 52474
   },
   {
    "url": "/js/align.js",
@@ -60,12 +60,12 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "9247e94ccf97afc8ac56450fd7a90ec777922077ee0cef542e432734400471f7",
-   "bytes": 83069
+   "sha256": "201522eaeb7a37b6ce8d79d6e0984057a1f2531c467fa73e7177fcf4fe8b9eb6",
+   "bytes": 86367
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "e849f1beab0aeba9db8739f7d99a24a1feee6e059f8f4b995161cf0d5f9a8c21",
+   "sha256": "7a16ecf647abdc800a98a50c6b18391f0b25b8afa4bd2f89009a5ed166854a2c",
    "bytes": 105
   },
   {
@@ -80,8 +80,8 @@
   },
   {
    "url": "/js/config.js",
-   "sha256": "06d4ac11716f3034a5dc337547bcdd2b0dc0677a4da16473ff79844bf9acb76f",
-   "bytes": 3580
+   "sha256": "a32e8b96309f45836be126d500c315d49eda86aa2954315bf254e8c2289c2d84",
+   "bytes": 3682
   },
   {
    "url": "/js/contexts.js",
@@ -100,8 +100,8 @@
   },
   {
    "url": "/js/editor.js",
-   "sha256": "cc70acf7fead2c5e29ca040939f49540596be70134978acf4b1431bed5f9e354",
-   "bytes": 41613
+   "sha256": "2ac2878e93dce60f3eb56e0e4fea7a8091c1261ff4e8d07197d45aac206b4214",
+   "bytes": 44044
   },
   {
    "url": "/js/favorites-ui.js",
@@ -130,8 +130,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "3e5df73cb5b7780ac5115bf4511d73f006532ba56d731c636bba873d3eb0cf29",
-   "bytes": 86541
+   "sha256": "842f12720a52dd4bb441405facc4a2a88f6465985df17bbf2a1a53b3f670f0a3",
+   "bytes": 89439
   },
   {
    "url": "/js/media.js",
@@ -160,8 +160,8 @@
   },
   {
    "url": "/js/pages.js",
-   "sha256": "d8332218d33e525c79c1d519ff3e4f55e8571bef9f8d6ca21ab0bf91bb56663e",
-   "bytes": 11454
+   "sha256": "bb9ed1cf44a6505a6d8606ebb571bbfdfceb4a4f365f40b0ed6ad847a53f6da5",
+   "bytes": 11573
   },
   {
    "url": "/js/person-scope.js",
@@ -205,8 +205,8 @@
   },
   {
    "url": "/js/scanning.js",
-   "sha256": "f4beaeccf05ea217331b4fc900f19642becb8ece0338fbc8d356a8846350002c",
-   "bytes": 10941
+   "sha256": "17eaa0016ac7895d292d6223eb4e0abb1a12eb23ee3d97bbf77133fa5b5b71a6",
+   "bytes": 11316
   },
   {
    "url": "/js/selection.js",
@@ -250,8 +250,8 @@
   },
   {
    "url": "/js/users.js",
-   "sha256": "f13a02c2a66426aaf2bc69185964142034e251f6e8c42f8d0fe380907b9582ca",
-   "bytes": 22599
+   "sha256": "2e26f761f98a9bf772679680447e249d19d28d18bdf8797912354fe7762df145",
+   "bytes": 22810
   },
   {
    "url": "/js/validation.js",
@@ -355,8 +355,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "834be77e675fab0d37ae08b6cbdfa1cd5563fa3adc0d3f96316f7bc7b432571e",
-   "bytes": 84575
+   "sha256": "f286c37ccd6271a9e0785626e3e8126442ac48d0cc2a56d70211935328f44c6d",
+   "bytes": 86486
   },
   {
    "url": "/terminos.html",
@@ -455,5 +455,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28968885
+ "totalBytes": 28982680
 }

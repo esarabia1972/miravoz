@@ -403,6 +403,32 @@ document.getElementById('btn-menu-align')?.addEventListener('click', () => {
     if (S.trackingMode === 'CARA' && S.isCalibrated) startAlignment({ onDone: returnFromAlignment });
 });
 document.getElementById('btn-menu-recal')?.addEventListener('click', () => { setRecalMenu(false); recalibrateNow(); });
+// 0.8.1c: Calibrar dentro del Modo protegido (Rostro)
+document.getElementById('btn-protected-recal')?.addEventListener('click', () => { if (S.trackingMode === 'CARA') recalibrateNow(); });
+// 0.8.1c: menú de quien asiste dentro del tablero (Modo protegido): Alinear, Calibrar (Rostro) y Salir
+document.getElementById('btn-caregiver')?.addEventListener('click', (e) => {
+    document.getElementById('cell-menu')?.remove();
+    const menu = document.createElement('div');
+    menu.id = 'cell-menu'; menu.className = 'cell-menu'; menu.setAttribute('role', 'menu');
+    const item = (text, fn, danger = false) => {
+        const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = text;
+        if (danger) b.classList.add('danger');
+        b.onclick = () => { menu.remove(); fn(); };
+        menu.appendChild(b);
+    };
+    if (S.trackingMode === 'CARA') {
+        item('Alinear', () => document.getElementById('btn-protected-align').click());
+        item('Calibrar de nuevo', () => recalibrateNow());
+    }
+    item('Ir al inicio', () => goHome());
+    item('Salir del modo protegido', () => document.getElementById('btn-exit-protected').click(), true);
+    document.body.appendChild(menu);
+    const r = e.currentTarget.getBoundingClientRect(), m = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(r.right - m.width, window.innerWidth - m.width - 8))}px`;
+    menu.style.top = `${Math.min(r.bottom + 6, window.innerHeight - m.height - 8)}px`;
+    const close = (ev) => { if (!menu.contains(ev.target) && ev.target !== e.currentTarget) { menu.remove(); document.removeEventListener('pointerdown', close, true); } };
+    setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
+});
 // 0.7.9a: Alinear dentro del Modo protegido (Rostro). Sin referencia guardada, calibra (eso la crea).
 document.getElementById('btn-protected-align')?.addEventListener('click', () => {
     if (S.trackingMode !== 'CARA') return;
@@ -440,7 +466,7 @@ window.addEventListener('pointerdown', (e) => {
     // (excepto la barra inferior de controles, para poder salir del modo)
     // En un diálogo, tocar el fondo también activa el barrido (tocar un botón lo elige directamente).
     const inDialog = e.target.closest('#custom-dialog');
-    if (S.trackingMode === 'SCAN' && !e.target.closest('#bottom-bar') && (inDialog ? !e.target.closest('button') : !e.target.closest('.modal-overlay'))) {
+    if (S.trackingMode === 'SCAN' && !e.target.closest('#bottom-bar, #btn-caregiver, #cell-menu, #top-bar') && (inDialog ? !e.target.closest('button') : !e.target.closest('.modal-overlay'))) {
         onSwitchActivate(e);
     }
 });
@@ -736,6 +762,8 @@ function updateModeSegmented() {
     const current = miradaActive ? 'MIRADA' : S.trackingMode;
     const pAlign = document.getElementById('btn-protected-align');
     if (pAlign) pAlign.hidden = !(isProtected() && S.trackingMode === 'CARA');
+    const pRecal = document.getElementById('btn-protected-recal');
+    if (pRecal) pRecal.hidden = !(isProtected() && S.trackingMode === 'CARA');
     document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === current)));
     // Recalibrar solo tiene sentido con cámara (Rostro): en Manual, Barrido y Mirada, grisado
     const usesCamera = S.trackingMode === 'CARA';
@@ -988,6 +1016,17 @@ if (dwellSelect) {
 }
 
 // F2-5: settings de barrido
+// 0.8.1c: grosor y color del recuadro del barrido (variables CSS en la raíz; "normal" = los del tema)
+const SCAN_COLORS = { amarillo: '#ffd600', rojo: '#e53935', azul: '#1e63ff', negro: '#000000' };
+function applyScanFrame() {
+    const root = document.documentElement.style;
+    const [w, c] = String(settings.scan?.frame || 'normal').split(':');
+    if (w === 'normal' || !SCAN_COLORS[c]) { ['--scan-w', '--scan-outline', '--scan-group', '--scan-ring-w'].forEach(v => root.removeProperty(v)); return; }
+    root.setProperty('--scan-w', w === 'muy' ? '16px' : '11px');
+    root.setProperty('--scan-ring-w', w === 'muy' ? '22px' : '16px');
+    root.setProperty('--scan-outline', SCAN_COLORS[c]);
+    root.setProperty('--scan-group', SCAN_COLORS[c]);
+}
 function wireScanSetting(id, key, isNumber = false) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1575,6 +1614,9 @@ setTimeout(() => {
     wireScanSetting('scan-pattern', 'pattern');
     wireScanSetting('scan-interval', 'intervalMs', true);
     wireScanSetting('scan-audio', 'audio');
+    wireScanSetting('scan-frame', 'frame');
+    applyScanFrame();
+    document.getElementById('scan-frame')?.addEventListener('change', () => setTimeout(applyScanFrame, 0));
     wireBlinkSettings();
     initVoiceSettings(); // 0.7.7: voz del dispositivo elegida por persona, con velocidad y tono
     editor.initEditor();

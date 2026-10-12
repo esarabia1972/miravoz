@@ -40,7 +40,8 @@ export const settings = {
         pattern: 'ROW_COLUMN',   // ROW_COLUMN | LINEAR
         intervalMs: 1200,        // 500-4000
         cycles: 3,               // vueltas sin activación antes de pausar
-        audio: 'none'            // none | beep | speak
+        audio: 'none',           // none | beep | speak
+        frame: 'normal'          // 0.8.1c: recuadro del resaltado: normal | grueso:color | muy:color
     },
     // 1.4.0: parpadeo para elegir (blink.js). mode: off | long | double · selectWith (Rostro): both | blink
     blink: { mode: 'off', holdMs: 600, threshold: 0.5, selectWith: 'both' }

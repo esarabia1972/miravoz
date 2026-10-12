@@ -297,6 +297,15 @@ if (caseArg === 'editor-sesion') {
     const bg = $('editor-toolbar').querySelector('input[type=color]');
     bg.value = '#000000'; bg.dispatchEvent(new win.Event('change')); await sleep(150);
     check('color de fondo de la página guardado y aplicado', g.backgroundColor === '#000000' && $('grid-container').style.backgroundColor !== '', `${g.backgroundColor} / ${$('grid-container').style.backgroundColor}`);
+    // 0.8.1c: celdas vacías transparentes con fondo, espacio entre celdas, solo imagen, esquina para agrandar
+    check('con fondo, la grilla marca las celdas vacías como transparentes', $('grid-container').classList.contains('has-page-bg'), $('grid-container').className);
+    const gapSel = [...$('editor-toolbar').querySelectorAll('select')].find(x => [...x.options].some(o => o.textContent === 'Muy grande'));
+    gapSel.value = '56'; gapSel.dispatchEvent(new win.Event('change')); await sleep(150);
+    check('espacio entre celdas por página', g.cellGap === 56 && $('grid-container').style.gap === '56px', `${g.cellGap} / ${$('grid-container').style.gap}`);
+    check('cada celda tiene la esquina para cambiar el tamaño', !!$('cell-0-0')?.querySelector('.resize-handle'), '');
+    editor.openCellEditor(S.currentGridId, g.gridElements[0], 0, 0);
+    $('ce-show-label').checked = false; $('ce-save').click(); await sleep(150);
+    check('"Mostrar el texto" apagado: solo imagen (el texto queda para la voz)', g.gridElements[0].labelHidden === true && !$('cell-0-0').querySelector('.picto-label') && $('cell-0-0').getAttribute('aria-label') === 'carne', $('cell-0-0').innerHTML.slice(0, 120));
 }
 
 if (caseArg === 'paginas') {
