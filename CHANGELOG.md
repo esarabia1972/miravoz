@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9] - 2026-10-12
+
+- **Changed**: Barrido, Rostro y Mirada (e Iris, experimental) usan siempre el **Modo protegido**. Solo Manual queda sin protección. "Salir" (con confirmación) vuelve a Manual; para recalibrar Rostro: Salir → elegir Rostro de nuevo.
+
 ## [0.7.8c] - 2026-10-12
 
 - **Changed**: orden de los modos: Manual, Barrido, Rostro y Mirada.

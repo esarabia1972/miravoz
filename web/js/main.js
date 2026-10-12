@@ -533,7 +533,7 @@ boards.hooks.onGridRendered = (targets) => {
 };
 boards.hooks.onCellActivated = (elData) => {
     benchmark.onActivated(elData);
-    metrics.cellSelected(elData, metricsCtx(), pendingMethod || (isProtected() ? 'mirada' : 'toque'), labelText(elData?.label) || elData?.autoLabel?.es || '');
+    metrics.cellSelected(elData, metricsCtx(), pendingMethod || (miradaActive ? 'mirada' : 'toque'), labelText(elData?.label) || elData?.autoLabel?.es || '');
 };
 boards.hooks.onBundleOpened = () => {
     // La frase NO se vacía al abrir otro tablero (como en Asterics): una frase se arma con palabras de varios
@@ -715,17 +715,18 @@ btnRecalibrar.addEventListener('click', () => {
 });
 
 // --- Cambio de modo ---
-// 0.7.8: "Mirada" = Manual (sin cámara de MiraVoz; el Seguimiento ocular del sistema toca por la persona) + Modo protegido
+// 0.7.8: "Mirada" = Manual (sin cámara de MiraVoz; el Seguimiento ocular del sistema toca por la persona).
+// 0.7.9: Barrido, Rostro y Mirada (e Iris, experimental) usan SIEMPRE el Modo protegido; solo Manual queda libre.
+// "Salir" (con confirmación) vuelve a Manual.
+const PROTECTED_MODES = new Set(['SCAN', 'CARA', 'OJOS', 'MIRADA']);
+let miradaActive = false;
 function setAccessMode(v) {
-    if (v === 'MIRADA') {
-        if (S.trackingMode !== 'CLICKS') applyMode('CLICKS');
-        enterProtected();
-        metrics.modeChanged('MIRADA');
-        updateModeSegmented();
-    } else {
-        exitProtected();
-        applyMode(v);
-    }
+    miradaActive = v === 'MIRADA';
+    const mode = miradaActive ? 'CLICKS' : v;
+    if (mode !== S.trackingMode || !miradaActive) applyMode(mode);
+    if (PROTECTED_MODES.has(v)) enterProtected({ checkPointer: miradaActive }); else exitProtected();
+    if (miradaActive) metrics.modeChanged('MIRADA');
+    updateModeSegmented();
 }
 modeSelect.addEventListener('change', (e) => {
     setAccessMode(e.target.value);
@@ -748,7 +749,7 @@ function renderModeSegmented() {
         b.textContent = MODE_LABELS[v];
         if (v === 'MIRADA') b.title = 'Con el Seguimiento ocular del dispositivo (iPad: Accesibilidad → Seguimiento ocular). Activa el modo protegido.';
         b.onclick = () => {
-            if (v === 'MIRADA' ? isProtected() : (S.trackingMode === v && !isProtected())) return;
+            if (v === (miradaActive ? 'MIRADA' : S.trackingMode)) return;
             modeSelect.value = v;
             modeSelect.dispatchEvent(new Event('change'));
         };
@@ -757,7 +758,7 @@ function renderModeSegmented() {
     updateModeSegmented();
 }
 function updateModeSegmented() {
-    const current = isProtected() ? 'MIRADA' : S.trackingMode;
+    const current = miradaActive ? 'MIRADA' : S.trackingMode;
     document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === current)));
     // Recalibrar solo tiene sentido con cámara (Rostro; Iris experimental): en Manual y Barrido, grisado
     const usesCamera = S.trackingMode === 'CARA' || S.trackingMode === 'OJOS';
@@ -1383,7 +1384,7 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
 async function applyDeviceSettings() {
     applyPersonVoice(); // 0.7.7: la voz de este usuario
     const target = settings.accessMode || 'CLICKS';
-    if (target === 'MIRADA' ? !isProtected() : target !== S.trackingMode) { modeSelect.value = target; setAccessMode(target); }
+    if (target !== (miradaActive ? 'MIRADA' : S.trackingMode) || (PROTECTED_MODES.has(target) && !isProtected())) { modeSelect.value = target; setAccessMode(target); }
 }
 
 

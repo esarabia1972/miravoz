@@ -549,6 +549,12 @@ if (caseArg === 'practicar') {
     const okBtn = $('btn-dialog-ok'); okBtn && okBtn.click(); await sleep(30);
     check('"Salir" + confirmar vuelve a Manual sin protección', !document.body.classList.contains('protected-mode') && S.trackingMode === 'CLICKS', document.body.className);
     check('lista de tableros con botones de página', !!document.querySelector('#home-view .pager .pager-btn[data-dir="down"]'), '');
+    const barrido = [...document.querySelectorAll('#mode-segmented button')].find(b => b.dataset.mode === 'SCAN');
+    barrido.click(); await sleep(30);
+    check('0.7.9: Barrido también usa el modo protegido', document.body.classList.contains('protected-mode') && S.trackingMode === 'SCAN', document.body.className);
+    $('btn-exit-protected').click(); await sleep(30);
+    $('btn-dialog-ok') && $('btn-dialog-ok').click(); await sleep(30);
+    check('0.7.9: "Salir" desde Barrido vuelve a Manual', !document.body.classList.contains('protected-mode') && S.trackingMode === 'CLICKS', `${document.body.className} ${S.trackingMode}`);
     $('btn-practice').click();
     await sleep(50);
     const pv = $('practice-view');
