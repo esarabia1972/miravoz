@@ -1714,3 +1714,20 @@ body:not(.protected-mode) #btn-protected-align { display: none !important; }
     .settings-panel .glass-select, .settings-panel .settings-section .btn { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-size: 0.95rem; }
     .settings-panel .modal-footer .btn { min-height: 44px; padding: 8px 18px; }
 }
+
+/* 0.8.1: editor — tamaño de la celda, imagen propia, menú contextual, celdas ocultas */
+.ce-size { display: flex; align-items: center; gap: 10px; }
+.ce-size label { font-weight: 600; color: var(--text-label); }
+.ce-size select { flex: 1 1 0; min-width: 0; }
+.ce-img-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cell-menu { position: fixed; z-index: 22000; min-width: 210px; padding: 6px; border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--cell-border);
+    box-shadow: 0 12px 32px var(--shadow); display: flex; flex-direction: column; backdrop-filter: blur(20px); }
+.cell-menu button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent;
+    color: var(--text-main); font: inherit; font-size: 0.98rem; cursor: pointer; }
+.cell-menu button:hover, .cell-menu button:focus-visible { background: var(--cell-hover); outline: none; }
+.cell-menu button:disabled { opacity: 0.4; cursor: default; }
+.cell-menu button.danger { color: var(--error-text); }
+.cell-menu hr { border: 0; border-top: 1px solid var(--cell-border); margin: 4px 6px; }
+.cell.is-hidden-cell { opacity: 0.35 !important; outline: 2px dashed var(--text-muted); outline-offset: -4px; }
+.et-bg { display: flex; align-items: center; gap: 6px; }
+.et-bg input[type=color] { width: 40px; height: 32px; border: 1px solid var(--cell-border); border-radius: 8px; padding: 0 2px; background: transparent; cursor: pointer; }

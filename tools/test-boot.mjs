@@ -274,6 +274,29 @@ if (caseArg === 'editor-sesion') {
     check('label del grid principal renombrado', saved?.boards?.g1?.label?.es === 'Renombrado', JSON.stringify(saved?.boards?.g1?.label));
     const after = upserts().slice(before);
     check('con sesión se llamó a upsert con el nombre nuevo', after.some(u => u.id === 'bundle_1' && u.name === 'Renombrado'), JSON.stringify(after.map(u => u.name)));
+
+    // 0.8.1: celda nueva de 2 columnas, botón derecho, fondo de la página
+    const { S } = await import(pathToFileURL(path.join(WEB, 'js/state.js')).href);
+    const g = S.currentBundle.boards[S.currentGridId];
+    g.rowCount = 3; g.minColumnCount = 4; g.gridElements = [];
+    boards.renderGrid(S.currentGridId); await sleep(20);
+    editor.openCellEditor(S.currentGridId, null, 0, 0);
+    $('ce-label').value = 'carne'; $('ce-w').value = '3';
+    check('el editor ofrece ancho hasta el borde (4 columnas)', $('ce-w').options.length === 4 && $('ce-h').options.length === 3, `${$('ce-w').options.length}x${$('ce-h').options.length}`);
+    $('ce-save').click(); await sleep(150);
+    const el = g.gridElements.find(e => e.label?.es === 'carne');
+    check('la celda queda de 3×1', el && el.width === 3 && el.height === 1, JSON.stringify(el && { w: el.width, h: el.height }));
+    check('se dibuja ocupando 3 columnas', $('cell-0-0')?.style.gridColumn.includes('span 3'), $('cell-0-0')?.style.gridColumn);
+    $('cell-0-0').dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+    await sleep(20);
+    const menu = $('cell-menu');
+    check('botón derecho abre el menú de la celda', menu && /Editar/.test(menu.textContent) && /Duplicar/.test(menu.textContent) && /Eliminar/.test(menu.textContent), menu ? menu.textContent : 'sin menú');
+    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Duplicar').click(); await sleep(150);
+    const copies = g.gridElements.filter(e => e.label?.es === 'carne');
+    check('Duplicar pone la copia en el primer lugar libre (3×1 en la fila 2)', copies.length === 2 && copies[1].y === 1 && copies[1].x === 0 && copies[1].width === 3, JSON.stringify(copies.map(c => [c.x, c.y, c.width])));
+    const bg = $('editor-toolbar').querySelector('input[type=color]');
+    bg.value = '#000000'; bg.dispatchEvent(new win.Event('change')); await sleep(150);
+    check('color de fondo de la página guardado y aplicado', g.backgroundColor === '#000000' && $('grid-container').style.backgroundColor !== '', `${g.backgroundColor} / ${$('grid-container').style.backgroundColor}`);
 }
 
 if (caseArg === 'paginas') {

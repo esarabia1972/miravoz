@@ -1,6 +1,6 @@
 {
   "name": "miravoz",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "description": "MiraVoz: comunicación aumentativa y alternativa en el navegador. Sin build: web/ se publica tal cual.",
   "scripts": {
@@ -10,5 +10,5 @@
   "devDependencies": {
     "jsdom": "30.1.2"
   },
-  "appVersion": "0.8.0a"
+  "appVersion": "0.8.1a"
 }

@@ -2,6 +2,14 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1a] - 2026-10-12
+
+- **Added**: **imagen propia** en las celdas ("Subir imagen propia": foto o dibujo, también la cámara del iPad). Se achica a 512 px (PNG si tiene transparencia, JPEG si es foto), queda dentro del tablero y anda sin conexión. "Quitar imagen" la saca.
+- **Added**: **celdas grandes**: en el editor de celda, "Tamaño en la grilla" (ancho × alto). Si tapa otras celdas, avisa antes de quitarlas. Mover con arrastre respeta los tamaños (1×1 se intercambian; una grande se mueve solo si entra). Al achicar la grilla, las celdas cortadas se ajustan.
+- **Added**: **botón derecho** sobre una celda: Editar, Duplicar, Copiar, Cortar, Pegar, Ocultar/Mostrar y Eliminar (en un lugar vacío: Nueva celda o Pegar). Entra a edición si el tablero se puede editar.
+- **Added**: **color de fondo de la página** en la barra de edición ("Fondo" / "Sin fondo").
+- Las celdas ocultas se ven atenuadas al editar.
+
 ## [0.8.0a] - 2026-10-12
 
 Primera versión de la serie 0.8: Manual, Barrido, Rostro y Mirada; Modo protegido; voz por persona; Favoritas, Deshacer y Detener; respaldo; ayuda para Claude.

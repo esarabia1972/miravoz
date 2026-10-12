@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=72">
+    <link rel="stylesheet" href="style.css?v=73">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -464,12 +464,30 @@
                         <option value="3">Nivel 3</option>
                     </select>
 
+                    <!-- 0.8.1: la celda puede ocupar varias celdas de la grilla -->
+                    <label class="ce-label">Tamaño en la grilla</label>
+                    <div class="ce-size">
+                        <label for="ce-w">Ancho</label>
+                        <select id="ce-w" class="glass-select ce-dark"></select>
+                        <label for="ce-h">Alto</label>
+                        <select id="ce-h" class="glass-select ce-dark"></select>
+                    </div>
+                    <p class="ce-hint" id="ce-size-hint">Cuántas columnas y filas ocupa.</p>
+
                     <label class="ce-label">Navegar a otro tablero</label>
                     <select id="ce-nav" class="glass-select ce-dark" style="width:100%;"></select>
                     <p class="ce-hint">Acá aparecen los demás tableros de este archivo. Si todavía no hay otros, usá "Crear tablero nuevo…".</p>
                 </div>
 
                 <div class="ce-col">
+                    <!-- 0.8.1: imagen propia (foto o dibujo), además de los pictogramas -->
+                    <label class="ce-label">Imagen</label>
+                    <div class="ce-img-actions">
+                        <button type="button" id="ce-upload" class="btn btn-secondary">Subir imagen propia</button>
+                        <button type="button" id="ce-img-clear" class="btn btn-secondary">Quitar imagen</button>
+                        <input type="file" id="ce-upload-file" accept="image/*" hidden>
+                    </div>
+                    <p class="ce-hint">Una foto o un dibujo (se achica para que pese poco). O buscá un pictograma:</p>
                     <label class="ce-label">Pictograma (ARASAAC)</label>
                     <div style="display:flex; gap:8px;">
                         <input type="text" id="ce-arasaac-q" class="glass-input ce-dark" style="flex:1;" placeholder="Buscar pictograma…" />
@@ -656,6 +674,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=114"></script>
+    <script type="module" src="js/main.js?v=115"></script>
 </body>
 </html>

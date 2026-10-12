@@ -25,7 +25,8 @@ export const hooks = {
     isEditMode: () => false,      // editor (F3)
     onCellActivated: () => {},    // notificación de selección (benchmark F1-7)
     onCellDropped: () => {},      // editor (F3)
-    onPageRendered: () => {}      // editor: actualiza la franja de páginas
+    onPageRendered: () => {},     // editor: actualiza la franja de páginas
+    cellContextMenu: () => false  // 0.8.1 editor: botón derecho sobre una celda (true = lo manejó)
 };
 
 const gridContainer = document.getElementById('grid-container');
@@ -1286,6 +1287,7 @@ export function renderGrid(gridId) {
 
             if (elData && (!elData.hidden || hooks.isEditMode())) {
                 cell.id = `cell-${x}-${y}`;
+                if (elData.hidden) cell.classList.add('is-hidden-cell'); // 0.8.1: oculta en uso, visible al editar
 
                 const finalBgColor = getCellColor(elData);
                 if (finalBgColor) {
@@ -1415,6 +1417,11 @@ export function renderGrid(gridId) {
                 }
             }
 
+            // 0.8.1: botón derecho → menú de edición de la celda (el editor decide si corresponde)
+            {
+                const cx = x, cy = y, cel = elData || null;
+                cell.addEventListener('contextmenu', (e) => { if (hooks.cellContextMenu(e, cel, cx, cy)) e.preventDefault(); });
+            }
             gridContainer.appendChild(cell);
         }
     }

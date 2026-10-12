@@ -8,10 +8,14 @@ import * as boards from './boards.js';
 import { customAlert, customConfirm, showUndoToast, showInfoToast } from './ui.js';
 import { saveBundle } from './sync.js';
 import { pageOrder, pageCount, gridName, nextPageName, removePage, linksTo, migrateToActionSpeech } from './pages.js';
+import { covered, insideGrid, maxSpan, firstFree, elementAt } from './grid-layout.js';
 
 let editMode = false;
 let editingCell = null; // { gridId, elData | null, x, y }
 let arasaacSelection = null;
+let uploadedImage = null;   // 0.8.1: imagen propia elegida (data URL ya achicada)
+let clearImage = false;     // 0.8.1: "Quitar imagen"
+let clipboardCell = null;   // 0.8.1: celda copiada o cortada (para Pegar)
 
 export function isEditMode() { return editMode; }
 
@@ -415,6 +419,11 @@ function buildToolbar() {
         const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
         g.rowCount = rows;
         g.minColumnCount = cols;
+        // 0.8.1: una celda grande que queda cortada por el borde se achica para entrar
+        for (const el of g.gridElements || []) {
+            if (el.x < cols && el.x + (el.width || 1) > cols) el.width = cols - el.x;
+            if (el.y < rows && el.y + (el.height || 1) > rows) el.height = rows - el.y;
+        }
         await persistBundle();
         boards.renderGrid(S.currentGridId);
 
@@ -446,6 +455,31 @@ function buildToolbar() {
     divCols.append(btnColMinus, mkLabel('Columnas'), btnColPlus);
     tb.appendChild(divCols);
 
+    // 0.8.1: color de fondo de la página (la grilla)
+    const spacer4 = document.createElement('div');
+    spacer4.style.width = '12px';
+    tb.appendChild(spacer4);
+    const bgWrap = document.createElement('div');
+    bgWrap.className = 'et-bg';
+    const bgInput = document.createElement('input');
+    bgInput.type = 'color';
+    bgInput.title = 'Color de fondo de esta página';
+    bgInput.setAttribute('aria-label', 'Color de fondo de esta página');
+    bgInput.value = /^#[0-9a-f]{6}$/i.test(grid()?.backgroundColor || '') ? grid().backgroundColor : '#ffffff';
+    const setBg = async (value) => {
+        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
+        const g = grid();
+        if (value) g.backgroundColor = value; else delete g.backgroundColor;
+        await persistBundle();
+        boards.renderGrid(S.currentGridId);
+        showUndoToast(async () => { Object.assign(S.currentBundle, backupBundle); await persistBundle(); renderSafe(S.currentGridId); });
+    };
+    bgInput.onchange = () => setBg(bgInput.value);
+    const bgClear = mkBtn('Sin fondo', () => { bgInput.value = '#ffffff'; setBg(null); }, 'Quitar el color de fondo de esta página');
+    bgClear.style.padding = '4px 10px';
+    bgWrap.append(mkLabel('Fondo'), bgInput, bgClear);
+    tb.appendChild(bgWrap);
+
 
 
     document.getElementById('board-view').prepend(tb);
@@ -458,6 +492,8 @@ const modal = () => document.getElementById('cell-editor-modal');
 export function openCellEditor(gridId, elData, x, y) {
     editingCell = { gridId, elData, x, y };
     arasaacSelection = null;
+    uploadedImage = null;
+    clearImage = false;
 
     const get = id => document.getElementById(id);
     get('ce-label').value = labelText(elData?.label);
@@ -502,7 +538,52 @@ export function openCellEditor(gridId, elData, x, y) {
     get('ce-arasaac-q').value = '';
     get('ce-delete').style.display = elData ? 'inline-block' : 'none';
 
+    // 0.8.1: tamaño (columnas × filas que ocupa), hasta el borde de la grilla
+    const grid = S.currentBundle.boards[gridId];
+    const ox = elData ? elData.x : x, oy = elData ? elData.y : y;
+    const max = maxSpan(grid, ox, oy);
+    const fill = (sel, n, v) => {
+        sel.innerHTML = '';
+        for (let i = 1; i <= n; i++) { const o = document.createElement('option'); o.value = String(i); o.textContent = String(i); sel.appendChild(o); }
+        sel.value = String(Math.min(Math.max(1, v || 1), n));
+    };
+    fill(get('ce-w'), max.w, elData?.width);
+    fill(get('ce-h'), max.h, elData?.height);
+    get('ce-img-clear').disabled = !src;
+
     modal().style.display = 'flex';
+}
+
+// 0.8.1: vista previa de la imagen elegida (pictograma, propia o ninguna)
+function showPreview(src) {
+    const prev = document.getElementById('ce-img-preview');
+    prev.innerHTML = '';
+    if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; prev.appendChild(im); }
+    document.getElementById('ce-img-clear').disabled = !src;
+}
+
+/**
+ * 0.8.1: imagen propia → se achica (lado mayor ≤ 512 px) y se guarda como data URL dentro del tablero (anda sin
+ * conexión y viaja con la nube y el respaldo). PNG si tiene transparencia; JPEG si es una foto.
+ */
+export async function shrinkImage(file, max = 512) {
+    if (!file || !/^image\//.test(file.type || '')) throw new Error('El archivo no es una imagen.');
+    if (file.size > 25 * 1024 * 1024) throw new Error('La imagen es demasiado grande (más de 25 MB).');
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('No se pudo leer la imagen.')); i.src = url; });
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        let alpha = false;
+        if (/png|gif|webp|svg/.test(file.type)) {
+            const d = ctx.getImageData(0, 0, w, h).data;
+            for (let i = 3; i < d.length; i += 16) if (d[i] < 250) { alpha = true; break; }
+        }
+        return alpha ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.85);
+    } finally { URL.revokeObjectURL(url); }
 }
 
 // Búsqueda ARASAAC (F3-4)
@@ -521,6 +602,8 @@ async function searchArasaac(query) {
             img.title = (p.keywords && p.keywords[0]?.keyword) || '';
             img.onclick = () => {
                 arasaacSelection = { url, id: p._id };
+                uploadedImage = null; clearImage = false;
+                showPreview(url);
                 [...results.children].forEach(c => c.classList.remove('selected'));
                 img.classList.add('selected');
             };
@@ -555,6 +638,18 @@ async function saveCell() {
     const grid = S.currentBundle.boards[gridId];
     const get = id => document.getElementById(id);
 
+    // 0.8.1: tamaño — si tapa otras celdas, se pregunta antes de quitarlas
+    const w = parseInt(get('ce-w').value, 10) || 1, h = parseInt(get('ce-h').value, 10) || 1;
+    const rect = { x: elData ? elData.x : x, y: elData ? elData.y : y, width: w, height: h };
+    if (!insideGrid(grid, rect)) { customAlert('Con ese tamaño la celda se sale de la grilla.'); return; }
+    const hit = covered(grid, rect, elData);
+    if (hit.length) {
+        const names = hit.map(e => labelText(e.label) || e.autoLabel?.es || 'sin texto').slice(0, 4).join(', ');
+        const ok = await customConfirm(`Con ese tamaño, la celda tapa ${hit.length === 1 ? 'otra celda' : `${hit.length} celdas`} (${names}). ¿Quitarlas? Se puede deshacer.`);
+        if (!ok) return;
+        grid.gridElements = grid.gridElements.filter(e => !hit.includes(e));
+    }
+
     if (!elData) {
         elData = {
             id: 'grid-element-' + Date.now(), modelName: 'GridElement',
@@ -569,6 +664,7 @@ async function saveCell() {
     // (si quedaran otras variantes, al vaciar el texto reaparecería, p. ej., el de es-ar).
     const labelText = rawLabel.trim() === '' && rawLabel.length > 0 ? ' ' : rawLabel.trim();
     elData.label = { es: labelText };
+    elData.width = w; elData.height = h;
 
     // Color
     elData.colorCategory = get('ce-color').value || null;
@@ -607,6 +703,11 @@ async function saveCell() {
     }
     elData.actions = actions;
 
+    // 0.8.1: imagen propia o quitar la imagen
+    if (clearImage) delete elData.image;
+    if (uploadedImage) {
+        elData.image = { id: 'grid-image-' + Date.now(), modelName: 'GridImage', data: uploadedImage, searchProviderName: 'propia' };
+    }
     // Imagen ARASAAC elegida: guardar con atribución (CC BY-NC-SA) y cache offline
     if (arasaacSelection) {
         const data = await toDataUrl(arasaacSelection.url);
@@ -682,18 +783,23 @@ export function initEditor() {
         // Backup for undo
         const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
         
+        // 0.8.1: con celdas de varias filas/columnas: si las dos son de 1×1 se intercambian; si no, se mueve
+        // la de origen solo si entra (sin tapar otras); si no entra, no se hace nada.
         const sourceEl = grid.gridElements.find(e => e.x === fromX && e.y === fromY);
-        const targetEl = grid.gridElements.find(e => e.x === toX && e.y === toY);
-        
-        if (sourceEl) {
-            sourceEl.x = toX;
-            sourceEl.y = toY;
+        const targetEl = elementAt(grid, toX, toY);
+        if (!sourceEl || targetEl === sourceEl) return;
+        const single = (e) => (e.width || 1) === 1 && (e.height || 1) === 1;
+        if (targetEl && single(sourceEl) && single(targetEl)) {
+            [sourceEl.x, sourceEl.y, targetEl.x, targetEl.y] = [targetEl.x, targetEl.y, fromX, fromY];
+        } else {
+            const rect = { x: toX, y: toY, width: sourceEl.width || 1, height: sourceEl.height || 1 };
+            if (!insideGrid(grid, rect) || covered(grid, rect, sourceEl).length) {
+                showInfoToast('No entra ahí: hay otras celdas o se sale de la grilla.', 3500);
+                return;
+            }
+            sourceEl.x = toX; sourceEl.y = toY;
         }
-        if (targetEl) {
-            targetEl.x = fromX;
-            targetEl.y = fromY;
-        }
-        
+
         await persistBundle();
         boards.renderGrid(S.currentGridId);
         
@@ -705,4 +811,112 @@ export function initEditor() {
     };
     boards.hooks.isEditMode = () => editMode;
     boards.hooks.onPageRendered = () => { if (editMode) renderPagesStrip(); };
+
+    // 0.8.1: imagen propia
+    const fileInput = document.getElementById('ce-upload-file');
+    document.getElementById('ce-upload').addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+    fileInput.addEventListener('change', async () => {
+        const f = fileInput.files && fileInput.files[0];
+        if (!f) return;
+        try {
+            uploadedImage = await shrinkImage(f);
+            arasaacSelection = null; clearImage = false;
+            [...document.getElementById('ce-arasaac-results').children].forEach(c => c.classList.remove('selected'));
+            showPreview(uploadedImage);
+        } catch (e) { customAlert(e?.message || 'No se pudo usar esa imagen.'); }
+    });
+    document.getElementById('ce-img-clear').addEventListener('click', () => {
+        uploadedImage = null; arasaacSelection = null; clearImage = true;
+        [...document.getElementById('ce-arasaac-results').children].forEach(c => c.classList.remove('selected'));
+        showPreview(null);
+    });
+
+    // 0.8.1: botón derecho sobre una celda → menú (Editar, Duplicar, Copiar, Cortar, Pegar, Ocultar, Eliminar)
+    boards.hooks.cellContextMenu = (e, elData, x, y) => {
+        const editBtn = document.getElementById('btn-edit-board');
+        const canEdit = editMode || (editBtn && editBtn.offsetParent !== null && !document.body.classList.contains('protected-mode'));
+        if (!canEdit || !S.currentBundle) return false;
+        openCellMenu(e.clientX, e.clientY, elData, x, y);
+        return true;
+    };
+    document.addEventListener('pointerdown', (e) => { const m = document.getElementById('cell-menu'); if (m && !m.contains(e.target)) closeCellMenu(); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCellMenu(); });
+    window.addEventListener('resize', closeCellMenu);
+}
+
+// --- 0.8.1: menú contextual de celda ---
+function closeCellMenu() { document.getElementById('cell-menu')?.remove(); }
+
+async function withUndo(fn) {
+    const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
+    const gridId = S.currentGridId;
+    const changed = await fn();
+    if (changed === false) return;
+    await persistBundle();
+    boards.renderGrid(gridId);
+    showUndoToast(async () => { Object.assign(S.currentBundle, backupBundle); await persistBundle(); renderSafe(gridId); });
+}
+
+function cloneCell(el) {
+    const c = JSON.parse(JSON.stringify(el));
+    c.id = 'grid-element-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    (c.actions || []).forEach((a, i) => { a.id = `ga-${Date.now()}-${i}`; });
+    return c;
+}
+
+function openCellMenu(px, py, elData, x, y) {
+    closeCellMenu();
+    if (!editMode) enterEditMode(); // el botón derecho también entra a editar
+    const grid = () => S.currentBundle.boards[S.currentGridId];
+    const menu = document.createElement('div');
+    menu.id = 'cell-menu';
+    menu.className = 'cell-menu';
+    menu.setAttribute('role', 'menu');
+    const item = (text, fn, { disabled = false, danger = false } = {}) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = text; b.disabled = disabled;
+        if (danger) b.classList.add('danger');
+        b.onclick = async () => { closeCellMenu(); await fn(); };
+        menu.appendChild(b);
+    };
+    const sep = () => menu.appendChild(document.createElement('hr'));
+    const ox = elData ? elData.x : x, oy = elData ? elData.y : y;
+    if (elData) {
+        item('Editar', () => openCellEditor(S.currentGridId, elData, ox, oy));
+        item('Duplicar', () => withUndo(() => {
+            const g = grid(); const c = cloneCell(elData);
+            let spot = firstFree(g, c.width || 1, c.height || 1);
+            if (!spot) { spot = firstFree(g, 1, 1); c.width = 1; c.height = 1; }
+            if (!spot) { customAlert('No hay lugar libre en la grilla para duplicarla.'); return false; }
+            c.x = spot.x; c.y = spot.y; g.gridElements.push(c);
+        }));
+        sep();
+        item('Copiar', () => { clipboardCell = JSON.parse(JSON.stringify(elData)); showInfoToast('Celda copiada: botón derecho en un lugar vacío → Pegar.', 3000); });
+        item('Cortar', () => withUndo(() => {
+            clipboardCell = JSON.parse(JSON.stringify(elData));
+            grid().gridElements = grid().gridElements.filter(e2 => e2 !== elData);
+        }));
+    }
+    item('Pegar', () => withUndo(() => {
+        const g = grid(); const c = cloneCell(clipboardCell);
+        c.x = ox; c.y = oy;
+        const max = maxSpan(g, ox, oy);
+        c.width = Math.min(c.width || 1, max.w); c.height = Math.min(c.height || 1, max.h);
+        const hit = covered(g, c, elData || null).filter(e2 => e2 !== elData);
+        if (hit.length) { showInfoToast('No entra ahí: tapa otras celdas.', 3000); return false; }
+        if (elData) g.gridElements = g.gridElements.filter(e2 => e2 !== elData); // pegar sobre una celda la reemplaza
+        g.gridElements.push(c);
+    }), { disabled: !clipboardCell });
+    if (elData) {
+        item(elData.hidden ? 'Mostrar' : 'Ocultar', () => withUndo(() => { if (elData.hidden) delete elData.hidden; else elData.hidden = true; }));
+        sep();
+        item('Eliminar', () => withUndo(() => { grid().gridElements = grid().gridElements.filter(e2 => e2 !== elData); }), { danger: true });
+    } else {
+        item('Nueva celda', () => openCellEditor(S.currentGridId, null, x, y));
+    }
+    document.body.appendChild(menu);
+    const r = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(px, window.innerWidth - r.width - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(py, window.innerHeight - r.height - 8))}px`;
+    menu.querySelector('button:not(:disabled)')?.focus();
 }

@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.0a';
+export const AYUDA_VERSION = '0.8.1a';
 
 export const TEMAS = {
     general: {
@@ -108,9 +108,13 @@ En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas
     editor: {
         titulo: 'Editar tableros',
         alias: ['editar', 'celda', 'pictograma', 'arasaac', 'niveles'],
-        texto: `Con el lápiz del tablero se entra en edición: tocar una celda vacía o existente para editarla (texto, pictograma de ARASAAC o imagen propia, color, lo que dice, si lleva a otra página), mover celdas arrastrando, agregar/quitar páginas (franja de miniaturas).
-"Nivel de vocabulario": permite versiones simplificadas del mismo tablero (nivel 1 = lo esencial); en uso se muestran las celdas del nivel elegido.
-Cada guardado deja una versión que se puede restaurar. También se puede editar desde Claude con las herramientas de este conector.`
+        texto: `Con el lápiz del tablero (o con el botón derecho sobre una celda) se entra en edición.
+- Editar una celda: tocarla (o botón derecho → Editar). Texto, qué dice, color, nivel de vocabulario, a qué página lleva, TAMAÑO (cuántas columnas y filas ocupa: una celda puede ser grande, como "carne" ocupando tres columnas) e IMAGEN: un pictograma de ARASAAC o una imagen propia ("Subir imagen propia": foto o dibujo; se achica sola para que pese poco y anda sin conexión). "Quitar imagen" la saca.
+- Botón derecho sobre una celda: Editar, Duplicar, Copiar, Cortar, Pegar, Ocultar/Mostrar (oculta en uso, visible al editar) y Eliminar. Sobre un lugar vacío: Nueva celda o Pegar.
+- Mover: arrastrar una celda a otro lugar (dos celdas de 1×1 se intercambian; una grande se mueve solo si entra).
+- Barra de edición: nombre, Dificultad (nivel de vocabulario), filas y columnas, y "Fondo" (color de fondo de la página; "Sin fondo" lo quita). Páginas en la franja de miniaturas.
+- Si una celda más grande tapa otras, se avisa antes de quitarlas; todo se puede deshacer y cada guardado deja una versión restaurable.
+Desde Claude también se pueden armar celdas grandes (ancho/alto en poner_celdas).`
     },
     configuracion: {
         titulo: 'Configuración',
