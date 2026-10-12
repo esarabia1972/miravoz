@@ -17,11 +17,11 @@ let current = { ...DEFAULTS }, loadedScope = null;
 /** Pura (para tests): cómo bajar voces mejoradas según el dispositivo. */
 export function enhancedVoiceHelp(ua = (typeof navigator !== 'undefined' ? navigator.userAgent : ''), touch = (typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0)) {
     const ipad = /iPad|iPhone/.test(ua) || (/Macintosh/.test(ua) && touch > 1);
-    if (ipad) return 'Para una voz más natural: Ajustes → Accesibilidad → Contenido leído → Voces → Español, y bajá una "Mejorada" o "Premium" (por ejemplo Mónica o Paulina). Después cerrá y volvé a abrir MiraVoz.';
-    if (/Macintosh/.test(ua)) return 'Para una voz más natural: Configuración del Sistema → Accesibilidad → Contenido leído → Voz del sistema → Administrar voces → Español, y bajá una "Mejorada" o "Premium". Después recargá MiraVoz.';
-    if (/Android/.test(ua)) return 'Para una voz más natural: Ajustes → Accesibilidad → Salida de texto a voz → Motor de Google → Instalar datos de voz → Español, y bajá una voz para usar sin conexión.';
-    if (/Windows/.test(ua)) return 'Para más voces: Configuración → Hora e idioma → Voz → Agregar voces → Español.';
-    return 'Se pueden agregar voces en español desde los ajustes de voz del dispositivo.';
+    if (ipad) return 'Más natural: Ajustes → Accesibilidad → Contenido leído → Voces → bajá una "Mejorada".';
+    if (/Macintosh/.test(ua)) return 'Más natural: Ajustes del Sistema → Accesibilidad → Contenido leído → bajá una voz "Mejorada".';
+    if (/Android/.test(ua)) return 'Más natural: Ajustes → Accesibilidad → Texto a voz → Google → instalar la voz en español.';
+    if (/Windows/.test(ua)) return 'Más voces: Configuración → Hora e idioma → Voz → Agregar voces.';
+    return 'Se pueden agregar voces en los ajustes de voz del dispositivo.';
 }
 
 async function load(scope) {
@@ -63,6 +63,7 @@ function fill() {
         const hasEnhanced = list.some(isEnhancedVoice);
         status.textContent = !list.length ? 'Este navegador no tiene voces en español instaladas. ' + enhancedVoiceHelp()
             : hasEnhanced ? 'Se guarda para esta persona en este dispositivo.' : enhancedVoiceHelp();
+        status.title = 'Después de bajar una voz, recargá MiraVoz para verla en la lista.';
     }
 }
 

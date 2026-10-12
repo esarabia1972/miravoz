@@ -13,7 +13,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.resolve(HERE, '../web');
 const OUT = path.join(WEB, 'offline-manifest.json');
 // Versión visible (semver) — fuente única: "version" de package.json. Se sube en cada publicación (ver EQUIPO.md).
-export const APP_VERSION = JSON.parse(fs.readFileSync(path.resolve(HERE, '../package.json'), 'utf8')).version;
+// Ajustes chicos llevan letra (0.7.7b, 0.7.7c…) en "appVersion" sin gastar número; si no hay, se usa "version"
+const PKG = JSON.parse(fs.readFileSync(path.resolve(HERE, '../package.json'), 'utf8'));
+export const APP_VERSION = PKG.appVersion || PKG.version;
 
 // Archivos locales que forman la app (se excluye lo que no se usa en el navegador)
 const EXCLUDE = new Set(['offline-manifest.json', 'sw.js', 'package.json', 'vercel.json', 'version.json', '.DS_Store', '.gitignore', 'oauth-consent.html']);

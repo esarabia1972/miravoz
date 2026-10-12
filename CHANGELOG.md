@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.7b] - 2026-10-12
+
+- **Changed**: Configuración sin scroll: a la izquierda Rostro, Barrido y Parpadeo; a la derecha Voz (voz, velocidad y tono en una fila), Sin conexión y respaldo, y Registro. Textos de ayuda de la voz más cortos.
+- Versionado: los ajustes chicos llevan letra (0.7.7b) en `appVersion` de package.json, sin gastar número.
+
 ## [0.7.7] - 2026-10-12
 
 - **Removed**: la voz natural Piper de 0.7.6 (era demasiado lenta incluso en una MacBook). Se borra el espacio que ocupaba si se había descargado.

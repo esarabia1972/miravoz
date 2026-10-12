@@ -515,6 +515,39 @@
                     <option value="5000">5 segundos</option>
                 </select>
             </section>
+            <section class="settings-section" id="setting-scan">
+                <h3>Modo Barrido</h3>
+                <p class="settings-help">Se resalta de a una opción; se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
+                <div class="settings-grid settings-grid-3">
+                    <div>
+                        <label for="scan-pattern">Patrón</label>
+                        <select id="scan-pattern" class="glass-select">
+                            <option value="ROW_COLUMN" selected>Por filas</option>
+                            <option value="LINEAR">De a uno</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-interval" title="Cuánto tiempo queda resaltada cada opción">Velocidad</label>
+                        <select id="scan-interval" class="glass-select">
+                            <option value="600">0,6 s</option>
+                            <option value="900">0,9 s</option>
+                            <option value="1200" selected>1,2 s</option>
+                            <option value="1800">1,8 s</option>
+                            <option value="2000">2 s</option>
+                            <option value="2500">2,5 s</option>
+                            <option value="3000">3 s</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scan-audio">Sonido</label>
+                        <select id="scan-audio" class="glass-select">
+                            <option value="none" selected>Silencio</option>
+                            <option value="beep">Beep</option>
+                            <option value="speak">Decir</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
             <section class="settings-section" id="setting-blink">
                 <h3>Parpadeo</h3>
                 <p class="settings-help">Elegir cerrando los ojos un momento. En Barrido reemplaza al pulsador; los parpadeos comunes no cuentan.</p>
@@ -553,64 +586,38 @@
             </section>
                 </div>
                 <div class="settings-col">
-            <section class="settings-section" id="setting-scan">
-                <h3>Modo Barrido</h3>
-                <p class="settings-help">Se resalta de a una opción; se elige con el pulsador, la barra espaciadora o tocando la pantalla.</p>
-                <div class="settings-grid settings-grid-3">
-                    <div>
-                        <label for="scan-pattern">Patrón</label>
-                        <select id="scan-pattern" class="glass-select">
-                            <option value="ROW_COLUMN" selected>Por filas</option>
-                            <option value="LINEAR">De a uno</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="scan-interval" title="Cuánto tiempo queda resaltada cada opción">Velocidad</label>
-                        <select id="scan-interval" class="glass-select">
-                            <option value="600">0,6 s</option>
-                            <option value="900">0,9 s</option>
-                            <option value="1200" selected>1,2 s</option>
-                            <option value="1800">1,8 s</option>
-                            <option value="2000">2 s</option>
-                            <option value="2500">2,5 s</option>
-                            <option value="3000">3 s</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="scan-audio">Sonido</label>
-                        <select id="scan-audio" class="glass-select">
-                            <option value="none" selected>Silencio</option>
-                            <option value="beep">Beep</option>
-                            <option value="speak">Decir</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
             <section class="settings-section" id="setting-voice">
                 <h3>Voz</h3>
                 <p class="settings-help">La voz de esta persona. Las "mejoradas" suenan más naturales y funcionan sin conexión.</p>
+                <div class="settings-grid settings-grid-3">
+                    <div>
+                        <label for="voice-system">Voz</label>
+                        <select id="voice-system" class="glass-select"></select>
+                    </div>
+                    <div>
+                        <label for="voice-rate">Velocidad</label>
+                        <select id="voice-rate" class="glass-select">
+                            <option value="0.7">Lenta</option>
+                            <option value="0.85">Pausada</option>
+                            <option value="1">Normal</option>
+                            <option value="1.15">Rápida</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="voice-pitch">Tono</label>
+                        <select id="voice-pitch" class="glass-select">
+                            <option value="0.8">Grave</option>
+                            <option value="0.9">Algo grave</option>
+                            <option value="1">Normal</option>
+                            <option value="1.1">Algo agudo</option>
+                            <option value="1.2">Agudo</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="settings-inline">
-                    <select id="voice-system" class="glass-select" aria-label="Voz"></select>
                     <button type="button" class="btn btn-secondary" id="btn-voice-test">Probar</button>
+                    <p class="settings-help" id="voice-status" role="status" aria-live="polite"></p>
                 </div>
-                <div class="settings-inline">
-                    <label for="voice-rate">Velocidad</label>
-                    <select id="voice-rate" class="glass-select">
-                        <option value="0.7">Lenta</option>
-                        <option value="0.85">Pausada</option>
-                        <option value="1">Normal</option>
-                        <option value="1.15">Rápida</option>
-                    </select>
-                    <label for="voice-pitch">Tono</label>
-                    <select id="voice-pitch" class="glass-select">
-                        <option value="0.8">Grave</option>
-                        <option value="0.9">Algo grave</option>
-                        <option value="1">Normal</option>
-                        <option value="1.1">Algo agudo</option>
-                        <option value="1.2">Agudo</option>
-                    </select>
-                </div>
-                <p class="settings-help" id="voice-status" role="status" aria-live="polite"></p>
             </section>
             <section class="settings-section" id="setting-offline">
                 <h3>Sin conexión y respaldo</h3>
@@ -640,6 +647,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=102"></script>
+    <script type="module" src="js/main.js?v=103"></script>
 </body>
 </html>

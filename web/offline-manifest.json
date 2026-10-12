@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "c2206e9ae542",
- "appVersion": "0.7.7",
+ "version": "f287d32d7f90",
+ "appVersion": "0.7.7b",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "9c2a8a87c49e5699229bbb00c3d583f848433f7d3c084ba1f808ff6a4f301b1a",
-   "bytes": 47749
+   "sha256": "49ff1d6cc31c8ba1510df2f30cad1f2e402cc911994f35dc8bb0dc491f8cb894",
+   "bytes": 48035
   },
   {
    "url": "/js/align.js",
@@ -65,8 +65,8 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "b8833e7f0d46a66d7e1ad7e80369a57da56e7a48a871f2907caa3cbeb6b1c872",
-   "bytes": 104
+   "sha256": "b2856730000c56238bb9c06a89a85b77b130554bb467987ae104dd0a1ea6a87e",
+   "bytes": 105
   },
   {
    "url": "/js/calibration.js",
@@ -260,8 +260,8 @@
   },
   {
    "url": "/js/voice-settings.js",
-   "sha256": "7bdc7dc2137141713b5cf8830eb7b6d4d8bc40cb79a978aadb9a64948c5e3689",
-   "bytes": 4864
+   "sha256": "6c8403c324c9b8e94547e41ff5623308965efcd3fd1eb940290fa71b60aaecbd",
+   "bytes": 4625
   },
   {
    "url": "/legal.css",
@@ -445,5 +445,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28956764
+ "totalBytes": 28956812
 }
