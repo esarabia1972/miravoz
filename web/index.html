@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=61">
+    <link rel="stylesheet" href="style.css?v=62">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -123,6 +123,20 @@
     </div>
     
     <!-- Vista de Mis Usuarios (Fase 4.2) -->
+    <!-- 1.9.8: Tableros de un usuario (pantalla propia, como Estadística) -->
+    <div id="user-boards-view" class="modal-overlay fullscreen-panel" style="display: none; z-index: 10500;" role="dialog" aria-modal="true" aria-labelledby="user-boards-title">
+        <div class="fullscreen-panel-inner">
+            <div class="fullscreen-panel-header">
+                <button type="button" id="btn-close-user-boards" class="fullscreen-back" aria-label="Volver a Mis usuarios">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>Volver</span>
+                </button>
+                <h2 id="user-boards-title">Tableros</h2>
+            </div>
+            <div id="user-boards-body" class="user-boards-body"></div>
+        </div>
+    </div>
+
     <div id="users-view" class="modal-overlay fullscreen-panel" style="display: none; z-index: 10000;" role="dialog" aria-modal="true" aria-labelledby="users-title">
         <div class="fullscreen-panel-inner">
             <div class="fullscreen-panel-header">
@@ -590,6 +604,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=98"></script>
+    <script type="module" src="js/main.js?v=99"></script>
 </body>
 </html>

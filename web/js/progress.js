@@ -26,7 +26,7 @@ function ensurePanel() {
     back.type = 'button';
     back.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg><span>Volver</span>';
     back.onclick = () => { panel.style.display = 'none'; };
-    const title = el('h2', null, 'Progreso'); title.id = 'progress-title';
+    const title = el('h2', null, 'Estadística'); title.id = 'progress-title';
     const range = el('select', 'glass-select progress-range'); range.id = 'progress-range';
     for (const [v, t] of [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['90', 'Últimos 90 días']]) { const o = el('option', null, t); o.value = v; range.appendChild(o); }
     range.value = '30';
@@ -38,10 +38,12 @@ function ensurePanel() {
     return panel;
 }
 
-export async function openProgress(user) {
+let opts = {};
+export async function openProgress(user, options = {}) {
+    opts = options;
     ensurePanel();
     panel.style.display = 'flex';
-    document.getElementById('progress-title').textContent = `Progreso de ${user.display_name}`;
+    document.getElementById('progress-title').textContent = `Estadística de ${user.display_name}`;
     const range = document.getElementById('progress-range');
     range.onchange = () => load(user, Number(range.value));
     await load(user, Number(range.value));
@@ -65,7 +67,7 @@ async function load(user, days) {
         const boards = (asgRes.data || []).map(a => ({ name: a.copy_bundle?.name, bundle: a.copy_bundle || {}, assignment_id: a.id }));
         const s = summarizeUsage(evRes.data || [], { boards, recentPhrases: 30 });
         render(body, s, user);
-        if (!user.settings?.metrics?.enabled) body.prepend(el('p', 'user-note', 'El registro de uso está desactivado para este usuario: se activa en Mis usuarios, con el consentimiento de la persona o su familia.'));
+        if (!user.settings?.metrics?.enabled) body.prepend(el('p', 'user-note', 'El registro de uso está desactivado para este usuario. Se activa abajo, con el consentimiento de la persona o su familia.'));
     } catch (e) {
         console.error('Progreso:', e);
         body.replaceChildren(el('p', 'user-note', `No se pudo mostrar el progreso: ${e?.message || e}`));
@@ -145,6 +147,14 @@ function render(body, s, user) {
         else load(user, Number(document.getElementById('progress-range').value));
     };
     const foot = el('div', 'progress-foot');
+    if (opts.toggleMetrics) {
+        const on = !!user.settings?.metrics?.enabled;
+        const tog = el('button', 'btn btn-secondary', on ? 'Desactivar registro' : 'Activar registro');
+        tog.type = 'button';
+        tog.title = on ? 'Desde la próxima conexión no se guarda nada más; lo ya registrado se conserva.' : 'Registrar el uso para ver su estadística (necesita consentimiento).';
+        tog.onclick = async () => { if (await opts.toggleMetrics()) load(user, Number(document.getElementById('progress-range').value)); };
+        foot.appendChild(tog);
+    }
     foot.appendChild(del);
     body.appendChild(foot);
 }

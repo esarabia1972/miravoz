@@ -1619,3 +1619,12 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
     .fullscreen-panel-header { flex-wrap: wrap; }
     .users-search-field { order: 3; width: 100%; max-width: none; margin-left: 0; }
 }
+
+/* 1.9.8: tarjeta de usuario — Tableros y Estadística arriba a la derecha; Nuevo código / Desvincular abajo */
+.user-side-actions { width: 170px; }
+.user-bottom-actions { justify-content: space-between; border-top: 1px solid var(--cell-border); padding-top: 12px; }
+.user-tablet-info .user-code { font-family: inherit; font-size: 0.95rem; padding: 3px 10px; border-radius: 999px; }
+.user-card { gap: 14px; }
+.progress-foot { display: flex; gap: 10px; flex-wrap: wrap; }
+.user-boards-body { display: flex; flex-direction: column; gap: 10px; }
+.user-main .user-tablet-info { flex: 0 0 auto; }

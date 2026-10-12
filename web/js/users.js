@@ -8,7 +8,7 @@ import { openProgress } from './progress.js';
 export let users = [];
 let currentProfessionalId = null;
 let loadError = false;               // falló la consulta principal de usuarios
-const expandedUsers = new Set();     // fichas abiertas ("Ver tableros"), sobrevive a los re-render
+let boardsUserId = null;             // 1.9.8: usuario cuya pantalla "Tableros" está abierta
 // (1.3.3) La configuración de acceso se hace en la propia tablet: ya no hay panel "Configuración de su tablet".
 
 
@@ -132,7 +132,7 @@ export async function deleteUser(userId) {
         return;
     }
 
-    expandedUsers.delete(userId);
+    if (boardsUserId === userId) closeBoards();
     await fetchUsers();
 }
 
@@ -250,27 +250,22 @@ function button(text, ariaLabel, onClick, className = 'btn btn-secondary user-bt
     return b;
 }
 
-// 1.9.0: registro de uso (granular) con consentimiento + pestaña Progreso
+// 1.9.0: registro de uso (granular) con consentimiento; desde 1.9.8 se activa en Estadística
 async function setMetrics(user, enabled) {
+    if (enabled === undefined) enabled = !user.settings?.metrics?.enabled;
     if (enabled && !(await customChoice(
         `Al activar el registro, la tablet de ${user.display_name} guarda cada selección, las frases que arma y los tiempos, para analizar su progreso (incluso con Claude, si lo conectaste).\n\n` +
-        'Hace falta el consentimiento de la persona o de su familia/responsables. ¿Lo tenés?', 'Sí, activar', 'Cancelar'))) return;
-    if (!enabled && !(await customChoice(`¿Desactivar el registro de uso de ${user.display_name}?\n\nDesde la próxima conexión de su tablet no se guarda nada más. Lo ya registrado se conserva (se puede borrar desde Ver progreso).`, 'Desactivar', 'Cancelar'))) return;
+        'Hace falta el consentimiento de la persona o de su familia/responsables. ¿Lo tenés?', 'Sí, activar', 'Cancelar'))) return false;
+    if (!enabled && !(await customChoice(`¿Desactivar el registro de uso de ${user.display_name}?\n\nDesde la próxima conexión de su tablet no se guarda nada más. Lo ya registrado se conserva (se puede borrar desde Estadística).`, 'Desactivar', 'Cancelar'))) return false;
     const prev = (user.settings && typeof user.settings === 'object') ? user.settings : {};
     const settings = { ...prev, metrics: { ...(prev.metrics || {}), enabled, ...(enabled ? { consent_at: new Date().toISOString() } : { disabled_at: new Date().toISOString() }) } };
     const { error } = await supabaseClient.from('aac_users').update({ settings }).eq('id', user.id);
-    if (error) { customAlert('No se pudo cambiar. Revisá la conexión e intentá de nuevo.'); return; }
+    if (error) { customAlert('No se pudo cambiar. Revisá la conexión e intentá de nuevo.'); return false; }
     user.settings = settings;
-    renderUsersList(`metrics:${user.id}`);
+    renderUsersList();
+    return true;
 }
 
-function metricsButton(user) {
-    const on = !!user.settings?.metrics?.enabled;
-    const b = button(on ? 'Desactivar registro' : 'Activar registro', `${on ? 'Desactivar' : 'Activar'} el registro de uso de ${user.display_name}`, () => setMetrics(user, !on));
-    b.dataset.focusKey = `metrics:${user.id}`;
-    b.title = on ? 'Se registra el uso de su tablet (con consentimiento) para ver su progreso.' : 'Registrar el uso de su tablet para ver su progreso (necesita consentimiento).';
-    return b;
-}
 
 /** 1.9.7: estado de la tablet (debajo del nombre): última conexión, código vigente y registro. */
 function renderTabletInfo(user) {
@@ -280,7 +275,7 @@ function renderTabletInfo(user) {
     else if (!linked) info.appendChild(el('span', 'user-device user-device-off', 'Sin tablet vinculada'));
     else user.devices.forEach((device, i) => {
         const prefix = user.devices.length > 1 ? `Tablet ${i + 1}: ` : '';
-        info.appendChild(el('span', 'user-device', device.last_seen_at ? `${prefix}última conexión ${shortDate(device.last_seen_at)}` : `${prefix}tablet vinculada`));
+        info.appendChild(el('span', 'user-device', device.last_seen_at ? `${prefix}${prefix ? 'última' : 'Última'} conexión ${shortDate(device.last_seen_at)}` : `${prefix}${prefix ? 'vinculada' : 'Tablet vinculada'}`));
     });
     if (user.codesError) info.appendChild(el('span', 'user-note', 'No pudimos cargar el código de vinculación.'));
     else if (user.access_code) {
@@ -292,18 +287,40 @@ function renderTabletInfo(user) {
     return info;
 }
 
-/** 1.9.7: acciones de la tablet, apiladas a la derecha. */
+/** 1.9.8: abajo de la tarjeta, Nuevo código a la izquierda y Desvincular tablet a la derecha. */
 function renderTabletActions(user) {
-    const actions = el('div', 'user-side-actions');
+    const actions = el('div', 'user-row user-bottom-actions');
     const linked = !user.devicesError && user.devices.length > 0;
-    if (linked) user.devices.forEach((device, i) => actions.appendChild(
-        button(user.devices.length > 1 ? `Desvincular tablet ${i + 1}` : 'Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device))));
     const gen = button(user.access_code || linked ? 'Nuevo código' : 'Generar código',
         `${user.access_code || linked ? 'Nuevo código' : 'Generar código'} para la tablet de ${user.display_name}`, () => generateCode(user.id));
     gen.title = 'Genera un código de 4 caracteres, de un solo uso, para vincular una tablet (vence a los 30 minutos). El código anterior deja de servir.';
     actions.appendChild(gen);
-    actions.appendChild(metricsButton(user));
+    if (linked) user.devices.forEach((device, i) => actions.appendChild(
+        button(user.devices.length > 1 ? `Desvincular tablet ${i + 1}` : 'Desvincular tablet', `Desvincular la tablet de ${user.display_name}`, () => unlinkDevice(user, device),
+            'btn btn-secondary user-btn user-btn-danger')));
     return actions;
+}
+
+/** 1.9.8: "Tableros" navega a su propia pantalla (como Estadística). */
+function openBoards(user) {
+    boardsUserId = user.id;
+    document.getElementById('user-boards-view').style.display = 'flex';
+    renderBoards();
+}
+function closeBoards() {
+    boardsUserId = null;
+    const v = document.getElementById('user-boards-view');
+    if (v) v.style.display = 'none';
+}
+function renderBoards(focusKey = null) {
+    const body = document.getElementById('user-boards-body');
+    if (!body || !boardsUserId) return;
+    const user = users.find(u => u.id === boardsUserId);
+    if (!user) { closeBoards(); return; }
+    document.getElementById('user-boards-title').textContent = `Tableros de ${user.display_name}`;
+    body.replaceChildren();
+    renderCopies(user, body);
+    if (focusKey) [...body.querySelectorAll('[data-focus-key]')].find(n => n.dataset.focusKey === focusKey)?.focus();
 }
 
 
@@ -371,6 +388,7 @@ function renderCopies(user, container) {
 
 /** focusKey: data-focus-key del elemento que recupera el foco tras re-render (p. ej. botón de casita). */
 export function renderUsersList(focusKey = null) {
+    if (boardsUserId) renderBoards(focusKey);
     const listEl = document.getElementById('users-list');
     if (!listEl) return;
 
@@ -393,7 +411,7 @@ export function renderUsersList(focusKey = null) {
         const card = el('div', 'glass-box user-card');
         const main = el('div', 'user-main');
 
-        // Nombre destacado + estado de la tablet + Ver tableros / Ver progreso
+        // Nombre destacado + estado de la tablet; a la derecha Tableros y Estadística
         const nameRow = el('div', 'user-name-row');
         nameRow.appendChild(el('h3', 'user-name', user.display_name)); // nunca innerHTML (XSS)
         const deleteBtn = el('button', 'btn-icon user-btn-icon user-delete');
@@ -411,31 +429,16 @@ export function renderUsersList(focusKey = null) {
         main.appendChild(nameRow);
         main.appendChild(renderTabletInfo(user));
 
-        const links = el('div', 'user-row user-links');
-        const panelId = `user-copies-${user.id}`;
-        const open = expandedUsers.has(user.id);
+        const side = el('div', 'user-side-actions');
         const count = Array.isArray(user.copies) ? user.copies.length : 0;
-        const toggle = button(open ? 'Ocultar tableros' : `Ver tableros (${count})`,
-            `${open ? 'Ocultar' : 'Ver'} los tableros de ${user.display_name}`, () => {
-                if (expandedUsers.has(user.id)) expandedUsers.delete(user.id); else expandedUsers.add(user.id);
-                renderUsersList(`toggle:${user.id}`);
-            });
-        toggle.setAttribute('aria-expanded', String(open));
-        toggle.setAttribute('aria-controls', panelId);
-        toggle.dataset.focusKey = `toggle:${user.id}`;
-        links.appendChild(toggle);
-        links.appendChild(button('Ver progreso', `Ver el progreso de ${user.display_name}`, () => openProgress(user)));
-        main.appendChild(links);
+        side.appendChild(button(`Tableros (${count})`, `Ver los tableros de ${user.display_name}`, () => openBoards(user)));
+        side.appendChild(button('Estadística', `Ver la estadística de ${user.display_name}`,
+            () => openProgress(user, { toggleMetrics: () => setMetrics(user) })));
 
         const top = el('div', 'user-top');
-        top.append(main, renderTabletActions(user));
+        top.append(main, side);
         card.appendChild(top);
-
-        const panel = el('div', 'user-copies');
-        panel.id = panelId;
-        panel.hidden = !open;
-        if (open) { renderCopies(user, panel); card.classList.add('is-open'); }
-        card.appendChild(panel);
+        card.appendChild(renderTabletActions(user));
 
         listEl.appendChild(card);
     });
@@ -449,6 +452,7 @@ export function renderUsersList(focusKey = null) {
 export function initUsers() {
     const search = document.getElementById('users-search');
     if (search) search.addEventListener('input', () => { userQuery = search.value; renderUsersList(); });
+    document.getElementById('btn-close-user-boards')?.addEventListener('click', closeBoards);
     // Nuevo usuario (1.3.1): botón arriba a la derecha que abre un modal con el nombre
     const modal = document.getElementById('new-user-modal');
     const form = document.getElementById('new-user-form');

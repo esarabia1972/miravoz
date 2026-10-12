@@ -1296,6 +1296,7 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
     const copy = await deviceMod.loadCopyForProfessional(assignmentId);
     if (!copy) { customAlert('No se pudo abrir la copia. Revisá la conexión e intentá de nuevo.'); return; }
     document.getElementById('users-view').style.display = 'none';
+    document.getElementById('user-boards-view').style.display = 'none';
     boards.openBundle(copy);
     if (S.state === 'BOARD') editor.enterEditMode();
 });

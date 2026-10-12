@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [1.9.8] - 2026-10-12
+
+- **Changed**: tarjeta de usuario reordenada. Arriba a la derecha, **Tableros** y **Estadística**; abajo, Nuevo código a la izquierda y Desvincular tablet a la derecha. Tableros abre su propia pantalla (como Estadística) en lugar de desplegarse dentro de la tarjeta. Activar/Desactivar registro pasa a la pantalla de Estadística, al lado de Borrar registro.
+
 ## [1.9.7] - 2026-10-11
 
 - **Changed**: Mis usuarios en dos columnas. Cada tarjeta muestra el nombre destacado, debajo "Última conexión 11/oct" (sin "vinculada desde"), el código vigente y el registro activo, y abajo Ver tableros y Ver progreso. Desvincular, Nuevo código y Activar/Desactivar registro quedan apilados a la derecha. Buscador siempre abierto en el encabezado, como en la Home.
