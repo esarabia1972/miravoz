@@ -1631,3 +1631,34 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
 /* 1.9.9: "+ Nuevo usuario" alineado (ícono y texto centrados, misma altura que el buscador) */
 .users-new-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; height: 44px; padding: 0 16px; line-height: 1; white-space: nowrap; }
 .users-new-btn svg { flex: 0 0 auto; display: block; }
+
+/* 0.7.5 (H09): "hidden" siempre oculta, aunque la clase del elemento tenga display: flex/grid */
+[hidden] { display: none !important; }
+
+/* 0.7.5: barra de la frase — Favoritas, Decir/Detener y Deshacer */
+.btn-acc { width: clamp(88px, 10vw, 140px); flex: 0 0 auto; }
+.btn-acc svg { width: clamp(40px, 4.6vw, 64px); height: clamp(40px, 4.6vw, 64px); }
+#btn-acc-play .icon-stop { display: none; }
+#btn-acc-play.is-speaking .icon-play { display: none; }
+#btn-acc-play.is-speaking .icon-stop { display: block; }
+#btn-acc-play.is-speaking { background: var(--danger-soft, rgba(220, 38, 38, 0.14)); border-color: var(--error-border, #dc2626); color: var(--error-text, #b91c1c); }
+#btn-acc-fav svg { color: #f5a524; }
+
+/* 0.7.5: Favoritas (encima del tablero; se elige con el mismo acceso) */
+.favorites-overlay { position: fixed; inset: 0; z-index: 960; background: var(--bg-color); display: flex; flex-direction: column; gap: 16px;
+    padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); overflow-y: auto; }
+.favorites-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.favorites-title { margin: 0; font-size: 1.8rem; flex: 1 1 auto; }
+.favorites-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.favorites-btn { min-height: 72px; min-width: 150px; padding: 12px 24px; font-size: 1.25rem; font-weight: 600; position: relative; overflow: hidden; }
+.favorites-btn.is-on { border-color: var(--error-border); color: var(--error-text); }
+.favorites-empty { font-size: 1.3rem; color: var(--text-muted); max-width: 46ch; line-height: 1.5; }
+.favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.favorite-card { position: relative; overflow: hidden; min-height: 150px; border-radius: 16px; border: 2px solid var(--cell-border); background: var(--cell-bg, var(--glass-bg));
+    color: var(--text-main); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 14px; cursor: pointer; font-family: inherit; }
+.favorite-card:hover { background: var(--cell-hover); }
+.favorite-pics { display: flex; gap: 6px; justify-content: center; }
+.favorite-pics img { width: 64px; height: 64px; object-fit: contain; background: #fff; border-radius: 8px; }
+.favorite-text { font-size: 1.45rem; font-weight: 700; text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
+.favorites-grid.is-removing .favorite-card { border-color: var(--error-border); border-style: dashed; }
+.favorite-card.scan-highlight, .favorites-btn.scan-highlight { outline: 5px solid var(--accent-text); outline-offset: 2px; }

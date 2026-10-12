@@ -4,7 +4,15 @@
 // nunca sale del equipo), el diccionario que traía el .grd, los textos del propio tablero y una lista base
 // de palabras frecuentes del español rioplatense.
 
-const LEARN_KEY = 'miravoz_pred_words';
+import { personScope } from './person-scope.js';
+
+// 0.7.5: lo aprendido es de cada persona (antes era uno solo por navegador). La clave vieja sin persona no se
+// migra: no se sabe de quién era y no se le atribuye a nadie.
+const LEARN_PREFIX = 'miravoz_pred_words:';
+const learnKey = () => LEARN_PREFIX + personScope();
+export function forgetLearnedWords() { try { localStorage.removeItem(learnKey()); } catch {} }
+export function learnedWordsFor(scope) { try { return JSON.parse(localStorage.getItem(LEARN_PREFIX + scope) || '{}') || {}; } catch { return {}; } }
+export function setLearnedWordsFor(scope, data) { try { localStorage.setItem(LEARN_PREFIX + scope, JSON.stringify(data || {})); } catch {} }
 
 const BASE = (`que de no a la el y en lo es un por me una te los se con para mi si ya bien yo
 está estoy tengo quiero puedo voy vamos hay hola chau gracias por favor sí no más menos mucho poco
@@ -18,7 +26,7 @@ día noche semana fin sábado domingo lunes martes miércoles jueves viernes`)
     .split(/\s+/).filter(Boolean);
 
 function readLearned() {
-    try { return JSON.parse(localStorage.getItem(LEARN_KEY) || '{}') || {}; } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(learnKey()) || '{}') || {}; } catch { return {}; }
 }
 
 /** Registra una palabra escrita con el teclado (para sugerirla primero la próxima vez). */
@@ -31,10 +39,10 @@ export function learnWord(word) {
     const entries = Object.entries(data);
     if (entries.length > 2000) { // tope: se quedan las más usadas
         entries.sort((a, b) => b[1] - a[1]);
-        try { localStorage.setItem(LEARN_KEY, JSON.stringify(Object.fromEntries(entries.slice(0, 1500)))); } catch {}
+        try { localStorage.setItem(learnKey(), JSON.stringify(Object.fromEntries(entries.slice(0, 1500)))); } catch {}
         return;
     }
-    try { localStorage.setItem(LEARN_KEY, JSON.stringify(data)); } catch { /* modo privado */ }
+    try { localStorage.setItem(learnKey(), JSON.stringify(data)); } catch { /* modo privado */ }
 }
 
 /**

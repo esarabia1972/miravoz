@@ -2,6 +2,22 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.5] - 2026-10-12
+
+Primera tanda del análisis de roadmap (revisión sobre 1.9.7): arreglos de confiabilidad y "comunicar con confianza".
+
+- **Added**: **Deshacer** en la barra de la frase. Aparece después de borrar (último, todo o una letra) y recupera la frase exacta; desaparece al agregar algo nuevo.
+- **Added**: **Detener**: mientras se dice la frase, el botón Decir pasa a Detener y corta la voz sin borrar la frase.
+- **Added**: **Favoritas**: la estrella de la barra abre las frases guardadas de esa persona ("Guardar la frase", decirla con una sola selección, "Quitar una"). Se eligen con el mismo acceso que el tablero y no reordenan el tablero.
+- **Added**: **Respaldo** en Configuración ("Descargar respaldo" / "Restaurar respaldo"): tableros de la cuenta, favoritas y palabras aprendidas. Restaurar nunca reemplaza: agrega tableros nuevos y suma lo demás. No incluye tokens, calibraciones ni el registro de uso.
+- **Changed**: la predicción de palabras aprende por persona (antes, una sola para todo el navegador).
+- **Changed**: Estadística: "Cansancio" pasa a "Variación del tiempo entre selecciones" (no diagnostica fatiga) y "Celdas que no usó" a "Sin uso registrado en el período". Las instrucciones para Claude ya no sugieren mover celdas por frecuencia ni quitar las que no se usan.
+- **Fixed**: el registro de uso pendiente no se envía como si fuera de otro usuario si la tablet se vincula a otra persona; cada evento tiene un id para no duplicarse en reintentos (`supabase/12_registro_sin_duplicados.sql`).
+- **Fixed**: en Barrido, el parpadeo elige lo resaltado al empezar a cerrar los ojos (el resaltado se queda quieto durante el gesto).
+- **Fixed**: en Practicar → Parpadear se puede salir solo con parpadeo (sobre "Actividades" con el cursor; en Barrido, el globo y "Actividades" se alternan).
+- **Fixed**: la voz que esperaba el primer toque en iPad ya no dice una frase que se borró o se detuvo.
+- **Fixed**: las opciones de parpadeo ya no se ven cuando el parpadeo está desactivado.
+
 ## [0.7.0] - 2026-10-12
 
 - **Changed**: renumeración de versiones. MiraVoz todavía no está en producción, así que pasa a la serie 0.x: esta versión (el mismo código que 1.9.9) es la **0.7.0**. Desde acá cada publicación sube el tercer dígito (0.7.1, 0.7.2…); 0.8 y 0.9 serán releases importantes y la 1.0.0 llega cuando se use en producción. Las entradas 1.0.0–1.9.9 de abajo son la numeración anterior y quedan como historia.

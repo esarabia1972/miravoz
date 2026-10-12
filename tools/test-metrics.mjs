@@ -34,19 +34,19 @@ console.log('registro de uso');
 await t('resumen: uso, tiempos, cansancio, correcciones, celdas más usadas y sin uso, frases', () => {
     const s = summarizeUsage(sampleEvents(), { boards: [{ name: 'Merienda', bundle: BOARD }] });
     assert(s.dias_activos === 1 && s.sesiones === 1 && s.minutos_de_uso === 20 && s.selecciones === 12, JSON.stringify(s).slice(0, 200));
-    assert(s.tiempo_por_seleccion_ms.mediana === 3000 && s.fatiga.inicio_ms === 2000 && s.fatiga.final_ms === 4000 && s.fatiga.cambio === 1, JSON.stringify(s.fatiga));
+    assert(s.tiempo_por_seleccion_ms.mediana === 3000 && s.variacion_tiempos.inicio_ms === 2000 && s.variacion_tiempos.final_ms === 4000 && s.variacion_tiempos.cambio === 1, JSON.stringify(s.variacion_tiempos));
     assert(s.correcciones === 1 && s.pausas_sin_cara === 1 && s.frases === 1 && s.largo_medio_frase === 2, 'conteos');
-    assert(s.celdas_mas_usadas[0].veces === 6 && s.cantidad_celdas_sin_uso === 1 && s.celdas_sin_uso[0].celda === 'Galletitas', JSON.stringify(s.celdas_sin_uso));
+    assert(s.celdas_mas_usadas[0].veces === 6 && s.cantidad_celdas_sin_uso_registrado === 1 && s.celdas_sin_uso_registrado[0].celda === 'Galletitas', JSON.stringify(s.celdas_sin_uso_registrado));
     assert(s.frases_recientes[0].texto === 'agua leche' && s.metodos.permanencia === 12, 'frases y métodos');
 });
 await t('celdas con texto raro (autoLabel no texto, label numérico) no rompen el resumen', () => {
     const odd = { mainBoard: 'g', boards: { g: { id: 'g', gridElements: [{ id: 'x', label: {}, autoLabel: { es: 'Hola', source: 'arasaac' } }, { id: 'y', label: null, autoLabel: true }] } } };
     const s = summarizeUsage([], { boards: [{ name: 'Raro', bundle: odd }] });
-    assert(Array.isArray(s.celdas_sin_uso) && s.celdas_sin_uso.some(c => c.celda === 'Hola'), JSON.stringify(s.celdas_sin_uso));
+    assert(Array.isArray(s.celdas_sin_uso_registrado) && s.celdas_sin_uso_registrado.some(c => c.celda === 'Hola'), JSON.stringify(s.celdas_sin_uso_registrado));
 });
 await t('sin eventos: resumen vacío sin errores', () => {
     const s = summarizeUsage([], {});
-    assert(s.selecciones === 0 && s.fatiga === null && s.periodo === null, JSON.stringify(s).slice(0, 100));
+    assert(s.selecciones === 0 && s.variacion_tiempos === null && s.periodo === null, JSON.stringify(s).slice(0, 100));
 });
 
 let device = null;
@@ -56,12 +56,12 @@ metrics.initMetrics({ supabase: fakeSb, device: () => device });
 await new Promise(r => setTimeout(r, 10));
 const ctx = { bundle: { id: 'b1', bundleId: 'b1', assignmentId: '00000000-0000-0000-0000-0000000000aa', name: 'Merienda' }, gridId: 'g', pageName: 'Merienda' };
 await t('tablet sin consentimiento: no registra nada', () => {
-    device = { token: 'tok', settings: {} };
+    device = { token: 'tok', aacUserId: 'A', settings: {} };
     metrics.cellSelected({ id: 'c1', x: 0, y: 0 }, ctx, 'permanencia', 'Agua');
     assert(metrics._state().queue.length === 0 && !metrics.isRecording(), 'nada');
 });
 await t('con consentimiento: sesión, página y selecciones con método y tiempo; se suben en tandas', async () => {
-    device = { token: 'tok', settings: { metrics: { enabled: true } } };
+    device = { token: 'tok', aacUserId: 'A', settings: { metrics: { enabled: true } } };
     metrics.pageShown(ctx);
     metrics.cellSelected({ id: 'c1', x: 0, y: 0, colorCategory: 'CC_NOUN' }, ctx, 'parpadeo', 'Agua');
     metrics.cellSelected({ id: 'c2', x: 1, y: 0 }, ctx, 'permanencia', 'Leche');
@@ -91,6 +91,28 @@ await t('si la cuenta desactivó el registro, lo pendiente se descarta', async (
     assert(metrics._state().queue.length === 0, 'descartado');
 });
 
+await t('0.7.5 H01: eventos pendientes de A no se envían con el vínculo de B; desvincular vacía la cola', async () => {
+    const online = (v) => Object.defineProperty(globalThis, 'navigator', { value: { onLine: v }, configurable: true, writable: true });
+    let sent = [];
+    fakeSb.rpc = async (fn, args) => { sent.push(...args.p_events); return { data: { ok: true }, error: null }; };
+    online(false);
+    device = { token: 'tokA', aacUserId: 'A', settings: { metrics: { enabled: true } } };
+    metrics.cellSelected({ id: 'c1' }, ctx, 'toque', 'Agua');
+    assert(metrics._state().queue.length >= 1 && metrics._state().queue.every(e => e.own === 'A'), 'dueño A');
+    device = { token: 'tokB', aacUserId: 'B', settings: { metrics: { enabled: true } } };
+    online(true);
+    await metrics.flush();
+    assert(sent.length === 0 && metrics._state().queue.length === 0, 'no se reatribuye: ' + JSON.stringify(sent));
+    metrics.cellSelected({ id: 'c2' }, ctx, 'toque', 'Leche');
+    await metrics.flush();
+    assert(sent.length >= 1 && sent.every(e => !('own' in e)), 'B se envía sin el campo interno');
+    online(false);
+    metrics.cellSelected({ id: 'c3' }, ctx, 'toque', 'Galletitas');
+    await metrics.clearQueue();
+    assert(metrics._state().queue.length === 0, 'vaciada al desvincular');
+    online(true);
+});
+
 await t('MCP ver_progreso y ver_eventos', async () => {
     const db = {
         select: async (table, q) => {
@@ -102,7 +124,7 @@ await t('MCP ver_progreso y ver_eventos', async () => {
     };
     const call = async (name, args) => JSON.parse((await handle({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, { db, user: { id: 'p' }, base: 'x' })).result.content[0].text);
     const p = await call('ver_progreso', { usuario: 'u1', dias: 7 });
-    assert(p.usuario === 'Mateo' && p.registro_activado && p.selecciones === 12 && p.celdas_sin_uso[0].celda === 'Galletitas', JSON.stringify(p).slice(0, 200));
+    assert(p.usuario === 'Mateo' && p.registro_activado && p.selecciones === 12 && p.celdas_sin_uso_registrado[0].celda === 'Galletitas', JSON.stringify(p).slice(0, 200));
     const e = await call('ver_eventos', { usuario: 'u1', tipo: 'frase' });
     assert(e.cantidad === 1 && e.eventos[0].tipo === 'frase', JSON.stringify(e));
 });

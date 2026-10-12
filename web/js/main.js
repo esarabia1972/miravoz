@@ -5,8 +5,8 @@ import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from 
 import { S } from './state.js';
 import { APP_VERSION } from './build-info.js';
 import { OneEuroFilter } from './filters.js';
-import { speak, unlockSpeech, isSpeechSupported } from './speech.js';
-import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence } from './ui.js';
+import { speak, unlockSpeech, isSpeechSupported, stopSpeech, isSpeakingSentence, onSpeakingChange } from './speech.js';
+import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence, undoSentence, onUndoChange } from './ui.js';
 import * as offline from './offline.js';
 import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE, supabaseClient } from './auth.js';
 import { fetchUsers, setProfessionalId, initUsers } from './users.js';
@@ -26,8 +26,11 @@ import { selectionContexts } from './contexts.js';
 import { makeContext, localDeviceId, compatibilityMessage, geometryChanged, orientationOf } from './profiles.js';
 import { failureAdvice } from './validation.js';
 import * as practice from './practice.js';
-import { BlinkDetector, eyeClosure, calibrateThreshold } from './blink.js';
+import { BlinkDetector, eyeClosure, calibrateThreshold, BLINK_LIMITS } from './blink.js';
 import * as metrics from './metrics.js';
+import { setPersonScopeProvider } from './person-scope.js';
+import { initFavoritesUI, openFavorites, closeFavorites } from './favorites-ui.js';
+import { initBackupUI, downloadBackup, restoreBackupFile } from './backup-ui.js';
 import { labelText } from './asterics.js';
 import { gridName } from './pages.js';
 import { buildReference, alignmentState, recenterOffset, DriftWatch, ALIGN } from './align.js';
@@ -251,9 +254,14 @@ function cursorBefore(t) {
 tracking.setFaceListener((fd, t) => {
     const c = fd ? eyeClosure(fd.eyes) : null;
     if (blinkCalib && c !== null) blinkCalib.push(c);
-    if (!blinkOn()) return;
+    if (!blinkOn()) { scan.hold(false); return; }
     const r = blink.push(c, t);
     if (r.fire) onBlinkFire(r.closedAt);
+    // 0.7.5 (H02): en Barrido, el resaltado se queda quieto mientras dura el gesto (y entre los dos de un doble)
+    if (S.trackingMode === 'SCAN') {
+        const inDouble = settings.blink.mode === 'double' && blink.lastShort && t - blink.lastShort.end <= BLINK_LIMITS.doubleGapMs;
+        scan.hold((blink.closed && !blink.fired) || inDouble);
+    } else scan.hold(false);
 });
 // "Click" corto al reconocer el parpadeo (WebAudio sintetizado: funciona sin conexión). El contexto de audio se
 // habilita con el primer toque en la app (iPad no deja sonar sin un gesto previo).
@@ -285,7 +293,16 @@ function onBlinkFire(closedAt) {
     if (calibSession || editor.isEditMode() || selectionContexts.isPaused() || blinkCalib) return;
     if (!['HOME', 'BOARD', 'PRACTICE'].includes(S.state)) return;
     playClick(); // confirma que el parpadeo se reconoció, haya o no algo para elegir
-    if (S.state === 'PRACTICE' && practice.wantsBlink()) { practice.onBlink(); return; }
+    if (S.state === 'PRACTICE' && practice.wantsBlink() && !practice.blinkViaScan()) {
+        // 0.7.5 (H03): con el cursor sobre "Actividades" el parpadeo lo elige (se puede salir solo con parpadeo);
+        // en cualquier otro lugar revienta el globo.
+        if (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') {
+            const p = cursorBefore(closedAt);
+            const target = p ? dwell.targetAt(p.x, p.y) : null;
+            if (target) { blinkFlash = { x: p.x, y: p.y, t: now }; dwell.markSelected(now); pendingMethod = 'parpadeo'; selectTarget(target); return; }
+        }
+        practice.onBlink(); return;
+    }
     if (S.trackingMode === 'SCAN') {
         pendingMethod = 'parpadeo';
         if (scan.activate()) blinkFlash = { x: canvasUI.width / 2, y: 70, t: now };
@@ -530,6 +547,7 @@ let calibSession = null;
 function profileScope() {
     return deviceMod.isDeviceMode() && deviceMod.device?.aacUserId ? `user:${deviceMod.device.aacUserId}` : 'prueba';
 }
+setPersonScopeProvider(profileScope); // 0.7.5: predicción y favoritas por persona
 calibration.setContextProvider(() => makeContext({
     scope: profileScope(), deviceId: localDeviceId(), engine: tracking.engineName,
     w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1, camera: tracking.cameraInfo
@@ -770,6 +788,7 @@ function applyMode(mode) {
 
 // --- Navegación Home/Board ---
 function goHome() {
+    closeFavorites();
     if (practice.isOpen()) practice.closePractice({ silent: true });
     if (editor.isEditMode()) editor.exitEditMode();
     document.getElementById('copy-banner')?.remove();
@@ -801,11 +820,33 @@ function flashBtn(btn) {
     setTimeout(() => btn.classList.remove('active'), 200);
 }
 
+// 0.7.5: mientras se dice la frase, el mismo botón la detiene (sin borrarla)
 document.getElementById('btn-acc-play').addEventListener('click', (e) => {
     flashBtn(e.currentTarget);
+    if (isSpeakingSentence()) { stopSpeech(); metrics.voiceStopped(metricsCtx()); return; }
     metrics.sentenceSpoken(getSentence(), metricsCtx());
     playSentence();
 });
+onSpeakingChange((on) => {
+    const b = document.getElementById('btn-acc-play');
+    b.classList.toggle('is-speaking', on);
+    const label = on ? 'Detener la voz' : 'Decir la frase';
+    b.title = label; b.setAttribute('aria-label', label); b.dataset.word = on ? 'Detener' : 'Decir';
+});
+// 0.7.5: Deshacer el último borrado (borrar último, borrar todo, letra)
+document.getElementById('btn-acc-undo').addEventListener('click', (e) => {
+    flashBtn(e.currentTarget);
+    if (undoSentence()) metrics.sentenceEdited('undo', metricsCtx());
+});
+onUndoChange((can) => {
+    const b = document.getElementById('btn-acc-undo');
+    if (b.hidden === !can) return;
+    b.hidden = !can; // aparece recién después de borrar (y se va al agregar algo nuevo)
+    dwell.refreshRects(); scan.regroup();
+});
+// 0.7.5: Favoritas
+initFavoritesUI({ onSpoken: (items) => metrics.sentenceSpoken(items, metricsCtx()) });
+document.getElementById('btn-acc-fav').addEventListener('click', (e) => { flashBtn(e.currentTarget); openFavorites(); });
 document.getElementById('btn-acc-delete').addEventListener('click', (e) => {
     cancelPendingImplicit(); // "borrar último" corrige la selección anterior: no aprender de ella
     flashBtn(e.currentTarget);
@@ -918,6 +959,12 @@ if (btnSettings && settingsModal) {
         try { await offline.registerOffline(); } catch { /* igual se recarga */ }
         setTimeout(() => window.location.reload(), 1500);
     });
+    // 0.7.5: respaldo propio de MiraVoz
+    initBackupUI({ isDeviceMode: () => deviceMod.isDeviceMode(), appVersion: APP_VERSION, onRestored: () => { if (!deviceMod.isDeviceMode() && S.state === 'HOME') boards.loadSavedBoards(); } });
+    document.getElementById('btn-backup-download')?.addEventListener('click', () => downloadBackup().catch(e => customAlert('No se pudo armar el respaldo: ' + (e?.message || e))));
+    const backupInput = document.getElementById('backup-file');
+    document.getElementById('btn-backup-restore')?.addEventListener('click', () => { if (backupInput) { backupInput.value = ''; backupInput.click(); } });
+    backupInput?.addEventListener('change', () => restoreBackupFile(backupInput.files?.[0]).catch(e => customAlert('No se pudo restaurar: ' + (e?.message || e))));
     document.getElementById('btn-prepare-offline')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
         const el = document.getElementById('offline-status');

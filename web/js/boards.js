@@ -1055,7 +1055,7 @@ function runSpecialActions(el, bundle) {
         if (a.modelName === 'GridActionCollectElement') {
             switch (a.action) {
                 case COLLECT.SPEAK: case COLLECT.SPEAK_CONTINUOUS: playSentence(); break;
-                case COLLECT.SPEAK_CLEAR: case COLLECT.SPEAK_CONTINUOUS_CLEAR: playSentence(); clearSentence(); break;
+                case COLLECT.SPEAK_CLEAR: case COLLECT.SPEAK_CONTINUOUS_CLEAR: playSentence(); clearSentence({ keepPending: true }); break;
                 case COLLECT.CLEAR: clearSentence(); break;
                 case COLLECT.REMOVE_WORD: popSentence(); break;
                 case COLLECT.REMOVE_CHAR: removeChar(); break;

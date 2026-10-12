@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=63">
+    <link rel="stylesheet" href="style.css?v=64">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -357,14 +357,21 @@
             </div>
             
             <div class="acc-action-btns">
-                <button id="btn-acc-play" class="btn-acc play-btn" title="Reproducir">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <button id="btn-acc-fav" class="btn-acc" title="Favoritas" aria-label="Frases favoritas" data-word="Favoritas">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+                <button id="btn-acc-play" class="btn-acc play-btn" title="Decir la frase" aria-label="Decir la frase" data-word="Decir">
+                    <svg class="icon-play" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-stop" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
                 </button>
                 <button id="btn-acc-delete" class="btn-acc" title="Borrar último">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
                 </button>
                 <button id="btn-acc-clear" class="btn-acc" title="Limpiar todo">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+                <button id="btn-acc-undo" class="btn-acc" title="Deshacer el último borrado" aria-label="Deshacer el último borrado" data-word="Deshacer" hidden>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
                 </button>
                 <button id="btn-edit-board" class="btn-edit-toggle" title="Editar tablero">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
@@ -580,11 +587,14 @@
                 </div>
             </section>
             <section class="settings-section" id="setting-offline">
-                <h3>Uso sin conexión</h3>
+                <h3>Sin conexión y respaldo</h3>
                 <p class="settings-help" id="offline-status" role="status">Revisando…</p>
                 <div class="settings-inline">
                     <button type="button" class="btn btn-secondary" id="btn-prepare-offline" title="Descarga la app, el motor de cámara y los pictogramas de los tableros de este dispositivo">Preparar sin conexión</button>
                     <button type="button" class="btn btn-primary" id="btn-apply-update" hidden>Actualizar ahora</button>
+                    <button type="button" class="btn btn-secondary" id="btn-backup-download" title="Guarda en un archivo los tableros, las frases favoritas y las palabras aprendidas de este dispositivo">Descargar respaldo</button>
+                    <button type="button" class="btn btn-secondary" id="btn-backup-restore" title="Agrega lo que trae un respaldo de MiraVoz; no reemplaza nada">Restaurar respaldo</button>
+                    <input type="file" id="backup-file" accept=".json,application/json" hidden>
                 </div>
             </section>
             <section class="settings-section" id="setting-metrics" hidden>
@@ -604,6 +614,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=99"></script>
+    <script type="module" src="js/main.js?v=100"></script>
 </body>
 </html>

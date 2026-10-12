@@ -59,7 +59,12 @@ function push(kind, fields = {}, force = false) {
     if (!force && !isRecording()) return;
     const now = Date.now();
     if (session) session.lastAt = now;
-    queue.push({ kind, ts: new Date(now).toISOString(), session: session?.id || null, ...fields });
+    // 0.7.5: cada evento sabe de qué usuario es (own). Si la tablet se vincula a otra persona con eventos
+    // pendientes, esos eventos no se envían con el token nuevo: se descartan (no se reatribuyen).
+    const own = deps.device()?.aacUserId || null;
+    if (!own) return;
+    // id: identifica el evento para que un reintento (respuesta perdida) no lo duplique (supabase/12)
+    queue.push({ id: uuid(), kind, ts: new Date(now).toISOString(), session: session?.id || null, ...fields, own });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
     persist();
 }
@@ -110,7 +115,8 @@ export function sentenceSpoken(items, ctx) {
     const texto = items.map(i => (i.speakText !== undefined ? i.speakText : i.text)).filter(Boolean).join(' ');
     push('frase', { ...where(ctx), label: texto.slice(0, 200), data: { n: items.length, texto } });
 }
-export function sentenceEdited(kind, ctx) { push(kind === 'clear' ? 'borrar_todo' : 'borrar', where(ctx)); }
+export function sentenceEdited(kind, ctx) { push(kind === 'clear' ? 'borrar_todo' : kind === 'undo' ? 'deshacer' : 'borrar', where(ctx)); }
+export function voiceStopped(ctx) { push('voz_detenida', where(ctx)); }
 export function paused(reason, ms) { push('pausa', { label: reason, ms }); }
 export function calibrated(data) { push('calibracion', { data }); }
 export function aligned(data) { push('alineacion', { data }); }
@@ -120,21 +126,37 @@ export function modeChanged(mode) { push('modo', { label: mode }); }
 /** Sube la cola (en tandas de 300). Si la cuenta desactivó el registro, se descarta lo pendiente. */
 export async function flush() {
     if (flushing || !loaded || !queue.length || !deps.supabase || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
-    const dev = deps.device();
-    if (!dev || !dev.token) return;
+    const first = deps.device();
+    if (!first || !first.token || !first.aacUserId) return;
     flushing = true;
     try {
-        while (queue.length) {
+        // Eventos de antes de 0.7.5 (sin dueño): eran de este vínculo, que es el único que pudo haberlos juntado
+        if (queue.some(e => !e.own)) { queue = queue.map(e => (e.own ? e : { ...e, own: first.aacUserId })); await persist(); }
+        while (true) {
+            // Se relee el vínculo en cada tanda: si cambió en medio de un envío, se corta (nada viaja con otro token)
+            const dev = deps.device();
+            if (!dev || dev.token !== first.token || dev.aacUserId !== first.aacUserId) break;
+            // Solo viajan los eventos del usuario vinculado ahora; los de otro vínculo se descartan (no se reatribuyen)
+            if (queue.some(e => e.own !== dev.aacUserId)) { queue = queue.filter(e => e.own === dev.aacUserId); await persist(); }
+            if (!queue.length) break;
             const batch = queue.slice(0, 300);
-            const { data, error } = await deps.supabase.rpc('device_log_events', { p_token: dev.token, p_events: batch });
+            const { data, error } = await deps.supabase.rpc('device_log_events', { p_token: dev.token, p_events: batch.map(({ own, ...e }) => e) });
             if (error) break;                                   // sin red o error: se reintenta después
-            if (data && data.ok === false && (data.disabled || data.unlinked)) { queue = []; await persist(); break; }
-            queue = queue.slice(batch.length);
+            if (data && data.ok === false && (data.disabled || data.unlinked)) { queue = queue.filter(e => e.own !== dev.aacUserId); await persist(); break; }
+            const sent = new Set(batch);
+            queue = queue.filter(e => !sent.has(e));            // por identidad: lo nuevo que llegó mientras tanto se queda
             await persist();
         }
     } catch { /* se reintenta */ }
     finally { flushing = false; }
 }
+
+/** Al desvincular: lo pendiente era del vínculo anterior y no se envía. */
+export function clearQueue() {
+    queue = []; session = null; lastSelectAt = null; lastPage = null;
+    return localforage.setItem(QUEUE_KEY, []).catch(() => {});
+}
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('miravoz:device-local-unlink', () => { clearQueue(); });
 
 /** Para los tests */
 export function _state() { return { queue, session }; }

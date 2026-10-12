@@ -33,7 +33,8 @@ export function summarizeUsage(events, { boards = [], recentPhrases = 20 } = {})
 
     // Tiempo por selección (desde la anterior en la misma sesión; se descartan pausas largas > 60 s)
     const times = sel.map(e => e.duration_ms).filter(ms => Number.isFinite(ms) && ms > 0 && ms <= 60000);
-    // Fatiga: primer tercio contra último tercio de cada sesión con al menos 9 selecciones
+    // Variación del tiempo entre selecciones: primer tercio contra último tercio de cada sesión con al menos 9
+    // selecciones. Es una observación de tiempos: no diagnostica fatiga ni otra causa (0.7.5).
     const first = [], last = [];
     for (const s of sessList) {
         const t = s.sel.map(e => e.duration_ms).filter(ms => Number.isFinite(ms) && ms > 0 && ms <= 60000);
@@ -87,7 +88,7 @@ export function summarizeUsage(events, { boards = [], recentPhrases = 20 } = {})
         selecciones: sel.length,
         selecciones_por_dia: perDay,
         tiempo_por_seleccion_ms: { mediana: median(times), p90: pct(times, 0.9) },
-        fatiga: fatigue,
+        variacion_tiempos: fatigue,
         metodos: methods,
         canceladas: ev.filter(e => e.kind === 'cancelada').length,
         correcciones: corrections,
@@ -97,8 +98,9 @@ export function summarizeUsage(events, { boards = [], recentPhrases = 20 } = {})
         frases: phrases.length,
         largo_medio_frase: phraseLens.length ? +(phraseLens.reduce((a, b) => a + b, 0) / phraseLens.length).toFixed(1) : null,
         celdas_mas_usadas: topCells,
-        celdas_sin_uso: unused.slice(0, 200),
-        cantidad_celdas_sin_uso: unused.length,
+        celdas_sin_uso_registrado: unused.slice(0, 200),
+        cantidad_celdas_sin_uso_registrado: unused.length,
+        nota_celdas_sin_uso: 'Que una celda no tenga uso registrado en el período no significa que sobre: puede ser vocabulario para situaciones poco frecuentes. No es motivo para quitarla ni moverla.',
         paginas_mas_visitadas: pages,
         idas_y_vueltas: bounces,
         practica: ev.filter(e => e.kind === 'practica').length,

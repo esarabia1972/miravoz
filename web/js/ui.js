@@ -1,6 +1,6 @@
 // ui.js — Modales, toasts y acumulador de frases (SPEC F1-1)
 
-import { speak } from './speech.js';
+import { speak, dropPendingSpeech, stopSpeech } from './speech.js';
 import { getCellColor } from './colors.js';
 import { learnWord } from './prediction.js';
 import { selectionContexts, buttonTargets } from './contexts.js';
@@ -151,14 +151,48 @@ function changed() {
     sentenceListeners.forEach(fn => { try { fn(sentenceAccumulator); } catch (e) { console.warn(e); } });
 }
 
-export function clearSentence() {
+// 0.7.5: Deshacer. Antes de borrar se guarda cómo estaba la frase; agregar algo nuevo cierra el historial
+// (deshacer después de seguir escribiendo confundiría). Borrar también descarta la voz pendiente del iPad.
+const UNDO_MAX = 20;
+let undoStack = [];
+const undoListeners = new Set();
+export function onUndoChange(fn) { undoListeners.add(fn); fn(undoStack.length > 0); return () => undoListeners.delete(fn); }
+const notifyUndo = () => undoListeners.forEach(fn => { try { fn(undoStack.length > 0); } catch {} });
+function beforeRemove({ keepPending = false } = {}) {
+    if (!keepPending) dropPendingSpeech();
+    undoStack.push(sentenceAccumulator.map(i => ({ ...i })));
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    notifyUndo();
+}
+function forgetUndo() { if (undoStack.length) { undoStack = []; notifyUndo(); } }
+export function canUndo() { return undoStack.length > 0; }
+/** Vuelve la frase a como estaba antes del último borrado. Devuelve true si deshizo algo. */
+export function undoSentence() {
+    if (!undoStack.length) return false;
+    sentenceAccumulator = undoStack.pop();
+    notifyUndo();
+    changed();
+    return true;
+}
+
+export function clearSentence({ keepPending = false } = {}) {
+    if (!sentenceAccumulator.length) return;
+    beforeRemove({ keepPending });
     sentenceAccumulator = [];
+    changed();
+}
+
+/** Reemplaza la frase entera (por ejemplo, al elegir una frase favorita). Se puede deshacer. */
+export function setSentence(items) {
+    beforeRemove();
+    sentenceAccumulator = (items || []).map(i => ({ ...i, open: false }));
     changed();
 }
 
 /** Borra el último elemento (una palabra o un pictograma). */
 export function popSentence() {
     if (sentenceAccumulator.length > 0) {
+        beforeRemove();
         sentenceAccumulator.pop();
         changed();
     }
@@ -166,6 +200,7 @@ export function popSentence() {
 
 export function addToSentence(item) {
     closeWord();
+    forgetUndo();
     sentenceAccumulator.push(item);
     changed();
 }
@@ -187,6 +222,7 @@ export function addLetter(char, elData = null) {
         return;
     }
     const w = openWord();
+    forgetUndo();
     if (w) w.text += char;
     else sentenceAccumulator.push({ text: char, letters: true, open: true, elData });
     changed();
@@ -199,6 +235,7 @@ export function currentPrefix() { const w = openWord(); return w ? w.text : ''; 
 export function removeChar() {
     const l = lastItem();
     if (!l) return;
+    beforeRemove();
     if (l.letters && l.text.length > 1) { l.text = l.text.slice(0, -1); l.open = true; }
     else sentenceAccumulator.pop();
     changed();
@@ -207,6 +244,7 @@ export function removeChar() {
 /** Completa la palabra abierta con una sugerencia de la predicción (o la agrega). */
 export function completeWord(word) {
     const w = openWord();
+    forgetUndo();
     if (w) { w.text = word; w.open = false; }
     else sentenceAccumulator.push({ text: word, letters: true, open: false });
     learnWord(word);
@@ -217,7 +255,7 @@ export function completeWord(word) {
 export function toggleInSentence(item) {
     const id = item.elData && item.elData.id;
     const i = id ? sentenceAccumulator.findIndex(x => x.elData && x.elData.id === id) : -1;
-    if (i >= 0) { sentenceAccumulator.splice(i, 1); changed(); }
+    if (i >= 0) { beforeRemove(); sentenceAccumulator.splice(i, 1); changed(); }
     else addToSentence(item);
 }
 
@@ -233,7 +271,7 @@ export function playSentence() {
         .map(i => (i.speakText !== undefined ? i.speakText : i.text))
         .filter(Boolean)
         .join(', '); // como siempre: una pausa breve entre pictogramas
-    if (fullText) speak(fullText);
+    if (fullText) speak(fullText, { sentence: true });
 }
 
 export function renderSentence() {

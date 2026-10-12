@@ -26,6 +26,8 @@ export function isOpen() { return isOpenFlag; }
 export function targets() { return targetsList; }
 /** 1.4.0: en "Parpadear" el parpadeo revienta el globo (no elige lo que está bajo el cursor). */
 export function wantsBlink() { return !!(isOpenFlag && activity && level && level.needsBlink); }
+/** 0.7.5 (H03): en Barrido el parpadeo es el pulsador también acá: el barrido alterna globo y "Actividades". */
+export function blinkViaScan() { return wantsBlink() && deps.mode() === 'SCAN'; }
 export function onBlink() { if (wantsBlink() && activity.onBlink) activity.onBlink(); }
 function setTargets(list) { targetsList = list; if (isOpenFlag) deps.setTargets(list); }
 
@@ -648,7 +650,13 @@ ACTIVITIES.blink = function () {
             meter.append(fill, mark, cap);
             layer.append(el, meter); stage.appendChild(layer);
             spawn();
-            setTargets([asTarget(backBtn)]);
+            if (deps.mode() === 'SCAN') {
+                // El globo es un elemento más del barrido: parpadear con el globo resaltado lo revienta y con
+                // "Actividades" resaltado se sale (así se puede salir solo con parpadeo).
+                el.dataset.word = 'Globo';
+                el.addEventListener('click', (e) => { if (!e.isTrusted && activity) activity.onBlink(); });
+                setTargets([asTarget(el), asTarget(backBtn)]);
+            } else setTargets([asTarget(backBtn)]);
         },
         tick() {
             const b = deps.blinkInfo();

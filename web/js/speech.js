@@ -88,8 +88,39 @@ const START_TIMEOUT_MS = 1500;
 let startEvents = false; // el vigilante solo actúa si este navegador ya demostró que avisa cuando empieza a hablar
 let deferredGo = null; // frase esperando su turno después de un cancel()
 
-export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false } = {}) {
+// 0.7.5: "Detener" corta la voz sin borrar la frase, y la voz pendiente (iPad sin primer toque) se descarta si
+// la frase se borra. sentenceUtterance = la frase completa que se está diciendo (para mostrar "Detener").
+let sentenceUtterance = null;
+const speakingListeners = new Set();
+export function onSpeakingChange(fn) { speakingListeners.add(fn); return () => speakingListeners.delete(fn); }
+let speakingPoll = null;
+let retryTimer = null;
+let generation = 0; // sube al detener o borrar: lo pedido antes ya no se dice (ni queda pendiente)
+function setSentenceUtterance(u) {
+    if (sentenceUtterance === u) return;
+    sentenceUtterance = u;
+    clearInterval(speakingPoll); speakingPoll = null;
+    // Algunos navegadores no avisan el final (iPad interrumpido, Chrome con frases largas): si ya no habla, se suelta
+    if (u && synth) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
+    speakingListeners.forEach(fn => { try { fn(!!u); } catch {} });
+}
+export function isSpeakingSentence() { return !!sentenceUtterance; }
+/** Descarta la voz que esperaba el primer toque (la frase cambió o se borró). */
+export function dropPendingSpeech() { pendingSpeech = null; generation++; }
+/** Corta lo que se está diciendo y lo que esperaba turno. No toca la frase. */
+export function stopSpeech() {
+    pendingSpeech = null;
+    generation++;
+    if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    alive.clear();
+    try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
+    setSentenceUtterance(null);
+}
+
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false } = {}) {
     if (!text || !synth) return;
+    const gen = generation;
     let cancelled = false;
     if (cancelPrevious) {
         if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
@@ -105,33 +136,38 @@ export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, 
 
     let started = false, finished = false;
     alive.add(utterance);
-    const done = () => { finished = true; alive.delete(utterance); };
+    const done = () => { finished = true; alive.delete(utterance); if (sentenceUtterance === utterance) setSentenceUtterance(null); };
     utterance.onstart = () => { started = true; startEvents = true; };
     utterance.onend = done;
     utterance.onerror = (e) => {
         done();
         if (e && e.error && e.error !== 'interrupted' && e.error !== 'canceled') {
             console.warn('Voz:', e.error);
-            if (!_retry) { speak(text, { cancelPrevious: true, volume, lang, _retry: true }); return; }
+            if (!_retry) { speak(text, { cancelPrevious: true, volume, lang, sentence, _retry: true }); return; }
             // M08: la frase NO se borra; la app avisa y se puede reintentar con el botón de reproducir
             if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-error', { detail: { error: e.error } }));
         }
     };
 
     const go = () => {
+        if (sentence) setSentenceUtterance(utterance);
+        else if (sentenceUtterance && cancelPrevious) setSentenceUtterance(null);
         synth.speak(utterance);
         setTimeout(() => {
+            if (!alive.has(utterance) || gen !== generation) return; // se detuvo o se borró mientras tanto
             if (!startEvents && !started && !finished) {
                 // Nunca arrancó una frase en esta sesión: el navegador espera un toque. Se guarda para decirla entonces.
-                pendingSpeech = { text, opts: { volume, lang }, at: Date.now() };
+                if (sentenceUtterance === utterance) setSentenceUtterance(null);
+                pendingSpeech = { text, opts: { volume, lang, sentence }, at: Date.now() };
                 if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-blocked'));
                 return;
             }
             if (!startEvents || started || finished || !alive.has(utterance)) return;
             // Trabada: no empezó. Se libera la cola y se reintenta una vez con la voz por defecto del sistema.
             alive.delete(utterance);
+            if (sentenceUtterance === utterance) setSentenceUtterance(null);
             synth.cancel();
-            if (!_retry) setTimeout(() => speak(text, { cancelPrevious: false, volume, lang, _retry: true }), 60);
+            if (!_retry) retryTimer = setTimeout(() => { retryTimer = null; if (gen === generation) speak(text, { cancelPrevious: false, volume, lang, sentence, _retry: true }); }, 60);
             else if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:speech-error', { detail: { error: 'stuck' } }));
         }, START_TIMEOUT_MS);
     };

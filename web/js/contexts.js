@@ -62,6 +62,12 @@ export class SelectionContexts {
         return true;
     }
 
+    /** Sus objetivos cambiaron (0.7.5): se vuelven a leer, solo si está arriba (no cambia el orden de la pila). */
+    refresh(token) {
+        const top = this.top();
+        if (top && top.id === token) this._activate();
+    }
+
     /** ¿Hay un contexto con ese nombre? */
     has(name) { return this.stack.some(c => c.name === name); }
 

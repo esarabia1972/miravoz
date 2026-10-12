@@ -119,6 +119,8 @@ export async function unlink() {
     await clearCopiesFromDevice();
     await localforage.removeItem(DEVICE_KEY);
     device = null;
+    // 0.7.5: el registro de uso pendiente era de este vínculo; metrics.js lo descarta (no se reatribuye)
+    if (typeof window !== 'undefined' && window.dispatchEvent) window.dispatchEvent(new CustomEvent('miravoz:device-local-unlink'));
     // (la tablet no tiene sesión: no hay nada que cerrar en Supabase)
 }
 

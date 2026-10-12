@@ -49,6 +49,7 @@ export class ScanEngine {
         this.cycleCount = 0;
         this.lastAdvance = 0;
         this.selectionPauseUntil = 0;
+        this.held = false;
         this._clearHighlights();
     }
 
@@ -76,7 +77,7 @@ export class ScanEngine {
         const cfg = this._cfg();
         if (cfg.pattern === 'LINEAR' || this.groups.length <= 1) {
             // LINEAR: una sola "fila" con todos los elementos
-            this.groups = [this.targets.slice()];
+            this.groups = [this._visibleTargets()];
             this.phase = 'ITEMS';
             this.gIdx = 0;
         } else {
@@ -89,9 +90,15 @@ export class ScanEngine {
 
     // Agrupa por fila visual: celdas del grid por data.y; el resto (botones del
     // acumulador, cards del home) por su posición vertical en pantalla.
+    _visibleTargets() {
+        const visible = (t) => { const e = t.element; return !!e && e.isConnected !== false && !(e.closest ? e.closest('[hidden]') : e.hidden); };
+        return this.targets.filter(visible);
+    }
+
     _buildGroups() {
         const byRow = new Map();
-        for (const t of this.targets) {
+        // 0.7.5: solo lo que se ve (p. ej. "Deshacer" aparece recién después de borrar)
+        for (const t of this._visibleTargets()) {
             let key;
             if (t.data && Number.isInteger(t.data.y)) {
                 key = 'row-' + t.data.y;
@@ -141,9 +148,26 @@ export class ScanEngine {
         }
     }
 
+    /** 0.7.5 (H02): mientras los ojos están cerrados en un parpadeo de selección, el resaltado no avanza:
+     *  se elige lo que estaba resaltado al empezar el gesto. Al soltar, ese elemento vuelve a tener su tiempo. */
+    hold(on, now = performance.now()) {
+        on = !!on;
+        if (on === !!this.held) return;
+        this.held = on;
+        if (on) { this.holdStart = now; return; }
+        // Pausa, no reinicio: el elemento recupera solo el tiempo que estuvo quieto (un parpadeo común no
+        // le regala un intervalo entero ni vuelve irregular el ritmo)
+        const paused = Math.max(0, now - (this.holdStart || now));
+        this.lastAdvance += paused;
+        if (this.selectionPauseUntil) this.selectionPauseUntil += paused;
+    }
+
+    /** Rearma el recorrido si cambió qué botones se ven (p. ej. aparece "Deshacer"). */
+    regroup() { if (this.active) this.setTargets(this.targets); }
+
     // Llamar por frame desde el loop principal.
     tick(now) {
-        if (!this.active || this.phase === 'IDLE' || this.phase === 'PAUSED') return;
+        if (!this.active || this.phase === 'IDLE' || this.phase === 'PAUSED' || this.held) return;
         if (now < this.selectionPauseUntil) return;
 
         const cfg = this._cfg();
@@ -218,6 +242,9 @@ export class ScanEngine {
                 // Si la selección re-renderizó (navegación), setTargets ya reinició el motor.
                 // Si no, volver al barrido de filas desde el inicio:
                 if (this.phase === 'ITEMS' || this.phase === 'GROUPS') {
+                    // Lo elegido pudo mostrar u ocultar botones: se rearma el recorrido
+                    const g = this._buildGroups();
+                    if (g.length) this.groups = (this._cfg().pattern === 'LINEAR' || g.length <= 1) ? [this._visibleTargets()] : g;
                     this.phase = (this._cfg().pattern === 'LINEAR' || this.groups.length <= 1) ? 'ITEMS' : 'GROUPS';
                     this.gIdx = 0;
                     this.iIdx = 0;

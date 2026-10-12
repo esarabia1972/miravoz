@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "9794bfa4e03e",
- "appVersion": "0.7.0",
+ "version": "2a3f33902207",
+ "appVersion": "0.7.5",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "49537c7234a86f2a41f4e08cd9910a4cce75ef186746df1cbe320e1b747e1c0e",
-   "bytes": 44490
+   "sha256": "0c1490630a1b635c81bff53277e2d09b682fbff280be575e10a625702fefc68b",
+   "bytes": 46206
   },
   {
    "url": "/js/align.js",
@@ -39,6 +39,16 @@
    "bytes": 7692
   },
   {
+   "url": "/js/backup-ui.js",
+   "sha256": "abc387c3675ca3bf2a70cd382cf816cc15910e645656b4f70decbf34b5b3354f",
+   "bytes": 6139
+  },
+  {
+   "url": "/js/backup.js",
+   "sha256": "e93a66ad04ee0e74ed47354bf7843774c34965a66cde0584ecb92b2657c8099c",
+   "bytes": 4397
+  },
+  {
    "url": "/js/benchmark.js",
    "sha256": "a7c2dc9c35e292433a997a8039e06e8c07d50f1c92cdfd0f00fa78761d8555e8",
    "bytes": 8110
@@ -50,12 +60,12 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "10e31c5ed93332d8e4d815e25ecad26f6990e47b850bad04dc8e94552c8f5f66",
-   "bytes": 82508
+   "sha256": "3cc72f8408a316d745f5cd9510d9c01dccce9dec8cc57944b3f3d4f6d8ad4f83",
+   "bytes": 82529
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "469b98a4666c55c4caa4b359f956c39b179102998b78761feafb1e7ee4ca12bc",
+   "sha256": "32847ab698eb8e0aec3e4817fad30e3f97df9f92e059a8c4ced30b85b45f1117",
    "bytes": 104
   },
   {
@@ -75,13 +85,13 @@
   },
   {
    "url": "/js/contexts.js",
-   "sha256": "a77caf7201fe80fe84a293b77218d43808abe9e1d4415c940894d0a634ccd787",
-   "bytes": 5295
+   "sha256": "5d968afb31f9ee2b33767e9b04af49418bc7ea7b91eca7aa9a7beb6c2d467048",
+   "bytes": 5527
   },
   {
    "url": "/js/device.js",
-   "sha256": "311933ef0722f5b26a9b8dfe0102e39be0fcf949255b84162a1c8c9039c83f07",
-   "bytes": 18742
+   "sha256": "babcce94b8cf642447b1565dd9ed56d93427edf75595e7c86c39750859e61015",
+   "bytes": 18982
   },
   {
    "url": "/js/dwell.js",
@@ -92,6 +102,16 @@
    "url": "/js/editor.js",
    "sha256": "1f20d0194f717dfaca0be332628e5de4bb0732c77df34e4e9a19ffca2db34a44",
    "bytes": 29475
+  },
+  {
+   "url": "/js/favorites-ui.js",
+   "sha256": "d0e7f4972f839079a2d759186e8cacbe441e5ac61bd969fd6159e6bc96c97960",
+   "bytes": 5262
+  },
+  {
+   "url": "/js/favorites.js",
+   "sha256": "4e26608abcb36471d755b94eede49f5220bcdd0e8707e032ca4460b7df3074a3",
+   "bytes": 4549
   },
   {
    "url": "/js/filters.js",
@@ -110,8 +130,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "7380dd838d9e2bde4d6e682cbb8b1e829ac5120d87578991046907a3205e547f",
-   "bytes": 82408
+   "sha256": "31b3c524c7e8d8ba3a43c61585dbd29044e6e8634f2b39689fec298c2d6f8c21",
+   "bytes": 85777
   },
   {
    "url": "/js/media.js",
@@ -120,13 +140,13 @@
   },
   {
    "url": "/js/metrics-summary.js",
-   "sha256": "7302968d73834a446b87251d80d92d5875e5511fada2265e03e5a6d052f3bac3",
-   "bytes": 6750
+   "sha256": "4e76953aee0a9c987027af8bb5a7370fb12cb0da84984e99b5ac0bb7a86ffd2f",
+   "bytes": 7105
   },
   {
    "url": "/js/metrics.js",
-   "sha256": "a88deb2d6a0bcb8da714fd1e3069c83b98d130fb9aa988b69a7d1e5d713317b6",
-   "bytes": 6810
+   "sha256": "70d78890b3eb800f88fe0c87740a5d44f84b27766cbb5cd648bab03cff10c9ff",
+   "bytes": 8697
   },
   {
    "url": "/js/offline.js",
@@ -139,19 +159,24 @@
    "bytes": 11454
   },
   {
+   "url": "/js/person-scope.js",
+   "sha256": "d785c43d6e74f1252c41847c5df49a67cfd564b2e50bcff2315af1fce6e07156",
+   "bytes": 597
+  },
+  {
    "url": "/js/practice-logic.js",
    "sha256": "52c01331686cce639d6df34f30423f0141e13674aa4eba79bd89a993ea4cbba8",
    "bytes": 7860
   },
   {
    "url": "/js/practice.js",
-   "sha256": "61e1ca8c786d075edcaa6ca02f5969e478bc40405328ed71a8b5e372cc3a6cd6",
-   "bytes": 43255
+   "sha256": "f22afaf0a441083080d16d1752d76761d36763c736b360f850490c1fd046d296",
+   "bytes": 43919
   },
   {
    "url": "/js/prediction.js",
-   "sha256": "1196df61a3ee690d018b781addf4c14980ed918774ae035f7e357a9ca463a0d8",
-   "bytes": 3293
+   "sha256": "dd5cb531d114cf06f5805f64a371ebc42acafb1c4f3cb3b4857c4d10697d6ea3",
+   "bytes": 3963
   },
   {
    "url": "/js/profiles.js",
@@ -160,8 +185,8 @@
   },
   {
    "url": "/js/progress.js",
-   "sha256": "f1aafe2e2ed5569bc52465ef0478d70b398ebca15da90f2339f172e3ae60bef1",
-   "bytes": 9458
+   "sha256": "f646ce2798550e3a1d7a16f306c02a32a31d3b4a84eac90ad2fd6f2939df96d9",
+   "bytes": 9656
   },
   {
    "url": "/js/regression.js",
@@ -170,8 +195,8 @@
   },
   {
    "url": "/js/scanning.js",
-   "sha256": "9bc39d5d6a608d2be15fd6d0d4f4855691e0097c43e517af0f8a29c18d4c6b9c",
-   "bytes": 9385
+   "sha256": "f4beaeccf05ea217331b4fc900f19642becb8ece0338fbc8d356a8846350002c",
+   "bytes": 10941
   },
   {
    "url": "/js/selection.js",
@@ -180,8 +205,8 @@
   },
   {
    "url": "/js/speech.js",
-   "sha256": "e464d5d0118b407ecf4750a3c4fe6cea1ec65200c96dd284bd7c6ac810195a34",
-   "bytes": 7246
+   "sha256": "0a69aece31c7d9b0513c9b205a0ceedaf970ae12f35fae0e378aba5d5385624a",
+   "bytes": 9537
   },
   {
    "url": "/js/state.js",
@@ -210,8 +235,8 @@
   },
   {
    "url": "/js/ui.js",
-   "sha256": "5c3d889948d557ce5b800d7d2c1f611a5fb2d31a8aef26d94d83c5653d5cf572",
-   "bytes": 10898
+   "sha256": "8608737006b53934543a241f9fff543db0aa1eb78a86e48d4abcd403ca0017bb",
+   "bytes": 12579
   },
   {
    "url": "/js/users.js",
@@ -315,8 +340,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "c6933013197c1016b40a34169034a52ff01f30233081647b4f970142bfecace0",
-   "bytes": 76377
+   "sha256": "322a75c9ae5695fbaaf5904f4792b474fd59610ee15ce881c1f9ddac439defce",
+   "bytes": 79099
   },
   {
    "url": "/terminos.html",
@@ -415,5 +440,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28909801
+ "totalBytes": 28948347
 }

@@ -126,9 +126,11 @@ function render(body, s, user) {
 
     const grid = el('div', 'progress-grid');
     grid.appendChild(list('Celdas más usadas', s.celdas_mas_usadas, i => `${i.celda} · ${i.veces}`, 'Sin selecciones todavía.'));
-    grid.appendChild(list(`Celdas que no usó (${s.cantidad_celdas_sin_uso})`, s.celdas_sin_uso.slice(0, 30), i => `${i.celda} — ${i.tablero}, ${i.pagina}`, 'Usó todas las celdas de sus tableros.'));
+    grid.appendChild(list(`Sin uso registrado en el período (${s.cantidad_celdas_sin_uso_registrado})`, s.celdas_sin_uso_registrado.slice(0, 30), i => `${i.celda} — ${i.tablero}, ${i.pagina}`,
+        s.selecciones ? 'Todas las celdas de sus tableros tienen uso registrado en el período.' : 'Sin datos en el período.'));
     const other = [];
-    if (s.fatiga) other.push(`Cansancio: al principio de la sesión ${secs(s.fatiga.inicio_ms)} por selección y al final ${secs(s.fatiga.final_ms)}${s.fatiga.cambio != null ? ` (${s.fatiga.cambio > 0 ? '+' : ''}${Math.round(s.fatiga.cambio * 100)}%)` : ''}.`);
+    const v = s.variacion_tiempos;
+    if (v) other.push(`Variación del tiempo entre selecciones: al principio de la sesión ${secs(v.inicio_ms)} por selección y al final ${secs(v.final_ms)}${v.cambio != null ? ` (${v.cambio > 0 ? '+' : ''}${Math.round(v.cambio * 100)}%)` : ''}. Es una observación de tiempos, no indica la causa.`);
     const m = Object.entries(s.metodos).map(([k, v]) => `${METHOD_NAMES[k] || k}: ${v}`).join(' · ');
     if (m) other.push(`Cómo elige: ${m}.`);
     other.push(`Pausas porque no se veía la cara: ${s.pausas_sin_cara}. Calibraciones: ${s.calibraciones}. Alineaciones: ${s.alineaciones}.`);
