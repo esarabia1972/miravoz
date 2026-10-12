@@ -130,5 +130,13 @@ await t('0.7.7: la voz elegida, la velocidad y el tono se aplican al hablar', as
     assert(/Contenido leído/.test(enhancedVoiceHelp('Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)', 5)) && /Google/.test(enhancedVoiceHelp('Mozilla/5.0 (Linux; Android 14)', 5)), 'ayuda por plataforma');
 });
 
+await t('0.7.9c: ayuda_miravoz encuentra temas por nombre y por palabra clave', async () => {
+    const { ayuda, TEMAS } = await import('../web/api/_ayuda.js');
+    assert(/Temas:/.test(ayuda()) && /Qué es MiraVoz|plataforma web/.test(ayuda()), 'índice');
+    assert(/Seguimiento ocular/.test(ayuda('mirada')) && /Control por permanencia/.test(ayuda('eye tracking')), 'mirada');
+    assert(/Velocidad/.test(ayuda('Isabela')) && /Modo protegido/.test(ayuda('protegido')) && /No hay un tema/.test(ayuda('zzz')), 'alias');
+    assert(Object.values(TEMAS).every(t => !/paciente/i.test(t.texto)), 'nunca "paciente"');
+});
+
 console.log(`\n${pass} ok, ${fail} fallidos`);
 process.exit(fail ? 1 : 0);

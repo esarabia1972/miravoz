@@ -14,6 +14,7 @@ import { labelText, navInfo } from '../js/asterics.js';
 import { pageOrder, gridName, arasaacIdFromUrl, pickArasaacKeyword } from '../js/pages.js';
 import * as E from './_edit.js';
 import { summarizeUsage } from '../js/metrics-summary.js';
+import { ayuda, TEMAS } from './_ayuda.js';
 
 export const SERVER_INFO = { name: 'miravoz', title: 'MiraVoz', version: '1.9.0' };
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
@@ -25,6 +26,7 @@ const RWD = { ...RW, destructiveHint: true };
 
 export const INSTRUCTIONS = [
     'MiraVoz es una plataforma de comunicación aumentativa y alternativa (CAA). Estas herramientas leen y editan los tableros de la cuenta registrada conectada y leen sus usuarios.',
+    'Ante cualquier pregunta sobre cómo usar MiraVoz (modos de acceso Manual/Barrido/Rostro/Mirada, Modo protegido, parpadeo, Configuración, voz, Favoritas, Deshacer, Practicar, Mis usuarios, vinculación, Estadística, respaldo, sin conexión), consultá ayuda_miravoz antes de responder: no supongas cómo funciona.',
     'Decir "usuario", nunca "paciente". Los usuarios suelen ser menores: no repetir sus datos fuera de lo necesario.',
     'Buenas prácticas de CAA: vocabulario núcleo (palabras de alta frecuencia) en lugares fijos; colores Fitzgerald (amarillo personas/pronombres, verde verbos, azul descriptores, naranja sustantivos, rosa expresiones sociales, violeta lugares, rojo importante/urgente, gris otros); texto corto en cada celda; un pictograma de ARASAAC por celda; "volver" e "inicio" para navegar entre páginas.',
     'Para armar un tablero: crear_tablero → poner_celdas (en lote, con pictograma como palabra o id de ARASAAC) → revisar_tablero. Filas y columnas se cuentan desde 1. Cada cambio guarda antes una versión: con historial_tablero y restaurar_version se puede deshacer.',
@@ -125,6 +127,13 @@ export const WRITE_TOOLS = [
 ];
 
 export const TOOLS = [
+    {
+        name: 'ayuda_miravoz',
+        title: 'Ayuda de MiraVoz',
+        description: 'Guía de uso de MiraVoz (cómo funciona la app). Sin tema devuelve el índice y un resumen; con tema, el detalle. Temas: ' + Object.keys(TEMAS).join(', ') + '. Usala para responder preguntas de uso, configuración o funciones.',
+        inputSchema: { type: 'object', properties: { tema: { type: 'string', description: 'Tema o palabra clave (p. ej. "mirada", "voz", "barrido", "protegido", "vinculacion").' } }, additionalProperties: false },
+        annotations: RO
+    },
     {
         name: 'quien_soy',
         title: 'Cuenta conectada',
@@ -335,6 +344,7 @@ export async function callTool(name, args, ctx) {
     const { db } = ctx;
     if (WRITE_TOOLS.some(t => t.name === name)) return writeTool(name, args, ctx);
     switch (name) {
+        case 'ayuda_miravoz': return { content: [{ type: 'text', text: ayuda(args?.tema) }] };
         case 'quien_soy': {
             const u = await db.user();
             return toolText({ nombre: u.user_metadata?.full_name || u.user_metadata?.name || null, correo: u.email });

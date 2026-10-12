@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9c] - 2026-10-12
+
+- **Added**: herramienta **`ayuda_miravoz`** en el conector de Claude: guía de uso por tema (modos, Mirada, Barrido, Rostro, parpadeo, Modo protegido, tablero, frase, Favoritas, inicio, editor, Configuración, voz, sin conexión, respaldo, Practicar, Mis usuarios, vinculación, Estadística, versiones). Las instrucciones le piden a Claude consultarla antes de responder preguntas de uso. La guía vive en `web/api/_ayuda.js` y se actualiza con cada publicación. Hay que volver a conectar el conector en Claude para verla.
+
 ## [0.7.9b] - 2026-10-12
 
 - **Changed**: en **Mirada** la fijación la hace MiraVoz (su tiempo, la barra de progreso en la celda, la pausa después de elegir y el registro): el puntero del Seguimiento ocular del iPad es el cursor. En el iPad se deja prendido el Seguimiento ocular y se apaga "Control por permanencia". Si el iPad igual elige, no se elige dos veces y se avisa cómo apagarlo.

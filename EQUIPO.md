@@ -48,6 +48,8 @@
    - **1.0.0**: cuando se use en producción con usuarios reales. Recién ahí rige semver completo (mayor = cambios que obligan a rehacer datos, vinculación o formato de tableros).
    - Las versiones 1.0.0 a 1.9.9 (11 y 12/10/2026) fueron una numeración anterior: quedan en el CHANGELOG y en los tags como historia y no se reutilizan como referencia.
 
+9. **Ayuda para Claude (desde 0.7.9c).** `web/api/_ayuda.js` es la guía de uso que devuelve la herramienta `ayuda_miravoz`. Cada publicación que cambie algo visible o de uso actualiza el tema correspondiente (y `AYUDA_VERSION`), junto con el CHANGELOG.
+
 ## Flujo por tarea
 
 1. El líder parte la tarea, define los criterios de aceptación y decide qué se hace en paralelo.

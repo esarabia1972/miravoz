@@ -41,7 +41,7 @@ await t('initialize: versión de protocolo, solo herramientas, instrucciones de 
 });
 await t('las herramientas de lectura de la etapa 1 siguen siendo de solo lectura', async () => {
     const r = await handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, { db });
-    const read = ['quien_soy', 'listar_tableros', 'ver_tablero', 'listar_usuarios', 'ver_usuario', 'buscar_pictogramas', 'revisar_tablero', 'historial_tablero'];
+    const read = ['ayuda_miravoz', 'quien_soy', 'listar_tableros', 'ver_tablero', 'listar_usuarios', 'ver_usuario', 'buscar_pictogramas', 'revisar_tablero', 'historial_tablero'];
     assert(r.result.tools.length === TOOLS.length && r.result.tools.filter(x => read.includes(x.name)).every(x => x.annotations.readOnlyHint && !x.annotations.destructiveHint), 'solo lectura');
 });
 await t('listar_tableros: filtra por nombre y etiqueta', async () => {

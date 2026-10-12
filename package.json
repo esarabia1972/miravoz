@@ -10,5 +10,5 @@
   "devDependencies": {
     "jsdom": "30.1.2"
   },
-  "appVersion": "0.7.9b"
+  "appVersion": "0.7.9c"
 }

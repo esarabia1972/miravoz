@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "1f267025a87e",
- "appVersion": "0.7.9b",
+ "version": "bb57a684bbd0",
+ "appVersion": "0.7.9c",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -65,7 +65,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "39f4e30e452d82c8205676d6e634abecff63eb3513da95480c0b52ae0312ac7c",
+   "sha256": "d30f3334b6e611238316e7d18fb950c40390ddf57cf5abb6cf83725eeee063eb",
    "bytes": 105
   },
   {
