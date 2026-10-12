@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.7e] - 2026-10-12
+
+- **Added**: Configuración → Voz: opción "La de Ajustes del dispositivo" (España, México o Argentina). Safari en iPad no lista las voces "Mejoradas" descargadas; con esta opción MiraVoz no elige voz y el sistema usa la configurada en Accesibilidad → Contenido leído.
+- **Changed**: las voces que necesitan internet (por ejemplo "Google español" en Chrome) se marcan así en la lista, y sin conexión se usa una voz local.
+
 ## [0.7.7d] - 2026-10-12
 
 - **Fixed**: en Configuración → Voz, el nombre de la voz se cortaba (0.7.7c lo ensanchó pero cortaba velocidad y tono): ahora la voz va a lo ancho y debajo velocidad, tono y Probar.

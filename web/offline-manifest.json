@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "5c612d88a271",
- "appVersion": "0.7.7d",
+ "version": "889daaa126ee",
+ "appVersion": "0.7.7e",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,7 +20,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "bea7ce97df36af396bac9ee12c62d0bf816c24ba8d0005b210855095f1c87915",
+   "sha256": "a516fbd421d1ec20e734c0d0dad20e68b19e097e98f176236a8f02deb7a018d9",
    "bytes": 47974
   },
   {
@@ -65,7 +65,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "b58549002e0177168eb33c0758b02e71b894df19f2d00b6ea87f6dc8ae014122",
+   "sha256": "9faec3e8ba00e97e898e3ad7f4a6dafe1820680047c537d75bf8672846e1caae",
    "bytes": 105
   },
   {
@@ -205,8 +205,8 @@
   },
   {
    "url": "/js/speech.js",
-   "sha256": "93c83b227b87e83fa107dd38154b50535106f8cc6e8b590bb1276a2630ed8bd9",
-   "bytes": 11202
+   "sha256": "3fd7d599db044395d66178fd7c095eae04bb735609c7cd8444ed4cfc873d297f",
+   "bytes": 11938
   },
   {
    "url": "/js/state.js",
@@ -260,8 +260,8 @@
   },
   {
    "url": "/js/voice-settings.js",
-   "sha256": "6c8403c324c9b8e94547e41ff5623308965efcd3fd1eb940290fa71b60aaecbd",
-   "bytes": 4625
+   "sha256": "0f7c0888ecf31c4755038fdbec25c8732b2a284c59b5ee95adce779a31240aed",
+   "bytes": 5410
   },
   {
    "url": "/legal.css",
@@ -445,5 +445,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28956930
+ "totalBytes": 28958451
 }

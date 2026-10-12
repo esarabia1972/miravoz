@@ -14,7 +14,8 @@ const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 // 0.7.7: voz de cada persona. systemVoice: voiceURI elegida de la lista del dispositivo ('' = automática);
 // rate y pitch: velocidad y tono (1 = normal). (La voz neural Piper de 0.7.6 se sacó: era lenta.)
 export const RATE_LIMITS = [0.6, 1.4], PITCH_LIMITS = [0.7, 1.3];
-let prefs = { systemVoice: '', rate: 1, pitch: 1 };
+export const SYSTEM_DEFAULT = 'sistema';
+let prefs = { systemVoice: '', systemLang: 'es-ES', rate: 1, pitch: 1 };
 const clamp = (v, [a, b], d) => (Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
 export function setVoicePrefs(p = {}) {
     prefs = { ...prefs, ...p };
@@ -54,7 +55,12 @@ function pickVoice(lang, voiceURI = null) {
     // Sin internet, una voz de red no suena: se prefieren las locales (si el navegador lo informa)
     const all = voices.filter(v => (v.lang || '').toLowerCase().startsWith('es'));
     const wanted = voiceURI || prefs.systemVoice;
-    if (wanted) { const chosen = all.find(v => v.voiceURI === wanted); if (chosen) return chosen; }
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (wanted) {
+        const chosen = all.find(v => v.voiceURI === wanted);
+        // 0.7.7e: una voz de internet ("Google español…") no suena sin conexión: se usa una local
+        if (chosen && !(offline && chosen.localService === false)) return chosen;
+    }
     const local = all.filter(v => v.localService !== false);
     const es = local.length ? local : all;
     if (!es.length) return null;
@@ -159,7 +165,11 @@ export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, 
     utterance.volume = volume;
     utterance.rate = Number.isFinite(rate) ? rate : prefs.rate;
     utterance.pitch = Number.isFinite(pitch) ? pitch : prefs.pitch;
-    const voice = _retry ? null : pickVoice(lang, voiceURI);
+    // 0.7.7e: "La de Ajustes del dispositivo": no se elige voz; el sistema usa la que la persona eligió para
+    // español en sus ajustes (Safari en iPad no muestra en la lista las voces mejoradas descargadas).
+    const useSystemDefault = (voiceURI || prefs.systemVoice) === SYSTEM_DEFAULT && (!lang || /^es/i.test(lang));
+    const voice = _retry || useSystemDefault ? null : pickVoice(lang, voiceURI);
+    if (useSystemDefault) utterance.lang = prefs.systemLang || 'es-ES';
     if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
 
     let started = false, finished = false;

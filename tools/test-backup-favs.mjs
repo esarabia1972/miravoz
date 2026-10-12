@@ -117,6 +117,15 @@ await t('0.7.7: la voz elegida, la velocidad y el tono se aplican al hablar', as
     sp.setVoicePrefs({ systemVoice: 'jorge', rate: 0.85, pitch: 9 });
     sp.speak('hola');
     assert(said[1].voice.voiceURI === 'jorge' && said[1].rate === 0.85 && said[1].pitch === sp.PITCH_LIMITS[1], JSON.stringify({ v: said[1].voice?.voiceURI, r: said[1].rate, p: said[1].pitch }));
+    sp.setVoicePrefs({ systemVoice: sp.SYSTEM_DEFAULT, systemLang: 'es-AR' });
+    sp.speak('hola');
+    assert(!said[2].voice && said[2].lang === 'es-AR', 'la de Ajustes: sin voz elegida, idioma es-AR: ' + JSON.stringify({ v: said[2].voice?.voiceURI, l: said[2].lang }));
+    voices.push({ name: 'Google español', lang: 'es-US', voiceURI: 'google-es', localService: false });
+    sp.setVoicePrefs({ systemVoice: 'google-es' });
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, configurable: true, writable: true });
+    sp.speak('hola');
+    assert(said[3].voice.voiceURI !== 'google-es' && said[3].voice.localService !== false, 'sin conexión no usa la voz de internet');
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true, writable: true });
     const { enhancedVoiceHelp } = await import('../web/js/voice-settings.js');
     assert(/Contenido leído/.test(enhancedVoiceHelp('Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)', 5)) && /Google/.test(enhancedVoiceHelp('Mozilla/5.0 (Linux; Android 14)', 5)), 'ayuda por plataforma');
 });
