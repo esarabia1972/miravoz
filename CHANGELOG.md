@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9e] - 2026-10-12
+
+- **Fixed**: lista de tableros con el mismo margen a izquierda y derecha; las flechas de página van centradas (horizontal y verticalmente) en el margen derecho.
+
 ## [0.7.9d] - 2026-10-12
 
 - **Fixed**: las flechas de página quedaban pegadas al borde derecho y centradas en la pantalla; ahora van dentro del margen derecho de la lista y centradas sobre ella.

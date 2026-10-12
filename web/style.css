@@ -1673,7 +1673,9 @@ body.edit-mode .cell.cell-broken { border: 3px dashed #d93025 !important; }
     display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px var(--shadow); position: relative; overflow: hidden; }
 .pager-btn:hover { background: var(--btn-acc-hover); }
 .pager-btn.scan-highlight { outline: 5px solid var(--accent-text); outline-offset: 2px; }
-#home-view.has-pager .board-grid { padding-right: 92px; box-sizing: border-box; }
+/* 0.7.9e: márgenes iguales a los dos lados; el derecho aloja las flechas de página (72 px + aire) */
+#home-view .gallery-container { width: min(1200px, calc(100% - 232px)); }
+#home-view .board-grid { padding-left: 8px; padding-right: 8px; }
 
 /* 0.7.8: Modo protegido (modo Mirada): solo tableros, Practicar y etiquetas */
 .protected-only { display: none !important; }

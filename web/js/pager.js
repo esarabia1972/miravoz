@@ -37,13 +37,13 @@ export function attachPager(scrollEl, host, { onChange = () => {} } = {}) {
         const canDown = scrollEl.scrollTop < max - 4;
         // 0.7.8b: los botones están siempre; sin más para ver quedan grisados (no aparecen y desaparecen)
         for (const [b, can] of [[up, canUp], [down, canDown]]) { b.disabled = !can; b.setAttribute('aria-disabled', String(!can)); }
-        host.classList.add('has-pager');
-        // 0.7.9d: centrado verticalmente sobre la lista y dentro de su margen derecho (no pegado al borde)
+        // 0.7.9e: la lista queda centrada (mismo margen a izquierda y derecha) y los botones van centrados,
+        // horizontal y verticalmente, en el margen derecho (entre la lista y el borde de la pantalla)
         const r = scrollEl.getBoundingClientRect();
         if (r.height > 0) {
             const w = box.offsetWidth || 72;
             box.style.top = `${Math.round(r.top + r.height / 2)}px`;
-            box.style.left = `${Math.round(Math.min(r.right - w - 8, window.innerWidth - w - 12))}px`;
+            box.style.left = `${Math.round(r.right + (window.innerWidth - r.right) / 2 - w / 2)}px`;
         }
         const key = `${canUp}|${canDown}`;
         if (key !== last) { last = key; onChange(); }
