@@ -23,7 +23,6 @@ Temas de esta ayuda: modos, manual, barrido, rostro, mirada, parpadeo, protegido
 - Barrido: se resaltan las opciones de a una (o por filas) y se elige con un pulsador, la barra espaciadora, tocando la pantalla o con un parpadeo.
 - Rostro: la cámara sigue el movimiento de la cabeza; un cursor se mueve por la pantalla y se elige manteniéndolo quieto sobre la celda (fijación). Necesita calibrar.
 - Mirada: usa el Seguimiento ocular del propio dispositivo (iPad: Accesibilidad → Seguimiento ocular); MiraVoz toma ese puntero y elige con su fijación.
-- Iris: experimental (seguimiento de la mirada con la cámara), oculto salvo en pruebas.
 Cómo orientar: quien puede tocar con precisión → Manual; quien controla bien un movimiento voluntario (botón, pulsador, parpadeo) → Barrido; quien mueve la cabeza → Rostro; en iPad con buena mirada → Mirada. Es una decisión de evaluación individual; conviene probar y comparar.`
     },
     manual: { titulo: 'Modo Manual', alias: ['tocar', 'toque'], texto: 'Se elige tocando la celda. Es el único modo sin Modo protegido: se ven Configuración, modos, edición y gestión. También es el modo al que vuelve "Salir" del Modo protegido.' },

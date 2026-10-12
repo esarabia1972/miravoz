@@ -63,7 +63,7 @@ const done = () => { console.log('@@RESULT ' + JSON.stringify({ checks, errors }
 
 const JSDOM = loadJSDOM();
 const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-const START_URL = caseArg === 'vuelta-google-error' ? 'http://localhost/?iris=1&error=access_denied&error_description=Acceso%20denegado' : 'http://localhost/';
+const START_URL = caseArg === 'vuelta-google-error' ? 'http://localhost/?demo=1&error=access_denied&error_description=Acceso%20denegado' : 'http://localhost/';
 const dom = new JSDOM(html, { url: START_URL, pretendToBeVisual: false });
 const win = dom.window;
 
@@ -204,7 +204,7 @@ if (caseArg === 'sin-sesion' || caseArg === 'sin-cdn' || caseArg === 'vuelta-goo
 }
 
 if (caseArg === 'vuelta-google-error') {
-    check('URL limpia (sin error/error_description) y conserva ?iris=1', location.search === '?iris=1' && location.hash === '', location.href);
+    check('URL limpia (sin error/error_description) y conserva ?demo=1', location.search === '?demo=1' && location.hash === '', location.href);
     const et = document.getElementById('error-toast');
     check('toast rojo con el error de Google', !!et && et.classList.contains('visible') && /Acceso denegado/.test(et.textContent), et ? `"${et.textContent}"` : 'sin toast');
 }
@@ -212,14 +212,14 @@ if (caseArg === 'vuelta-google-error') {
 if (caseArg === 'sin-sesion') {
     check('#auth-error vacío al arrancar', $('auth-error').textContent.trim() === '', `"${$('auth-error').textContent}"`);
     // Simula restos de un intento anterior en la URL: redirectTo debe salir limpio
-    history.replaceState(null, '', '/?iris=1&code=abc&state=xyz#frag');
+    history.replaceState(null, '', '/?demo=1&code=abc&state=xyz#frag');
     $('btn-google').click();
     await sleep(50);
     const oauth = sbCalls.filter(c => c.op === 'signInWithOAuth');
     const o = oauth[0]?.args[0];
     check('click en #btn-google llama signInWithOAuth una vez', oauth.length === 1, JSON.stringify(sbCalls.map(c => c.op)));
     check("provider = 'google'", o?.provider === 'google', JSON.stringify(o));
-    check('redirectTo sin code/state/hash y con ?iris=1', o?.options?.redirectTo === 'http://localhost/?iris=1', JSON.stringify(o?.options?.redirectTo));
+    check('redirectTo sin code/state/hash y con ?demo=1', o?.options?.redirectTo === 'http://localhost/?demo=1', JSON.stringify(o?.options?.redirectTo));
     check('sin signInWithPassword ni signUp', !sbCalls.some(c => ['signInWithPassword', 'signUp'].includes(c.op)), 'hubo');
 }
 

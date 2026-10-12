@@ -1,5 +1,5 @@
 // headpose.js — Matemática pura sobre la salida de FaceLandmarker (testeable con Node)
-// Base del modo Iris híbrido (etapa 2): separar el movimiento de la cabeza del de los ojos.
+// Pose de la cabeza (modo Rostro) y blendshapes de los ojos (parpadeo).
 
 /**
  * Pose de la cabeza desde la "facial transformation matrix" de MediaPipe
@@ -26,25 +26,4 @@ export function pickEyeBlendshapes(categories) {
         if (KEEP.test(c.categoryName)) out[c.categoryName] = c.score;
     }
     return out;
-}
-
-/**
- * Posición del iris normalizada por la geometría de CADA ojo (no por la cara entera):
- * x ∈ ~[-1, 1] de comisura a comisura, y ∈ ~[-1, 1] de párpado a párpado. Promedio de ambos ojos.
- * Índices del mesh refinado (478 puntos): ojo A 33/133 (comisuras), 159/145 (párpados), iris 468;
- * ojo B 263/362, 386/374, iris 473. (Mismos índices en FaceMesh legado y FaceLandmarker.)
- */
-export function irisInEye(lm) {
-    const eye = (outer, inner, top, bottom, iris) => {
-        const cx = (lm[outer].x + lm[inner].x) / 2, cy = (lm[top].y + lm[bottom].y) / 2;
-        const w = Math.hypot(lm[inner].x - lm[outer].x, lm[inner].y - lm[outer].y);
-        const h = Math.abs(lm[bottom].y - lm[top].y);
-        if (w < 1e-6) return null;
-        return { x: (lm[iris].x - cx) / (w / 2), y: h > 1e-6 ? (lm[iris].y - cy) / (h / 2) : 0, open: h / w };
-    };
-    const a = eye(33, 133, 159, 145, 468);
-    const b = eye(263, 362, 386, 374, 473);
-    if (!a || !b) return null;
-    // En coordenadas de imagen ambos iris se desplazan en el mismo sentido: se promedian directo
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, open: (a.open + b.open) / 2 };
 }

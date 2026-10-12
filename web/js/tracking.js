@@ -1,9 +1,9 @@
-// tracking.js — Motor de cámara: rostro → features → predicción (SPEC F1-1, F1-3; Iris etapa 1)
+// tracking.js — Motor de cámara: rostro → features → predicción (SPEC F1-1, F1-3)
 // El video se procesa 100% local: ningún frame sale del dispositivo (invariante de arquitectura).
 //
 // Motores:
 //  - 'tasks'  : MediaPipe Tasks Vision · FaceLandmarker (por defecto desde 10/2026). Además de los
-//               478 puntos entrega la pose de la cabeza y blendshapes de mirada (base del modo Iris híbrido).
+//               478 puntos entrega la pose de la cabeza y blendshapes de los ojos (parpadeo).
 //  - 'legacy' : @mediapipe/face_mesh (congelado desde 2022). Se usa como respaldo si FaceLandmarker no
 //               inicia en el navegador, o a pedido con ?engine=legacy (para comparar en el benchmark).
 // Los dos devuelven la MISMA topología de 478 puntos, así que las features del modo Rostro (nariz,
@@ -11,8 +11,7 @@
 
 import { S } from './state.js';
 import { phi, dot } from './regression.js';
-import { poseFromMatrix, pickEyeBlendshapes, irisInEye } from './headpose.js';
-import * as gaze from './gaze-model.js';
+import { poseFromMatrix, pickEyeBlendshapes } from './headpose.js';
 import { CONFIG } from './config.js';
 import { showSyncToast, hideSyncToast, showInfoToast } from './ui.js';
 import { buildSample, invalidSample } from './selection.js';
@@ -53,9 +52,9 @@ let visionWorker = null;
 // --- Estado público ---
 /** Features crudas del modo activo: [fx, fy] o null si no hay rostro */
 export let currentFeatures = null;
-/** Datos completos del último frame (para el modo Iris híbrido y diagnóstico) */
-export let faceData = null; // { landmarks, pose, eyes, iris, t }
-/** Modo Iris: la cabeza está fuera de la pose de la calibración (cursor en pausa) */
+/** Datos completos del último frame (parpadeo, alineación y diagnóstico) */
+export let faceData = null; // { landmarks, pose, eyes, t }
+/** (Ya no se usa: era del modo Iris; queda en false) */
 export let headOutOfPose = false;
 /** Motor en uso: 'tasks' | 'legacy' | null (todavía no inició) */
 export let engineName = null;
@@ -82,18 +81,16 @@ export let cameraInfo = null;
 export const latencies = [];
 
 // --- Modelo de la calibración ---
-// CARA: pesos polinómicos sobre la nariz. OJOS: modelo híbrido cabeza+iris (gaze-model.js).
+// Rostro: pesos polinómicos sobre los ángulos de la cabeza (o la nariz con el motor legado).
 let weightsX = null;
 let weightsY = null;
-let gazeModel = null;
 export function setWeights(wx, wy) { weightsX = wx; weightsY = wy; }
-export function clearWeights() { weightsX = null; weightsY = null; gazeModel = null; profileRevision = null; }
-export function hasWeights() { return S.trackingMode === 'OJOS' ? !!gazeModel : !!(weightsX && weightsY); }
+export function clearWeights() { weightsX = null; weightsY = null; profileRevision = null; }
+export function hasWeights() { return !!(weightsX && weightsY); }
 
 /** Aplica un perfil de calibración guardado al modo. */
 export function applyProfile(mode, profile) {
     profileRevision = profile?.revision || null;
-    if (mode === 'OJOS') { gazeModel = profile?.model || null; return; }
     setWeights(profile.weightsX, profile.weightsY);
 }
 
@@ -107,43 +104,12 @@ export function caraFeatures(fd) {
     return [fd.landmarks[1].x, fd.landmarks[1].y];
 }
 
-// Extrae features según el modo.
-//  CARA → [giro, cabeceo] de la cabeza (motor legado: nariz, landmark 1)
-//  OJOS → vector crudo del modelo híbrido (necesita la pose de la cabeza: solo motor FaceLandmarker)
-function extractFeatures(fd, mode) {
-    if (mode === 'OJOS') return gaze.rawFeatures(fd);
-    return caraFeatures(fd);
-}
-
-// Modo Iris: mediana por componente de los últimos N cuadros (quita picos de parpadeos/ruido sin retrasar
-// tanto como un promedio). Se resetea al detener la cámara.
-const medianBuf = [];
-function medianFeatures(f) {
-    medianBuf.push(f);
-    while (medianBuf.length > CONFIG.GAZE_MEDIAN_FRAMES) medianBuf.shift();
-    return f.map((_, i) => {
-        const vals = medianBuf.map(v => v[i]).sort((a, b) => a - b);
-        return vals[Math.floor(vals.length / 2)];
-    });
-}
+// Features de Rostro: [giro, cabeceo] de la cabeza (motor legado: nariz, landmark 1)
+function extractFeatures(fd) { return caraFeatures(fd); }
 
 function predict(features) {
-    let x, y;
-    if (S.trackingMode === 'OJOS') {
-        [x, y] = gaze.predict(gazeModel, medianFeatures(features));
-    } else {
-        const f = phi(features[0] - centerOffset[0], features[1] - centerOffset[1]);
-        x = dot(weightsX, f); y = dot(weightsY, f);
-    }
-    return [x, y]; // sin recortar: buildSample decide si está demasiado afuera (M01)
-}
-
-// Últimas features (2 s) para el aprendizaje implícito del modo Iris
-const recent = [];
-/** Features crudas de los últimos `ms` milisegundos (excluyendo los últimos `skipMs`). */
-export function recentFeatures(ms, skipMs = 0) {
-    const now = performance.now();
-    return recent.filter(r => r.t >= now - ms && r.t <= now - skipMs).map(r => r.f);
+    const f = phi(features[0] - centerOffset[0], features[1] - centerOffset[1]);
+    return [dot(weightsX, f), dot(weightsY, f)]; // sin recortar: buildSample decide si está demasiado afuera (M01)
 }
 
 // Procesamiento común a ambos motores
@@ -186,28 +152,12 @@ function onLandmarks(landmarks, extra = {}, capturedAt = performance.now()) {
         if (faceListener) try { faceListener(null, capturedAt); } catch (e) { console.error(e); }
         return;
     }
-    faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, iris: irisInEye(landmarks), t: now };
+    faceData = { landmarks, pose: extra.pose || null, eyes: extra.eyes || null, t: now };
     if (faceListener) try { faceListener(faceData, capturedAt); } catch (e) { console.error(e); }
-    currentFeatures = extractFeatures(faceData, S.trackingMode);
-    if (currentFeatures) {
-        recent.push({ t: now, f: currentFeatures });
-        while (recent.length && recent[0].t < now - 2000) recent.shift();
-    }
-    // Modo Iris v3: si la cabeza se alejó de la pose de la calibración, el modelo no es válido → pausa
-    if (S.trackingMode === 'OJOS' && gazeModel && currentFeatures) {
-        const dev = gaze.headDeviation(gazeModel, currentFeatures);
-        // Histéresis: se pausa al pasar el umbral y se reanuda recién al volver por debajo del 75%
-        // (evita que el aviso parpadee cuando la cabeza está justo en el límite)
-        const k = headOutOfPose ? 0.75 : 1;
-        headOutOfPose = dev.deg > CONFIG.GAZE_HEAD_TOLERANCE_DEG * k || dev.shift > CONFIG.GAZE_HEAD_SHIFT_TOL * k;
-        if (headOutOfPose) { S.rawX = null; S.rawY = null; }
-    } else {
-        headOutOfPose = false;
-    }
-    // Parpadeo u ojos casi cerrados (modo Iris): el detector lo indica y la muestra es inválida
-    const blink = S.trackingMode === 'OJOS' && faceData.iris && faceData.iris.open !== undefined && faceData.iris.open < gaze.BLINK_OPEN_RATIO;
+    currentFeatures = extractFeatures(faceData);
+    headOutOfPose = false;
     latestSample = buildSample({
-        ...sampleBase, face: true, features: currentFeatures, blink, headOutOfPose,
+        ...sampleBase, face: true, features: currentFeatures, blink: false, headOutOfPose,
         active: S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE',
         predict: hasWeights() ? predict : null
     });
@@ -551,7 +501,5 @@ export function stopMediaPipe() {
     publishInvalid('stopped');
     currentFeatures = null;
     faceData = null;
-    recent.length = 0;
-    medianBuf.length = 0;
     headOutOfPose = false;
 }

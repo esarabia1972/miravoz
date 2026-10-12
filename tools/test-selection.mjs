@@ -7,7 +7,7 @@ globalThis.performance = { now: () => fakeNow };
 globalThis.window = { addEventListener() {}, innerWidth: 1000, innerHeight: 800 };
 globalThis.requestAnimationFrame = (fn) => { fn(); return 0; };
 
-const { CONFIG, isImplicitEnabled } = await import('../web/js/config.js');
+const { CONFIG } = await import('../web/js/config.js');
 const { DwellEngine } = await import('../web/js/dwell.js');
 const { OneEuroFilter } = await import('../web/js/filters.js');
 const { PointerController, buildSample, invalidSample } = await import('../web/js/selection.js');
@@ -65,14 +65,14 @@ t('T01 Rostro: se pierde la cara cerca de completar el dwell → ninguna selecci
     run(500, () => sample());
     assert(selected.length === 1, 'no completó una permanencia nueva');
 });
-t('T02 Iris: ojos cerrados con el cursor sobre una celda → no usa las coordenadas anteriores', () => {
+t('T02 ojos cerrados (muestra inválida) con el cursor sobre una celda → no usa las coordenadas anteriores', () => {
     const { selected, sample, run } = setup();
-    run(CONFIG.DWELL_MS - 150, () => sample({ mode: 'OJOS' }));
-    run(1500, () => sample({ mode: 'OJOS', valid: false, reason: 'blink', x: null, y: null, features: null }));
+    run(CONFIG.DWELL_MS - 150, () => sample({ mode: 'CARA' }));
+    run(1500, () => sample({ mode: 'CARA', valid: false, reason: 'blink', x: null, y: null, features: null }));
     assert(selected.length === 0, JSON.stringify(selected));
 });
 t('T02 buildSample: parpadeo, sin rostro, pose, sin calibrar, error y fuera de pantalla son inválidos', () => {
-    const base = { sessionId: 1, sequence: 1, capturedAt: 0, mode: 'OJOS', face: true, features: [1, 2], active: true, predict: () => [100, 100], viewport: { w: 1000, h: 800 } };
+    const base = { sessionId: 1, sequence: 1, capturedAt: 0, mode: 'CARA', face: true, features: [1, 2], active: true, predict: () => [100, 100], viewport: { w: 1000, h: 800 } };
     assert(buildSample(base).valid && buildSample(base).x === 100, 'válida');
     assert(buildSample({ ...base, blink: true }).reason === 'blink' && buildSample({ ...base, blink: true }).features === null, 'blink');
     assert(buildSample({ ...base, face: false }).reason === 'no-face', 'no-face');
@@ -88,9 +88,9 @@ t('T02 buildSample: parpadeo, sin rostro, pose, sin calibrar, error y fuera de p
 });
 t('T02 un parpadeo corto (100 ms) también reinicia: nunca acumula durante la invalidez', () => {
     const { selected, sample, run } = setup();
-    run(CONFIG.DWELL_MS - 150, () => sample({ mode: 'OJOS' }));
-    run(100, () => sample({ mode: 'OJOS', valid: false, reason: 'blink', x: null, y: null }));
-    run(400, () => sample({ mode: 'OJOS' }));
+    run(CONFIG.DWELL_MS - 150, () => sample({ mode: 'CARA' }));
+    run(100, () => sample({ mode: 'CARA', valid: false, reason: 'blink', x: null, y: null }));
+    run(400, () => sample({ mode: 'CARA' }));
     assert(selected.length === 0, 'sumó el tiempo de antes del parpadeo');
 });
 t('T03 la cara desaparece 5 s y vuelve a la misma celda → hace falta una permanencia nueva', () => {
@@ -177,14 +177,6 @@ t('invalidaciones avisan (para cancelar el aprendizaje pendiente)', () => {
 t('invalidSample', () => {
     const s = invalidSample('stopped', { sessionId: 3, sequence: 4, now: 5 });
     assert(!s.valid && s.reason === 'stopped' && s.x === null && s.sessionId === 3, JSON.stringify(s));
-});
-
-console.log('aprendizaje implícito (M07)');
-t('T16 apagado por defecto; solo ?implicit=1 lo activa', () => {
-    assert(isImplicitEnabled('') === false, 'vacío');
-    assert(isImplicitEnabled('?iris=1') === false, 'iris');
-    assert(isImplicitEnabled('?implicit=0') === false, '0');
-    assert(isImplicitEnabled('?iris=1&implicit=1') === true, '1');
 });
 
 console.log(`\n${pass} ok, ${fail} fallidos`);

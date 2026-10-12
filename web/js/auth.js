@@ -94,7 +94,7 @@ function wireAuthForm() {
         if (!supabaseClient) { if (err) err.textContent = 'Sin conexión con el servidor. Revisá internet y recargá la página.'; return; }
         btn.disabled = true;
         if (err) err.textContent = '';
-        // Volver a la misma URL (conserva parámetros como ?iris=1), sin restos de un intento anterior
+        // Volver a la misma URL (conserva sus parámetros), sin restos de un intento anterior
         const back = new URL(window.location.href);
         ['code', 'error', 'error_code', 'error_description', 'state'].forEach(k => back.searchParams.delete(k));
         back.hash = '';

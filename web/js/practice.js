@@ -128,7 +128,7 @@ function build() {
     let lastBackAt = -Infinity;
     backBtn = makeButton('practice-back', 'Salir', (e) => {
         const now = performance.now();
-        const byDwell = !e.isTrusted && (deps.mode() === 'CARA' || deps.mode() === 'OJOS');
+        const byDwell = !e.isTrusted && (deps.mode() === 'CARA');
         if (byDwell && now - lastBackAt < 2500) return; // solo la permanencia se encadena; un toque siempre vale
         lastBackAt = now;
         onBack();
@@ -242,7 +242,7 @@ function showMenu() {
         const s = document.createElement('span'); s.className = 'practice-card-skill'; s.textContent = lv.skill;
         const last = [...log].reverse().find(e => e.level === lv.id);
         const sub = document.createElement('span'); sub.className = 'practice-card-last';
-        sub.textContent = disabled ? (lv.needsBlink ? 'Activá el parpadeo en Configuración' : 'Con Rostro, Iris o Manual') : (last ? `Última vez: ${summarize(last)}` : '');
+        sub.textContent = disabled ? (lv.needsBlink ? 'Activá el parpadeo en Configuración' : 'Con Manual, Rostro o Mirada') : (last ? `Última vez: ${summarize(last)}` : '');
         card.append(num, t, s, sub);
         if (disabled) { card.classList.add('is-disabled'); card.setAttribute('aria-disabled', 'true'); }
         else list.push(asTarget(card));
@@ -274,7 +274,7 @@ function stopActivity() {
     canvas.style.display = 'none';
 }
 
-/** Llamar en cada cuadro. cursor = {x, y} en px de la ventana (Rostro/Iris) o null (sin cursor / Manual / Barrido). */
+/** Llamar en cada cuadro. cursor = {x, y} en px de la ventana (Rostro o Mirada) o null (sin cursor / Manual / Barrido). */
 export function tickPractice(now, cursor) {
     if (!isOpenFlag || !activity) return;
     const dt = lastTick ? Math.min(100, now - lastTick) : 16;

@@ -4,7 +4,7 @@
 export const S = {
     // Máquina de estados: HOME | BOARD | CALIBRATING_PENDING | CALIBRATING_COUNTDOWN | CALIBRATING_SAMPLING
     state: 'HOME',
-    trackingMode: 'CLICKS',   // CLICKS | CARA | OJOS (experimental)
+    trackingMode: 'CLICKS',   // CLICKS | SCAN | CARA (Mirada usa CLICKS + puntero del sistema)
     isCalibrated: false,
 
     // Gaze

@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "c5fb57932f67",
- "appVersion": "0.7.9e",
+ "version": "21471198e38a",
+ "appVersion": "0.7.9f",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "51c628b08f0d3ccd4e3744dbc678b2a7e06b5def549e23c667463ecdd4c74637",
-   "bytes": 48824
+   "sha256": "d9ecee01d2a6b2923e3bc5b8519bd95864421efc24d4c920e22cf8f7b877bffd",
+   "bytes": 48735
   },
   {
    "url": "/js/align.js",
@@ -35,8 +35,8 @@
   },
   {
    "url": "/js/auth.js",
-   "sha256": "33e7c6d638bd9562ca7ae9413ca0af815e1baa0f0eed6c9f02d284256a594d90",
-   "bytes": 7692
+   "sha256": "b2fea1a0dc0fce380a885e0bb1b2560fdffcc2b964148547ba104a69e6fd17e9",
+   "bytes": 7683
   },
   {
    "url": "/js/backup-ui.js",
@@ -65,13 +65,13 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "41a84b42341e47db078b477bd38f00777bf11754c51f62f55a7d20541af21d41",
+   "sha256": "128f5dc30c9df9625b188532f32a05e881aaa73cc616d89d70aed976ac7a970a",
    "bytes": 105
   },
   {
    "url": "/js/calibration.js",
-   "sha256": "213c922a323740f7c57413c8c4151e88e7125a3c20623b2e18abcbe0142d505f",
-   "bytes": 22105
+   "sha256": "48a8e5cb8b308cb0c53e475d47091c7eeaf9a44c371cae6060ca9be9022d50fc",
+   "bytes": 16766
   },
   {
    "url": "/js/colors.js",
@@ -80,8 +80,8 @@
   },
   {
    "url": "/js/config.js",
-   "sha256": "ed138fc4fb9ded5d8490248f995ea7366c9e29ac82ce243c953555299c83da01",
-   "bytes": 4925
+   "sha256": "06d4ac11716f3034a5dc337547bcdd2b0dc0677a4da16473ff79844bf9acb76f",
+   "bytes": 3580
   },
   {
    "url": "/js/contexts.js",
@@ -119,19 +119,14 @@
    "bytes": 1593
   },
   {
-   "url": "/js/gaze-model.js",
-   "sha256": "42eb414c3ab09102f7fd580f62dc1220d91538dc09fca8021ef6eeaf500015b6",
-   "bytes": 8852
-  },
-  {
    "url": "/js/headpose.js",
-   "sha256": "f8046add99f64ce327e6e1acfc6905d332ca8b320718acc9acd60b18d5fd10b3",
-   "bytes": 2527
+   "sha256": "e007bebd0669c0611fdd200355989e89859165803ce64a95f7c22f8dac83ffe0",
+   "bytes": 1341
   },
   {
    "url": "/js/main.js",
-   "sha256": "a417a917279a3693da828e2363417472a3cd82d0eaea4e63c990e83a3b62eb6f",
-   "bytes": 91191
+   "sha256": "3e5df73cb5b7780ac5115bf4511d73f006532ba56d731c636bba873d3eb0cf29",
+   "bytes": 86541
   },
   {
    "url": "/js/media.js",
@@ -170,13 +165,13 @@
   },
   {
    "url": "/js/practice-logic.js",
-   "sha256": "52c01331686cce639d6df34f30423f0141e13674aa4eba79bd89a993ea4cbba8",
-   "bytes": 7860
+   "sha256": "20b5bbbdc8b7768e9b4949312cb4d8d57ab0bb9157df2c3b9f6f176e181d6b7e",
+   "bytes": 7855
   },
   {
    "url": "/js/practice.js",
-   "sha256": "f22afaf0a441083080d16d1752d76761d36763c736b360f850490c1fd046d296",
-   "bytes": 43919
+   "sha256": "729434acff50d71cd7b437e624de54417840b7e68de620e38b7442c8aab5eddd",
+   "bytes": 43899
   },
   {
    "url": "/js/prediction.js",
@@ -185,8 +180,8 @@
   },
   {
    "url": "/js/profiles.js",
-   "sha256": "52285db3a1204b1e9725c1a8aaf3d1a070198c84f8cc8a7fb74cb7b3477c7677",
-   "bytes": 8934
+   "sha256": "1d5f8df7aac1c7c81f355198d1cb29d9e7fd9cc0f7fa3be8dd4175f569b593aa",
+   "bytes": 8875
   },
   {
    "url": "/js/progress.js",
@@ -210,8 +205,8 @@
   },
   {
    "url": "/js/selection.js",
-   "sha256": "dda34cb15f82c41fdb40d1bc3ed5253a5bdaf9c4fae2ce994719d19f8cf86a1a",
-   "bytes": 10082
+   "sha256": "7f19a1acf755b21fdb3038e7f1c216fcc2849d1229b04e62bbb69b647b419d17",
+   "bytes": 10041
   },
   {
    "url": "/js/speech.js",
@@ -220,8 +215,8 @@
   },
   {
    "url": "/js/state.js",
-   "sha256": "33acec4bd5350977530b8ea2c30f44a70823b8aa33010a4e308b699bc294924a",
-   "bytes": 660
+   "sha256": "23e0ce74c080d96f08716c6c78dcbc369646b9ff82c2fda4328c98d00510669f",
+   "bytes": 687
   },
   {
    "url": "/js/sync-plan.js",
@@ -240,8 +235,8 @@
   },
   {
    "url": "/js/tracking.js",
-   "sha256": "8fd58cc6cda99b3babb671e8cf7174b3920dcac611b22148ec61426e0e47a828",
-   "bytes": 27238
+   "sha256": "076245bb43d635c68e03bfda0a6945eb3022aef2eb7fee9f286e1cfa54addcda",
+   "bytes": 24602
   },
   {
    "url": "/js/ui.js",
@@ -455,5 +450,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28974335
+ "totalBytes": 28950131
 }

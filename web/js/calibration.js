@@ -10,7 +10,6 @@
 
 import { CONFIG } from './config.js';
 import { trainModel, trimOutliers, phi, dot } from './regression.js';
-import * as gaze from './gaze-model.js';
 import { ProfileStore, SCHEMA, MODEL_KINDS, checkCompatibility, newRevision } from './profiles.js';
 import { validationTargets, computeMetrics, judge, RULES } from './validation.js';
 
@@ -30,7 +29,6 @@ export function setContextProvider(fn) { contextProvider = fn; }
 export function currentContext() { return contextProvider(); }
 
 export function modelKindFor(mode, ctx = currentContext()) {
-    if (mode === 'OJOS') return gaze.MODEL_KIND;
     return ctx && ctx.engine === 'legacy' ? MODEL_KINDS.CARA_NOSE : MODEL_KINDS.CARA;
 }
 
@@ -58,8 +56,7 @@ export function isUnsaved() { return getStore().unsaved; }
  */
 export function isUsableProfile(mode, profile, ctx = null) {
     if (!profile) return false;
-    if (mode === 'OJOS' && !(profile.kind === gaze.MODEL_KIND && profile.model)) return false;
-    if (mode !== 'OJOS' && !(profile.weightsX && profile.weightsY)) return false;
+    if (!(profile.weightsX && profile.weightsY)) return false;
     return checkCompatibility(profile, ctx, { mode, modelKind: modelKindFor(mode) }).ok;
 }
 
@@ -77,68 +74,7 @@ export async function clearScope(scope) { await getStore().removeScope(scope); }
 
 /** Función features → [x, y] de un perfil (sin recortar). */
 export function predictorFor(mode, profile) {
-    if (mode === 'OJOS') return (f) => gaze.predict(profile.model, f);
     return (f) => { const p = phi(f[0], f[1]); return [dot(profile.weightsX, p), dot(profile.weightsY, p)]; };
-}
-
-/**
- * Aprendizaje implícito (modo Iris, EXPERIMENTAL: solo con ?implicit=1 · M07).
- *  - El modelo BASE (el que pasó la verificación) es inmutable; un re-entrenamiento produce un CANDIDATO.
- *  - El candidato se acepta solo si sobre la evidencia RESERVADA (muestras de la verificación, que nunca se
- *    entrenan) no es peor que el modelo BASE. Se compara siempre contra la base, no contra el anterior, para
- *    que no haya degradación acumulativa.
- *  - Si mientras tanto cambió el perfil activo (otra persona, recalibración, otra revisión), no se escribe nada.
- *  - Cada muestra guarda su procedencia; rollbackModel() vuelve a la base sin tocar tableros.
- * @param {string} mode
- * @param {Array<{target,raw}>} samples
- * @param {string|null} expectedRevision revisión del perfil cuando se registró la selección
- * @returns el perfil actualizado si se aceptó un candidato, o null.
- */
-let implicitSinceRetrain = 0;
-export async function addImplicitSamples(mode, samples, expectedRevision = null) {
-    const scope = currentContext().scope;
-    const profile = getProfile(mode);
-    if (!isUsableProfile(mode, profile) || mode !== 'OJOS' || !samples.length) return null;
-    if (expectedRevision && profile.revision !== expectedRevision) return null; // la selección era de otro perfil
-    const tagged = samples.map(s => ({ ...s, source: 'implicit', ts: Date.now() }));
-    const next = { ...profile, baseModel: profile.baseModel || profile.model, implicit: gaze.addImplicit(profile.implicit, tagged, CONFIG.IMPLICIT_MAX_SAMPLES) };
-    implicitSinceRetrain++;
-    let retrained = null;
-    if (implicitSinceRetrain >= CONFIG.IMPLICIT_RETRAIN_EVERY) {
-        implicitSinceRetrain = 0;
-        try {
-            const r = gaze.train(next.samples, CONFIG.GAZE_LAMBDA, next.implicit);
-            const reserved = next.validationSamples && next.validationSamples.length ? next.validationSamples : null;
-            const ok = reserved
-                ? gaze.calibrationError(r.model, reserved) <= gaze.calibrationError(next.baseModel, reserved)
-                : gaze.acceptRetrain(next.baseModel, r.model, next.samples, 1.0);
-            if (ok) {
-                next.model = r.model;
-                next.revision = newRevision();
-                next.history = [...(profile.history || []), { revision: profile.revision, at: Date.now() }].slice(-5);
-                retrained = next;
-            } else {
-                console.warn('Aprendizaje implícito: candidato descartado (no mejora sobre la evidencia reservada)');
-                next.implicit = [];
-            }
-        } catch (e) {
-            console.warn('Re-entrenamiento implícito falló (se mantiene el modelo):', e?.message || e);
-        }
-    }
-    // Re-chequeo después del trabajo: si cambió la persona o el perfil activo, no se escribe
-    const now = getProfile(mode);
-    if (currentContext().scope !== scope || !now || now.revision !== profile.revision) return null;
-    await saveProfile(mode, next);
-    return retrained;
-}
-
-/** Vuelve al modelo base verificado (descarta lo aprendido con el uso). */
-export async function rollbackModel(mode) {
-    const p = getProfile(mode);
-    if (!p || !p.baseModel) return null;
-    const next = { ...p, model: p.baseModel, implicit: [], revision: newRevision(), history: [...(p.history || []), { revision: p.revision, at: Date.now(), rollback: true }].slice(-5) };
-    await saveProfile(mode, next);
-    return next;
 }
 
 // --- Puntos de calibración (grilla 3x3 sobre el viewport) ---
@@ -163,7 +99,6 @@ const VALIDATION_SAMPLING_MS = 1000;
 // Rostro (1.2.0): la verificación es a LAZO CERRADO — se ve el cursor y la persona lo lleva al punto, como en el
 // uso real. A lazo abierto (sin cursor) se medía la precisión absoluta de la cabeza, que se desplaza unos grados
 // en pocos segundos (diagnósticos del iPad Air 4, 11/10/2026): con el cursor visible eso se corrige solo.
-// Iris sigue a lazo abierto (un cursor que sigue a la mirada distrae y arrastra la vista).
 const CARA_VALIDATION_COUNTDOWN_MS = 2500;
 const MAX_POINT_SAMPLING_MS = 3000; // tope por punto si el motor entrega pocos cuadros por segundo
 
@@ -174,7 +109,7 @@ const MAX_POINT_SAMPLING_MS = 3000; // tope por punto si el motor entrega pocos 
 export class CalibrationSession {
     constructor(mode, onComplete, { validateOnly = null, offset = null } = {}) {
         this.mode = mode;
-        this.offset = mode !== 'OJOS' && Array.isArray(offset) ? offset : null; // 1.5.0: recentrado previo (Rostro)
+        this.offset = Array.isArray(offset) ? offset : null; // 1.5.0: recentrado previo (Rostro)
         this.onComplete = onComplete;
         this.validateOnly = validateOnly;
         this.viewport = { w: window.innerWidth, h: window.innerHeight };
@@ -235,7 +170,7 @@ export class CalibrationSession {
         if (this.stage === 'VALIDATE') { this._validationFrame(features, isNewFrame && inWindow, elapsed, now); return; }
 
         if (features && inWindow) {
-            const sample = this.mode === 'OJOS' ? { fx: features[0], fy: features[1], raw: features } : { fx: features[0], fy: features[1] };
+            const sample = { fx: features[0], fy: features[1] };
             this.pointSamples[this.currentIdx].samples.push(sample);
         }
         // Con cámara/motor lentos (iPad), se sigue muestreando hasta juntar suficientes cuadros únicos, con tope
@@ -261,15 +196,13 @@ export class CalibrationSession {
         }
     }
 
-    _closedLoop() { return this.stage === 'VALIDATE' && this.mode !== 'OJOS'; }
+    _closedLoop() { return this.stage === 'VALIDATE'; }
     _countdownMs() { return this._closedLoop() ? CARA_VALIDATION_COUNTDOWN_MS : CONFIG.COUNTDOWN_MS; }
 
     _train(now) {
         let result;
         try {
-            result = this.mode === 'OJOS'
-                ? gaze.train(this.pointSamples, CONFIG.GAZE_LAMBDA)
-                : trainModel(this.pointSamples, CONFIG.RIDGE_LAMBDA_CARA);
+            result = trainModel(this.pointSamples, CONFIG.RIDGE_LAMBDA_CARA);
         } catch (e) {
             console.error('Error entrenando modelo:', e);
             this.phase = 'DONE';
@@ -306,11 +239,7 @@ export class CalibrationSession {
             createdAt: Date.now(),
             ts: Date.now()
         };
-        const draft = this.mode === 'OJOS'
-            ? { ...base, kind: gaze.MODEL_KIND, model: result.model,
-                samples: this.pointSamples.map(p => ({ target: p.target, samples: p.samples.map(s => ({ raw: s.raw })) })), implicit: [] }
-            : { ...base, weightsX: result.weightsX, weightsY: result.weightsY };
-        implicitSinceRetrain = 0;
+        const draft = { ...base, weightsX: result.weightsX, weightsY: result.weightsY };
         this._startValidation(now, draft);
     }
 
@@ -331,15 +260,8 @@ export class CalibrationSession {
         const d = this.vData[this.vIdx];
         if (countable) {
             d.newFrames++;
-            if (features && this.mode === 'OJOS') (d.raws = d.raws || []).push(features); // evidencia reservada (M07)
             if (features) {
-                // Igual que en el uso real (tracking.js): en Iris se predice sobre la mediana de los últimos cuadros
-                let f = features;
-                if (this.mode === 'OJOS') {
-                    d.buf = [...(d.buf || []), features].slice(-CONFIG.GAZE_MEDIAN_FRAMES);
-                    f = features.map((_, i) => { const v = d.buf.map(b => b[i]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; });
-                }
-                const [x, y] = this.trained.predictor(f);
+                const [x, y] = this.trained.predictor(features);
                 if (Number.isFinite(x) && Number.isFinite(y)) d.preds.push([x, y]);
             }
         }
@@ -366,12 +288,8 @@ export class CalibrationSession {
         const verdict = judge(metrics);
         const quality = verdict.status !== 'accepted' ? 'no aprobada'
             : metrics.medianError <= 0.2 * metrics.cellRef ? 'buena' : 'aceptable';
-        const reserved = this.mode === 'OJOS' && !this.validateOnly
-            ? { validationSamples: this.vData.map(d => ({ target: d.target, samples: (d.raws || []).map(raw => ({ raw })) })), baseModel: this.trained.profile.model }
-            : {};
         const profile = {
             ...this.trained.profile,
-            ...reserved,
             quality,
             validation: { status: verdict.status, failures: verdict.failures, metrics, rules: RULES.version, checkedAt: Date.now() }
         };
@@ -399,8 +317,7 @@ export class CalibrationSession {
             index: validating ? this.vIdx : this.currentIdx,
             stage: this.stage,
             label: validating ? `V${this.vIdx + 1}/${this.vTargets.length}` : `${this.currentIdx + 1}/${this.points.length}`,
-            hint: validating ? (this.mode === 'OJOS' ? 'Verificación: mirá el punto, con la cabeza quieta' : 'Verificación: llevá el cursor al punto con la cabeza y mantenelo ahí')
-                : (this.mode === 'OJOS' ? 'Mirá el punto, con la cabeza quieta' : null),
+            hint: validating ? 'Verificación: llevá el cursor al punto con la cabeza y mantenelo ahí' : null,
             sampling: this.phase === 'SAMPLING',
             countdownProgress: this.phase === 'COUNTDOWN' ? Math.min((now - this.phaseStart) / this._countdownMs(), 1) : null,
             cursor: this._closedLoop() && this.vCursor ? [...this.vCursor] : null

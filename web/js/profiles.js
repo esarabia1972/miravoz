@@ -23,7 +23,7 @@ export const GEOMETRY_RULE = { widthFrac: 0.12, heightFrac: 0.15 };
 // CARA (1.1.0, 11/10/2026): con FaceLandmarker se usan los ÁNGULOS de la cabeza (giro y cabeceo), que no cambian
 // si la persona se corre o se hunde en la silla; la posición de la nariz en la imagen sí (diagnóstico del iPad Air 4:
 // error mediano 131 px con la nariz y 46 px con ángulos, mismos datos). El motor legado (sin pose) sigue con la nariz.
-export const MODEL_KINDS = { CARA: 'poly-headangles-v1', CARA_NOSE: 'poly-nose-v2' }; // OJOS: gaze.MODEL_KIND (lo agrega calibration.js)
+export const MODEL_KINDS = { CARA: 'poly-headangles-v1', CARA_NOSE: 'poly-nose-v2' }; 
 
 export function orientationOf(w, h) { return w >= h ? 'landscape' : 'portrait'; }
 
@@ -64,7 +64,7 @@ export function checkCompatibility(profile, ctx, { mode, modelKind } = {}) {
     if (ctx) {
         if (c.scope !== ctx.scope) return { ok: false, reason: 'scope' };
         if (c.deviceId && ctx.deviceId && c.deviceId !== ctx.deviceId) return { ok: false, reason: 'device' };
-        // Iris y Rostro (ángulos) necesitan la pose de FaceLandmarker: otro motor invalida el perfil
+        // Rostro (ángulos) necesita la pose de FaceLandmarker: otro motor invalida el perfil
         if (ctx.engine && c.engine && ctx.engine !== c.engine) return { ok: false, reason: 'engine' };
         if (c.orientation !== ctx.orientation) return { ok: false, reason: 'orientation' };
         if (geometryChanged(c.viewport, ctx.viewport)) return { ok: false, reason: 'geometry' };

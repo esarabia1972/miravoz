@@ -22,7 +22,7 @@ export const LEVELS = [
     { id: 6, key: 'blink',   title: 'Parpadear',         skill: 'Parpadeo',       pointerOnly: false, needsBlink: true,
       hint: 'Cerrá los ojos un momento para reventar el globo.', hintDouble: 'Parpadeá dos veces seguidas para reventar el globo.' }
 ];
-/** Consigna según el modo de acceso (CARA/OJOS: cursor; CLICKS: dedo; SCAN: pulsador). */
+/** Consigna según el modo de acceso (CARA: cursor; CLICKS: dedo; SCAN: pulsador). */
 export function hintFor(level, mode, blinkMode = 'long') {
     if (level.needsBlink) return blinkMode === 'double' ? level.hintDouble : level.hint;
     if (mode === 'SCAN' && level.hintScan) return level.hintScan;

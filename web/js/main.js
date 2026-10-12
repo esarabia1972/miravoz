@@ -1,7 +1,7 @@
 // main.js — Bootstrap y wiring de la aplicación (SPEC F1-1)
 // Único módulo que conoce a todos los demás. El loop de render vive acá.
 
-import { CONFIG, settings, initSettings, saveSettings, isImplicitEnabled } from './config.js';
+import { CONFIG, settings, initSettings, saveSettings } from './config.js';
 import { S } from './state.js';
 import { APP_VERSION } from './build-info.js';
 import { OneEuroFilter } from './filters.js';
@@ -14,7 +14,6 @@ import { syncAll, startCloudWatch } from './sync.js';
 import * as deviceMod from './device.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
-import * as gaze from './gaze-model.js';
 import * as calibration from './calibration.js';
 import { DwellEngine } from './dwell.js';
 import { ScanEngine } from './scanning.js';
@@ -141,13 +140,7 @@ window.addEventListener('resize', () => {
     canvasUI.height = window.innerHeight;
 });
 
-// --- Iris experimental (F0-11) ---
-const optOjos = document.getElementById('opt-ojos');
-const urlParams = new URLSearchParams(window.location.search);
-if (optOjos && !CONFIG.EXPERIMENTAL_IRIS && urlParams.get('iris') !== '1') {
-    optOjos.remove();
-}
-// (los botones de modo se arman en init, cuando ya existe applyMode)
+const urlParams = new URLSearchParams(window.location.search); // ?diag=1, ?tablero=…, etc.
 
 // --- Filtros 1 Euro (F1-2) ---
 const filterX = new OneEuroFilter({ minCutoff: CONFIG.ONE_EURO_MIN_CUTOFF, beta: CONFIG.ONE_EURO_BETA, dCutoff: CONFIG.ONE_EURO_D_CUTOFF });
@@ -168,8 +161,6 @@ const selectTarget = (target) => {
     pendingMethod = pendingMethod || (S.trackingMode === 'SCAN' ? 'barrido' : miradaActive ? 'mirada' : 'permanencia');
     if (miradaActive) miradaSelectedAt = { t: performance.now(), el: target.element };
     setTimeout(() => { pendingMethod = null; }, 0);
-    // El centro del objetivo se toma ANTES de actuar (la acción puede re-renderizar el tablero)
-    const rect = target.element?.getBoundingClientRect?.();
     if (target.isBoardCard) {
         boards.openBundle(target.data);
     } else if (target.isAccBtn) {
@@ -177,50 +168,7 @@ const selectTarget = (target) => {
     } else {
         boards.handleCellClick(target.element, target.data);
     }
-    // Después de la acción: si fue "borrar"/"atrás", su click ya canceló la selección anterior
-    recordImplicitSelection(rect);
 };
-
-// --- Modo Iris: aprendizaje implícito (EXPERIMENTAL, apagado por defecto: M07) ---
-// Con ?implicit=1, cada selección por dwell que NO se corrige (borrar último / atrás) en los 3 s
-// siguientes se suma al modelo. Un dwell no corregido no demuestra intención: por eso no se usa por defecto.
-const implicitEnabled = isImplicitEnabled();
-let pendingImplicit = null;
-
-function recordImplicitSelection(rect) {
-    // M07: nunca de benchmark, verificación, señal inválida, diálogos, edición o calibración
-    if (!implicitEnabled || S.trackingMode !== 'OJOS' || benchmark.active || pointer.invalid || !rect || !rect.width) return;
-    if (selectionContexts.isBlocked() || editor.isEditMode() || calibSession || S.state !== 'BOARD') return;
-    const ojosProfile = calibration.getProfile('OJOS');
-    if (!calibration.isUsableProfile('OJOS', ojosProfile)) return;
-    const winMs = Math.min(CONFIG.DWELL_MS * 0.7, 1000); // sin la sacada de llegada
-    const feats = tracking.recentFeatures(winMs, 100).filter(f => f && f.length === gaze.RAW_NAMES.length);
-    if (feats.length < 3) return;
-    // Solo aprender de selecciones "seguras": el cursor estuvo en el centro del objetivo casi todo el dwell
-    if (!gaze.isConfidentSelection(ojosProfile.model, feats, rect)) return;
-    const step = Math.max(1, Math.floor(feats.length / CONFIG.IMPLICIT_SAMPLES_PER_SELECT));
-    const target = [rect.left + rect.width / 2, rect.top + rect.height / 2];
-    const samples = feats.filter((_, i) => i % step === 0).slice(0, CONFIG.IMPLICIT_SAMPLES_PER_SELECT).map(raw => ({ target, raw }));
-    commitPendingImplicit(); // la anterior ya pasó su ventana de corrección implícitamente
-    const entry = { samples, timer: null, revision: ojosProfile.revision, scope: profileScope() };
-    entry.timer = setTimeout(() => { if (pendingImplicit === entry) commitPendingImplicit(); }, CONFIG.IMPLICIT_CONFIRM_MS);
-    pendingImplicit = entry;
-}
-
-function cancelPendingImplicit() {
-    if (pendingImplicit) clearTimeout(pendingImplicit.timer);
-    pendingImplicit = null;
-}
-
-async function commitPendingImplicit() {
-    const entry = pendingImplicit;
-    if (!entry) return;
-    clearTimeout(entry.timer);
-    pendingImplicit = null;
-    if (entry.scope !== profileScope()) return; // cambió la persona: se descarta
-    const updated = await calibration.addImplicitSamples('OJOS', entry.samples, entry.revision);
-    if (updated && S.trackingMode === 'OJOS' && profileScope() === entry.scope) tracking.applyProfile('OJOS', updated);
-}
 
 // --- Dwell engine (F0-6, F1-6) ---
 const dwell = new DwellEngine(selectTarget);
@@ -228,8 +176,7 @@ const dwell = new DwellEngine(selectTarget);
 // --- M01: el puntero solo selecciona con muestras nuevas, válidas y recientes ---
 const pointer = new PointerController({
     dwell, filterX, filterY,
-    maxAgeMs: () => CONFIG.MAX_SAMPLE_AGE_MS,
-    onInvalidate: () => cancelPendingImplicit()
+    maxAgeMs: () => CONFIG.MAX_SAMPLE_AGE_MS
 });
 // Pestaña oculta, app en segundo plano o pantalla bloqueada: se cancela todo y, al volver, las muestras
 // anteriores no cuentan (no se ejecuta tiempo acumulado ni una selección inmediata)
@@ -238,8 +185,8 @@ window.addEventListener('pagehide', () => pointer.invalidate('hidden', performan
 window.addEventListener('pageshow', () => pointer.invalidate('resumed', performance.now()));
 
 // --- Parpadeo para elegir (1.4.0, blink.js) ---
-// En Barrido es el pulsador; en Rostro/Iris elige lo que estaba bajo el cursor JUSTO ANTES de cerrar los ojos
-// (al cerrar, la cara cambia un poco y en Iris el cursor se pausa: se usa la posición previa).
+// En Barrido es el pulsador; en Rostro elige lo que estaba bajo el cursor JUSTO ANTES de cerrar los ojos
+// (al cerrar, la cara cambia un poco: se usa la posición previa).
 const blink = new BlinkDetector();
 const cursorTrail = []; // últimas posiciones del cursor { t, x, y } (1,5 s)
 let blinkFlash = null;  // { x, y, t } para dibujar la confirmación
@@ -248,8 +195,8 @@ const blinkOn = () => settings.blink && settings.blink.mode !== 'off';
 function applyBlinkMode() {
     blink.configure(settings.blink || {});
     if (!blinkOn()) blink.reset();
-    // "Solo parpadeo" (Rostro/Iris): la permanencia resalta pero no elige
-    dwell.selectEnabled = !(blinkOn() && settings.blink.selectWith === 'blink' && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS'));
+    // "Solo parpadeo" (Rostro): la permanencia resalta pero no elige
+    dwell.selectEnabled = !(blinkOn() && settings.blink.selectWith === 'blink' && S.trackingMode === 'CARA');
 }
 function cursorBefore(t) {
     for (let i = cursorTrail.length - 1; i >= 0; i--) if (cursorTrail[i].t <= t - 60) return cursorTrail[i];
@@ -300,7 +247,7 @@ function onBlinkFire(closedAt) {
     if (S.state === 'PRACTICE' && practice.wantsBlink() && !practice.blinkViaScan()) {
         // 0.7.5 (H03): con el cursor sobre "Actividades" el parpadeo lo elige (se puede salir solo con parpadeo);
         // en cualquier otro lugar revienta el globo.
-        if (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') {
+        if (S.trackingMode === 'CARA') {
             const p = cursorBefore(closedAt);
             const target = p ? dwell.targetAt(p.x, p.y) : null;
             if (target) { blinkFlash = { x: p.x, y: p.y, t: now }; dwell.markSelected(now); pendingMethod = 'parpadeo'; selectTarget(target); return; }
@@ -313,7 +260,7 @@ function onBlinkFire(closedAt) {
         pendingMethod = null;
         return;
     }
-    if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+    if (S.trackingMode !== 'CARA') return;
     // Si la permanencia acaba de elegir (mismo gesto largo sobre la celda), no se elige dos veces
     if (now - dwell.lastClickTime < CONFIG.DWELL_COOLDOWN_MS + 400) return;
     const p = cursorBefore(closedAt);
@@ -552,8 +499,8 @@ boards.hooks.onBundleOpened = () => {
     document.body.classList.toggle('test-board', S.currentBundle?.type === 'test');
     // Profesional editando la copia de un usuario: aviso fijo arriba
     updateCopyBanner();
-    // Solo los modos de puntero (Rostro/Iris) requieren calibración; Barrido y Manual no.
-    if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
+    // Solo Rostro requiere calibración; Barrido y Manual no.
+    if (S.trackingMode === 'CARA' && !S.isCalibrated) {
         if (!calibSession) beginCameraAccess();
     } else {
         S.state = 'BOARD';
@@ -600,7 +547,7 @@ function beginCameraAccess() {
 
 /** Calibración completa, o verificación rápida de un perfil guardado ({ validateOnly: perfil }). */
 function startCalibration({ validateOnly = null, offset = null } = {}) {
-    if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+    if (S.trackingMode !== 'CARA') return;
     if (!validateOnly) { tracking.setCenterOffset([0, 0]); alignRec.poses = []; alignRec.center = []; }
     if (practice.isOpen()) practice.closePractice({ silent: true }); // calibrar con Practicar abierto: se cierra (y se calla)
 
@@ -613,9 +560,7 @@ function startCalibration({ validateOnly = null, offset = null } = {}) {
         : 'Presioná para iniciar calibración';
     // M08: ayuda de colocación para la persona de apoyo (nunca pide mover la cabeza)
     const help = document.getElementById('calib-help');
-    if (help) help.textContent = S.trackingMode === 'OJOS'
-        ? 'Iris (experimental): colocá el iPad frente a la cara, a la altura de los ojos y a unos 40-60 cm, con luz de frente y sin contraluz. No hace falta mover la cabeza: solo mirar cada punto.'
-        : 'Rostro: el cursor sigue la nariz. Colocá el iPad frente a la cara, con luz de frente, y seguí cada punto con la cabeza.';
+    if (help) help.textContent = 'Rostro: el cursor sigue la nariz. Colocá el iPad frente a la cara, con luz de frente, y seguí cada punto con la cabeza.';
     S.state = 'CALIBRATING_PENDING';
 
     boardView.style.opacity = '0';
@@ -651,9 +596,7 @@ function onCalibrationComplete(profile) {
         return;
     }
     if (!profile) {
-        customAlert(S.trackingMode === 'OJOS' && tracking.engineName === 'legacy'
-            ? 'El Modo Iris necesita el motor de cámara nuevo, que no pudo iniciar en este navegador. Probá con Chrome o Edge actualizados.'
-            : 'No se pudo completar la calibración. Verificá que la cámara te detecte e intentá de nuevo.');
+        customAlert('No se pudo completar la calibración. Verificá que la cámara te detecte e intentá de nuevo.');
         goHome();
         return;
     }
@@ -661,7 +604,6 @@ function onCalibrationComplete(profile) {
     tracking.applyProfile(S.trackingMode, profile);
     S.isCalibrated = true;
     resetFilters();
-    cancelPendingImplicit();
     metrics.calibrated({ tipo: wasQuickCheck ? 'rapida' : 'completa', modo: S.trackingMode, mediana: Math.round(profile.validation?.metrics?.medianError || 0), p90: Math.round(profile.validation?.metrics?.p90Error || 0) });
     // 1.5.0: calibración nueva de Rostro → nueva referencia de alineación (posición de la cabeza y centro)
     if (!wasQuickCheck && S.trackingMode === 'CARA') {
@@ -706,13 +648,13 @@ btnIniciarCalibracion.addEventListener('click', () => {
 });
 
 async function recalibrateNow() {
-    if (S.trackingMode === 'OJOS' || S.trackingMode === 'CARA') {
+    if (S.trackingMode === 'CARA') {
         await calibration.clearProfile(S.trackingMode);
         tracking.clearWeights();
         S.isCalibrated = false;
         startCalibration();
     } else {
-        customAlert('La calibración solo aplica a los modos con cámara (Rostro/Iris). El Modo Barrido y el Manual no la necesitan.');
+        customAlert('La calibración solo aplica al modo Rostro. Manual, Barrido y Mirada no la necesitan.');
     }
 }
 btnRecalibrar.addEventListener('click', () => {
@@ -723,9 +665,9 @@ btnRecalibrar.addEventListener('click', () => {
 
 // --- Cambio de modo ---
 // 0.7.8: "Mirada" = Manual (sin cámara de MiraVoz; el Seguimiento ocular del sistema toca por la persona).
-// 0.7.9: Barrido, Rostro y Mirada (e Iris, experimental) usan SIEMPRE el Modo protegido; solo Manual queda libre.
+// 0.7.9: Barrido, Rostro y Mirada usan SIEMPRE el Modo protegido; solo Manual queda libre.
 // "Salir" (con confirmación) vuelve a Manual.
-const PROTECTED_MODES = new Set(['SCAN', 'CARA', 'OJOS', 'MIRADA']);
+const PROTECTED_MODES = new Set(['SCAN', 'CARA', 'MIRADA']);
 let miradaActive = false;
 // 0.7.9b: en Mirada la fijación la hace MiraVoz con el puntero del Seguimiento ocular (el del iPad se apaga:
 // Accesibilidad → Seguimiento ocular → Control por permanencia). Si el iPad igual "toca", no se elige dos veces.
@@ -768,13 +710,13 @@ modeSelect.addEventListener('change', (e) => {
 initProtectedMode({ onExit: () => { modeSelect.value = 'CLICKS'; setAccessMode('CLICKS'); saveSettings({ accessMode: 'CLICKS' }); } });
 
 // --- Modo de acceso como botones visibles (el <select> oculto sigue siendo la fuente de verdad) ---
-const MODE_LABELS = { CLICKS: 'Manual', MIRADA: 'Mirada', CARA: 'Rostro', SCAN: 'Barrido', OJOS: 'Iris (exp.)' };
+const MODE_LABELS = { CLICKS: 'Manual', MIRADA: 'Mirada', CARA: 'Rostro', SCAN: 'Barrido' };
 function renderModeSegmented() {
     const box = document.getElementById('mode-segmented');
     if (!box) return;
     box.innerHTML = '';
     const available = [...modeSelect.options].map(o => o.value);
-    for (const v of ['CLICKS', 'SCAN', 'CARA', 'MIRADA', 'OJOS'].filter(m => available.includes(m))) {
+    for (const v of ['CLICKS', 'SCAN', 'CARA', 'MIRADA'].filter(m => available.includes(m))) {
         const b = document.createElement('button');
         b.type = 'button';
         b.setAttribute('role', 'radio');
@@ -795,8 +737,8 @@ function updateModeSegmented() {
     const pAlign = document.getElementById('btn-protected-align');
     if (pAlign) pAlign.hidden = !(isProtected() && S.trackingMode === 'CARA');
     document.querySelectorAll('#mode-segmented button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === current)));
-    // Recalibrar solo tiene sentido con cámara (Rostro; Iris experimental): en Manual y Barrido, grisado
-    const usesCamera = S.trackingMode === 'CARA' || S.trackingMode === 'OJOS';
+    // Recalibrar solo tiene sentido con cámara (Rostro): en Manual, Barrido y Mirada, grisado
+    const usesCamera = S.trackingMode === 'CARA';
     if (btnRecalibrar) {
         btnRecalibrar.disabled = !usesCamera;
         btnRecalibrar.title = usesCamera ? 'Volver a calibrar la cámara' : 'Recalibrar solo se usa en modo Rostro';
@@ -810,12 +752,7 @@ function applyMode(mode) {
     S.trackingMode = mode;
     pointer.invalidate('mode', performance.now());
     updateModeSegmented();
-    // 1 Euro por modo: el iris tiembla más que la nariz → suavizado más fuerte en modo Iris
-    const iris = mode === 'OJOS';
-    for (const f of [filterX, filterY]) {
-        f.minCutoff = iris ? CONFIG.ONE_EURO_IRIS_MIN_CUTOFF : CONFIG.ONE_EURO_MIN_CUTOFF;
-        f.beta = iris ? CONFIG.ONE_EURO_IRIS_BETA : CONFIG.ONE_EURO_BETA;
-    }
+    for (const f of [filterX, filterY]) { f.minCutoff = CONFIG.ONE_EURO_MIN_CUTOFF; f.beta = CONFIG.ONE_EURO_BETA; }
 
     if (S.trackingMode === 'CLICKS' || S.trackingMode === 'SCAN') {
         S.isCalibrated = false;
@@ -870,10 +807,9 @@ function goHome() {
     selectionContexts.setBase(homeTargets());
 }
 
-document.getElementById('btn-acc-home').addEventListener('click', () => { cancelPendingImplicit(); goHome(); });
+document.getElementById('btn-acc-home').addEventListener('click', () => { goHome(); });
 
 document.getElementById('btn-acc-back').addEventListener('click', () => {
-    cancelPendingImplicit(); // "atrás" corrige la selección anterior: no aprender de ella
     if (S.navigationHistory.length > 0) {
         boards.renderGrid(S.navigationHistory.pop());
     }
@@ -912,7 +848,6 @@ onUndoChange((can) => {
 initFavoritesUI({ onSpoken: (items) => metrics.sentenceSpoken(items, metricsCtx()) });
 document.getElementById('btn-acc-fav').addEventListener('click', (e) => { flashBtn(e.currentTarget); openFavorites(); });
 document.getElementById('btn-acc-delete').addEventListener('click', (e) => {
-    cancelPendingImplicit(); // "borrar último" corrige la selección anterior: no aprender de ella
     flashBtn(e.currentTarget);
     if (getSentence().length) metrics.sentenceEdited('pop', metricsCtx());
     popSentence();
@@ -969,7 +904,7 @@ practice.initPractice({
     }
 });
 document.getElementById('btn-practice').addEventListener('click', () => {
-    if ((S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') && !S.isCalibrated) {
+    if (S.trackingMode === 'CARA' && !S.isCalibrated) {
         showInfoToast('Para practicar con la cámara primero hay que calibrar. Después tocá Practicar otra vez.', 6000);
         beginCameraAccess();
         return;
@@ -1157,13 +1092,13 @@ if (urlParams.get('benchmark') === '1') {
 
 // --- Diagnóstico para desarrollo (?diag=1) ---
 // Graba por cuadro las features del modelo, la pose, el cursor y el objetivo (punto de calibración o
-// celda del benchmark) para ajustar el modo Iris con datos reales. SOLO números derivados (nunca video
+// celda del benchmark) para ajustar Rostro con datos reales. SOLO números derivados (nunca video
 // ni imágenes) y SOLO se descarga si la persona toca el botón: no se envía a ningún lado.
 // Usar únicamente con la cara de quien desarrolla, nunca con usuarios.
 const diag = urlParams.get('diag') === '1';
 const diagRows = [];
 function recordDiag(now) {
-    if (S.trackingMode !== 'OJOS' && S.trackingMode !== 'CARA') return;
+    if (S.trackingMode !== 'CARA') return;
     const fd = tracking.faceData;
     let target = null;
     if (calibSession && S.state === 'CALIBRATING_ACTIVE') {
@@ -1179,7 +1114,7 @@ function recordDiag(now) {
     if (diagRows.length >= 20000) diagRows.shift();
     diagRows.push({
         t: Math.round(now), mode: S.trackingMode,
-        f: tracking.currentFeatures, pose: fd?.pose || null, iris: fd?.iris || null,
+        f: tracking.currentFeatures, pose: fd?.pose || null,
         raw: S.rawX === null ? null : [Math.round(S.rawX), Math.round(S.rawY)],
         sample: tracking.latestSample ? { seq: tracking.latestSample.sequence, valid: tracking.latestSample.valid, reason: tracking.latestSample.reason, lat: Math.round(tracking.latestSample.receivedAt - tracking.latestSample.capturedAt) } : null,
         smooth: S.smoothX === null ? null : [Math.round(S.smoothX), Math.round(S.smoothY)],
@@ -1190,7 +1125,7 @@ if (diag) {
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary';
     btn.textContent = 'Diagnóstico';
-    btn.title = 'Descarga los datos numéricos de la sesión (sin video) para ajustar el modo Iris';
+    btn.title = 'Descarga los datos numéricos de la sesión (sin video) para ajustar Rostro';
     btn.onclick = () => {
         const payload = { version: 1, engine: tracking.engineName, viewport: [innerWidth, innerHeight],
                           ua: navigator.userAgent, rows: diagRows };
@@ -1249,7 +1184,7 @@ function appLoop() {
             } else if (S.state === 'PRACTICE') practice.tickPractice(now, null);
         } else if (S.state === 'PRACTICE' && S.trackingMode === 'CLICKS') {
             practice.tickPractice(now, null); // Manual: el cursor es el dedo (lo toma practice.js)
-        } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS')) {
+        } else if ((S.state === 'BOARD' || S.state === 'HOME' || S.state === 'PRACTICE') && S.trackingMode === 'CARA') {
             // M01: sin rostro, ojos cerrados, cabeza fuera de pose, cámara congelada o muestra vieja → pausa y
             // se reinicia la permanencia. El dwell solo avanza con muestras nuevas (reloj de captura).
             const r = pointer.step(tracking.latestSample, now);
@@ -1311,7 +1246,7 @@ function drawCalibPoint(info) {
         ctxUI.stroke();
     }
 
-    // Modo Iris: indicación (p. ej. "mové la cabeza despacito") arriba de la pantalla
+    // Indicación de la calibración arriba de la pantalla
     if (info.hint) {
         ctxUI.font = 'bold 26px Inter';
         ctxUI.lineWidth = 6;
@@ -1478,7 +1413,7 @@ let geometryTimer = null;
 function onGeometryChange() {
     clearTimeout(geometryTimer);
     geometryTimer = setTimeout(() => {
-        if (S.trackingMode !== 'CARA' && S.trackingMode !== 'OJOS') return;
+        if (S.trackingMode !== 'CARA') return;
         if (calibSession) {
             // Se giró (o cambió mucho la pantalla) en plena calibración: los puntos ya no corresponden → de nuevo.
             // Un cambio chico (barras de Safari) no la interrumpe.
@@ -1567,7 +1502,7 @@ if (urlParams.get('diag') === '1') {
     setInterval(() => {
         const v = tracking.visionStats();
         const s = tracking.latestSample;
-        const prof = (S.trackingMode === 'CARA' || S.trackingMode === 'OJOS') ? calibration.getProfile(S.trackingMode) : null;
+        const prof = S.trackingMode === 'CARA' ? calibration.getProfile(S.trackingMode) : null;
         panel.textContent = [
             `versión ${appVersion || '?'} (${appBuild || '?'}) · modo ${S.trackingMode} · motor ${v.engine || '-'} (${v.mode}${v.delegate ? ', ' + v.delegate : ''})`,
             `inferencia p50/p95 ${v.inferP50 ?? '-'}/${v.inferP95 ?? '-'} ms · captura→resultado ${v.latencyP50 ?? '-'}/${v.latencyP95 ?? '-'} ms`,
@@ -1695,7 +1630,7 @@ setTimeout(() => {
 
         // Restaurar el modo de acceso de la sesión anterior (con perfiles ya cargados)
         let savedMode = settings.accessMode;
-        if (savedMode === 'OJOS' && !document.getElementById('opt-ojos')) savedMode = 'CLICKS';
+        if (savedMode === 'OJOS') { savedMode = 'CLICKS'; saveSettings({ accessMode: 'CLICKS' }); } // 0.7.9f: Iris se sacó
         if (savedMode && savedMode !== 'CLICKS' && savedMode !== S.trackingMode) {
             modeSelect.value = savedMode;
             setAccessMode(savedMode);

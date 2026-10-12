@@ -16,7 +16,7 @@
  * @property {number} sequence       único y creciente por cuadro nuevo
  * @property {number} capturedAt     performance.now() del hilo principal al tomar el cuadro
  * @property {number} receivedAt     ídem al tener el resultado (latencia = receivedAt - capturedAt)
- * @property {'CARA'|'OJOS'} mode
+ * @property {'CARA'} mode
  * @property {string} engineVersion
  * @property {string|null} profileRevision
  * @property {string} geometryId
@@ -30,11 +30,11 @@
 /**
  * Construye la muestra de un cuadro. Pura: recibe todo lo que necesita.
  * @param {Object} o
- * @param {'CARA'|'OJOS'} o.mode
+ * @param {'CARA'} o.mode
  * @param {boolean} o.face            hay rostro en el cuadro
  * @param {number[]|null} o.features  features del modo (null = no utilizables, p. ej. parpadeo)
- * @param {boolean} o.blink           el detector indica ojos cerrados (modo Iris)
- * @param {boolean} o.headOutOfPose   modo Iris: la cabeza salió de la pose de la calibración
+ * @param {boolean} o.blink           el detector indica ojos cerrados 
+ * @param {boolean} o.headOutOfPose   la cabeza salió de la pose de la calibración
  * @param {boolean} o.active          la app está en un estado donde se puede seleccionar (tablero/inicio)
  * @param {Function|null} o.predict   features → [x, y] (null = sin calibración)
  * @param {{w:number,h:number}} o.viewport
@@ -71,7 +71,7 @@ export function invalidSample(reason, { sessionId = 0, sequence = 0, now = 0, mo
 }
 
 /**
- * Control de selección por puntero (Rostro/Iris). Decide, en cada refresco de pantalla, qué hacer con la
+ * Control de selección por puntero (Rostro). Decide, en cada refresco de pantalla, qué hacer con la
  * última muestra publicada:
  *  - 'tick'    muestra nueva, válida y reciente → filtra y avanza el dwell (con el reloj de captura)
  *  - 'hold'    la misma muestra todavía reciente → se dibuja el cursor, el dwell NO avanza

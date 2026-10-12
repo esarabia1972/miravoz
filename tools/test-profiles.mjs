@@ -89,9 +89,8 @@ await t('T08 rotación, otro dispositivo y otro motor invalidan', () => {
     const ana = cal.getProfile('CARA');
     assert(P.checkCompatibility(ana, P.makeContext({ ...ctx, w: H, h: W }), { mode: 'CARA' }).reason === 'orientation', 'orientación');
     assert(P.checkCompatibility(ana, P.makeContext({ ...ctx, deviceId: 'dev-2' }), { mode: 'CARA' }).reason === 'device', 'dispositivo');
-    const ojos = { ...ana, context: { ...ana.context, engine: 'tasks' } };
-    assert(P.checkCompatibility(ojos, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'OJOS' }).reason === 'engine', 'motor en Iris');
-    assert(P.checkCompatibility(ojos, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'CARA' }).reason === 'engine', 'Rostro (ángulos) también depende del motor');
+    const tasks = { ...ana, context: { ...ana.context, engine: 'tasks' } };
+    assert(P.checkCompatibility(tasks, P.makeContext({ ...ctx, engine: 'legacy' }), { mode: 'CARA' }).reason === 'engine', 'Rostro (ángulos) depende del motor');
 });
 await t('T09 barras de Safari (alto ±8%) no invalidan; un cambio grande sí', () => {
     const ana = cal.getProfile('CARA');

@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.9f] - 2026-10-12
+
+- **Removed**: el modo **Iris** (seguimiento de la mirada con la cámara, experimental) y todo lo relacionado: su modelo (`gaze-model.js`), el aprendizaje implícito (`?implicit=1`), el parámetro `?iris=1`, sus ramas en la cámara y la calibración, textos y tests. Quedan Manual, Barrido, Rostro y Mirada (Seguimiento ocular del dispositivo). Si un dispositivo tenía guardado Iris, arranca en Manual.
+
 ## [0.7.9e] - 2026-10-12
 
 - **Fixed**: lista de tableros con el mismo margen a izquierda y derecha; las flechas de página van centradas (horizontal y verticalmente) en el margen derecho.

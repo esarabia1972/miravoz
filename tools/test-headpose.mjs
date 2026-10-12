@@ -1,5 +1,5 @@
 // Tests de headpose.js (matemática del motor FaceLandmarker). Correr: node tools/test-headpose.mjs
-import { poseFromMatrix, pickEyeBlendshapes, irisInEye } from '../web/js/headpose.js';
+import { poseFromMatrix, pickEyeBlendshapes } from '../web/js/headpose.js';
 let pass = 0, fail = 0;
 const t = (n, f) => { try { f(); pass++; console.log('  ✓', n); } catch (e) { fail++; console.log('  ✗', n, '\n     ', e.message); } };
 const near = (a, b, tol, m = '') => { if (Math.abs(a - b) > tol) throw new Error(`${m} esperado ${b}, obtenido ${a}`); };
@@ -34,17 +34,5 @@ t('blendshapes: solo mirada/parpadeo', () => {
     const o = pickEyeBlendshapes([{ categoryName: 'eyeLookUpLeft', score: 0.3 }, { categoryName: 'jawOpen', score: 0.9 }, { categoryName: 'eyeBlinkRight', score: 0.1 }]);
     if (JSON.stringify(Object.keys(o).sort()) !== '["eyeBlinkRight","eyeLookUpLeft"]') throw new Error(JSON.stringify(o));
 });
-// Malla sintética: ojos horizontales, iris en el centro o corrido
-function mesh(dx = 0, dy = 0) {
-    const lm = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-    const set = (i, x, y) => { lm[i] = { x, y, z: 0 }; };
-    set(33, 0.30, 0.40); set(133, 0.40, 0.40); set(159, 0.35, 0.38); set(145, 0.35, 0.42); set(468, 0.35 + dx * 0.05, 0.40 + dy * 0.02);
-    set(263, 0.70, 0.40); set(362, 0.60, 0.40); set(386, 0.65, 0.38); set(374, 0.65, 0.42); set(473, 0.65 + dx * 0.05, 0.40 + dy * 0.02);
-    return lm;
-}
-t('iris centrado → (0, 0)', () => { const r = irisInEye(mesh()); near(r.x, 0, 1e-9); near(r.y, 0, 1e-9); });
-t('iris corrido a la derecha de la imagen → x ≈ +1 en ambos ojos', () => near(irisInEye(mesh(1, 0)).x, 1, 1e-9));
-t('iris hacia abajo → y ≈ +1', () => near(irisInEye(mesh(0, 1)).y, 1, 1e-9));
-t('apertura del ojo = alto/ancho', () => near(irisInEye(mesh()).open, 0.4, 1e-9));
 console.log(`\n${pass} ok, ${fail} fallidos`);
 process.exit(fail ? 1 : 0);
