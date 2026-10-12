@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.7.8c] - 2026-10-12
+
+- **Changed**: orden de los modos: Manual, Barrido, Rostro y Mirada.
+
 ## [0.7.8b] - 2026-10-12
 
 - **Changed**: los botones de página están siempre visibles; cuando no hay más para ver en esa dirección quedan grisados (antes aparecían y desaparecían).

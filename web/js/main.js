@@ -740,7 +740,7 @@ function renderModeSegmented() {
     if (!box) return;
     box.innerHTML = '';
     const available = [...modeSelect.options].map(o => o.value);
-    for (const v of ['CLICKS', 'MIRADA', 'SCAN', 'CARA', 'OJOS'].filter(m => available.includes(m))) {
+    for (const v of ['CLICKS', 'SCAN', 'CARA', 'MIRADA', 'OJOS'].filter(m => available.includes(m))) {
         const b = document.createElement('button');
         b.type = 'button';
         b.setAttribute('role', 'radio');
