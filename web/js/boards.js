@@ -812,6 +812,28 @@ function renderHomeFilterBar() {
     }
     tagFilterChips.hidden = homeBundles.length === 0;
     renderUserFilter();
+    requestAnimationFrame(updateTabArrows);
+}
+
+// 0.8.1d: etiquetas en una sola línea; si no entran, flechitas para correrlas (grisadas en los extremos)
+const tabArrows = [...document.querySelectorAll('.home-tabs-arrow')];
+function updateTabArrows() {
+    if (!tagFilterChips || !tabArrows.length) return;
+    const el = tagFilterChips;
+    const overflow = !el.hidden && el.scrollWidth > el.clientWidth + 2;
+    el.parentElement?.classList.toggle('has-overflow', overflow);
+    tabArrows.forEach(b => {
+        b.hidden = !overflow;
+        const dir = Number(b.dataset.dir);
+        b.disabled = dir < 0 ? el.scrollLeft <= 1 : el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    });
+}
+tabArrows.forEach(b => b.addEventListener('click', () => {
+    tagFilterChips.scrollBy({ left: Number(b.dataset.dir) * Math.max(120, tagFilterChips.clientWidth * 0.7), behavior: 'smooth' });
+}));
+if (tagFilterChips) {
+    tagFilterChips.addEventListener('scroll', updateTabArrows, { passive: true });
+    window.addEventListener('resize', updateTabArrows);
 }
 
 function renderUserFilter() {
@@ -1290,8 +1312,8 @@ export function renderGrid(gridId) {
         gridContainer.classList.remove('dense-grid');
     }
 
-    gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    gridContainer.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    gridContainer.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`; // 0.8.1d: las filas se achican para entrar
     gridContainer.setAttribute('role', 'group');
     const gridLabel = labelText(gridData.label);
     if (gridLabel) gridContainer.setAttribute('aria-label', gridLabel);
@@ -1527,6 +1549,7 @@ export function buildTestBundle() {
 // F4-3: asignar = copiar. Se elige una tanda de usuarios (checkboxes) y un permiso para todos.
 import { users, fetchUsers } from './users.js';
 import { supabaseClient } from './auth.js';
+import { compareCopy, STATUS_TEXT, sendOriginalToCopy, pullCopyToOriginal } from './copy-sync.js';
 
 let bundleToAssign = null;
 
@@ -1604,12 +1627,16 @@ async function openAssignModal(bundle) {
     // Quiénes ya tienen su copia de este tablero
     const { data: assignments, error } = await supabaseClient
         .from('assignments')
-        .select('aac_user_id')
+        .select('id, aac_user_id, copy_bundle, copy_updated_at')
         .eq('board_id', bundle.id);
     if (bundleToAssign !== bundle) return; // se cerró o se abrió otro mientras tanto
     if (error) console.error('Error leyendo asignaciones:', error);
 
-    const assignedUserIds = new Set((Array.isArray(assignments) ? assignments : []).map(a => a.aac_user_id));
+    const asgByUser = new Map((Array.isArray(assignments) ? assignments : []).map(a => [a.aac_user_id, a]));
+    const assignedUserIds = new Set(asgByUser.keys());
+    // El original para comparar: la versión guardada en este dispositivo (la más nueva)
+    const original = (await localforage.getItem(bundle.id)) || bundle;
+    if (bundleToAssign !== bundle) return;
 
     assignUsersList.replaceChildren();
     if (error) {
@@ -1639,14 +1666,71 @@ async function openAssignModal(bundle) {
         nameSpan.textContent = user.display_name;
         label.append(box, nameSpan);
         if (isAssigned) {
-            const tag = document.createElement('span');
-            tag.className = 'assign-tag';
-            tag.textContent = '(ya tiene su copia)';
-            label.appendChild(tag);
+            label.appendChild(assignedCopyControls(user, asgByUser.get(user.id), original));
         }
         assignUsersList.appendChild(label);
     });
     updateAssignButton();
+}
+
+// 0.8.1d (devolución de Leti): para quien ya tiene su copia, ver si es igual al original y sincronizar en
+// cualquiera de los dos sentidos, o editar su copia ahí mismo.
+function assignedCopyControls(user, asg, original) {
+    const box = document.createElement('span');
+    box.className = 'assign-copy';
+    const status = document.createElement('span');
+    const actions = document.createElement('span');
+    actions.className = 'assign-copy-actions';
+    const btn = (text, title, fn, extra = '') => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary assign-copy-btn ' + extra;
+        b.textContent = text;
+        b.title = title;
+        b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); fn(b); });
+        return b;
+    };
+    const name = user.display_name;
+    const paint = () => {
+        const st = compareCopy(original, asg.copy_bundle, asg.copy_updated_at);
+        status.className = 'assign-status is-' + st;
+        status.textContent = STATUS_TEXT[st];
+        send.disabled = st === 'igual';
+        pull.disabled = st === 'igual' || st === 'sin-original';
+    };
+    const run = async (b, fn, okMsg) => {
+        const prev = b.textContent;
+        b.disabled = true; b.textContent = '...';
+        try { await fn(); showInfoToast(okMsg); }
+        catch (err) { console.error(err); customAlert(err.message?.startsWith('No se pudo') ? err.message : 'No se pudo completar. Revisá la conexión e intentá de nuevo.'); }
+        b.textContent = prev;
+        paint();
+    };
+    const send = btn('Enviar mi versión', `Reemplazar la copia de ${name} por tu versión`, async (b) => {
+        if (!(await customConfirm(`La copia de ${name} va a quedar igual a tu versión. Lo que haya cambiado en su copia se guarda como versión anterior. ¿Seguir?`))) return;
+        run(b, async () => {
+            if (original.ownerId && !(await pushBundle(original))) throw new Error('No se pudo subir tu versión a la nube. Revisá la conexión.');
+            await sendOriginalToCopy(asg, original);
+            fetchUsers();
+        }, `Listo: ${name} tiene tu versión.`);
+    });
+    const pull = btn('Traer sus cambios', `Reemplazar tu versión por la copia de ${name}`, async (b) => {
+        if (!(await customConfirm(`Tu tablero va a quedar igual a la copia de ${name}. Tu versión actual se guarda como versión anterior. ¿Seguir?`))) return;
+        run(b, async () => {
+            const next = await pullCopyToOriginal(asg, original);
+            Object.keys(original).forEach(k => delete original[k]);
+            Object.assign(original, next);
+            window.dispatchEvent(new CustomEvent('miravoz:bundles-changed', { detail: { ids: [original.id], removed: [] } }));
+        }, `Listo: tu tablero quedó igual a la copia de ${name}.`);
+    });
+    const edit = btn('Editar su copia', `Editar la copia de ${name}`, () => {
+        closeAssignModal();
+        window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: asg.id } }));
+    });
+    actions.append(send, edit, pull);
+    box.append(status, actions);
+    paint();
+    return box;
 }
 
 function closeAssignModal() {

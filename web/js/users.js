@@ -340,20 +340,29 @@ function renderCopies(user, container) {
         ? `Tablero de inicio: «${copyName(home)}» (la tablet abre directo acá)`
         : 'Sin tablero de inicio: la tablet muestra la lista de sus tableros'));
 
-    const list = el('ul', 'copy-list');
+    // 0.8.1d: tarjetas como las del inicio (miniatura, estado respecto de tu versión y acciones)
+    const list = el('div', 'copy-grid');
     user.copies.forEach(copy => {
         const name = copyName(copy);
         const isHome = copy.id === user.home_board_id;
-        const li = el('li', 'copy-row');
+        const card = el('div', 'board-card glass-box copy-card' + (isHome ? ' is-home' : ''));
+        card.dataset.assignmentId = copy.id;
 
-        const info = el('div', 'copy-info');
-        info.appendChild(el('strong', 'copy-name', name));
+        const info = el('div', 'board-card-info');
+        const title = el('h3', 'board-card-title', name);
+        info.appendChild(title);
+        const thumb = el('div', 'copy-thumb-slot');
+        info.appendChild(thumb);
+        const meta = el('p', 'board-card-meta');
         const when = relativeTime(copy.copy_updated_at);
-        info.appendChild(el('span', 'user-note', when ? `Editada ${when}` : 'Sin cambios desde que se la diste'));
-        li.appendChild(info);
+        meta.textContent = (isHome ? 'Tablero de inicio · ' : '') + (when ? `Editada ${when}` : 'Sin cambios desde que se la diste');
+        info.appendChild(meta);
+        const status = el('span', 'assign-status');
+        status.hidden = true;
+        info.appendChild(status);
+        card.appendChild(info);
 
         const actions = el('div', 'copy-actions');
-
         const sel = el('select', 'glass-select copy-permission');
         sel.setAttribute('aria-label', `Permiso de «${name}» para ${user.display_name}`);
         PERMISSIONS.forEach(p => {
@@ -373,18 +382,77 @@ function renderCopies(user, container) {
         homeBtn.dataset.focusKey = `home:${copy.id}:${user.id}`;
         actions.appendChild(homeBtn);
 
-        // Hook para el editor de copias (lo implementa main/editor)
         actions.appendChild(button('Editar copia', `Editar la copia de «${name}» de ${user.display_name}`, () => {
             window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: copy.id } }));
         }));
+        const sendBtn = button('Enviar mi versión', `Reemplazar la copia de ${user.display_name} por tu versión de «${name}»`, () => syncCopy(user, copy, 'send'));
+        const pullBtn = button('Traer sus cambios', `Reemplazar tu versión de «${name}» por la copia de ${user.display_name}`, () => syncCopy(user, copy, 'pull'));
+        sendBtn.hidden = pullBtn.hidden = true;
+        actions.append(sendBtn, pullBtn);
 
         actions.appendChild(button('Quitar', `Quitarle «${name}» a ${user.display_name}`, () => removeCopy(user, copy),
             'btn btn-secondary user-btn user-btn-danger'));
+        card.appendChild(actions);
+        list.appendChild(card);
 
-        li.appendChild(actions);
-        list.appendChild(li);
+        fillCopyCard(copy, { thumb, status, sendBtn, pullBtn });
     });
     container.appendChild(list);
+}
+
+// Contenido completo de las copias (miniatura y comparación): se trae solo al abrir "Tableros de <usuario>"
+const copyBundles = new Map(); // assignmentId -> { at, bundle }
+async function loadCopyBundle(copy) {
+    const c = copyBundles.get(copy.id);
+    if (c && c.at === copy.copy_updated_at) return c.bundle;
+    const { data, error } = await supabaseClient.from('assignments').select('copy_bundle, copy_updated_at').eq('id', copy.id).maybeSingle();
+    if (error || !data) return null;
+    copyBundles.set(copy.id, { at: data.copy_updated_at, bundle: data.copy_bundle });
+    return data.copy_bundle;
+}
+
+async function fillCopyCard(copy, { thumb, status, sendBtn, pullBtn }) {
+    try {
+        const [bundle, boardsMod, sync] = await Promise.all([loadCopyBundle(copy), import('./boards.js'), import('./copy-sync.js')]);
+        if (!bundle) return;
+        const t = boardsMod.buildBoardThumb(bundle);
+        if (t) thumb.replaceChildren(t);
+        const original = copy.board_id && window.localforage ? await window.localforage.getItem(copy.board_id) : null;
+        const st = sync.compareCopy(original, bundle, copy.copy_updated_at);
+        status.className = 'assign-status is-' + st;
+        status.textContent = sync.STATUS_TEXT[st];
+        status.hidden = false;
+        const differs = st === 'copia' || st === 'original';
+        sendBtn.hidden = !differs;
+        pullBtn.hidden = !differs;
+    } catch (e) { console.warn('No se pudo completar la tarjeta de la copia:', e); }
+}
+
+async function syncCopy(user, copy, dir) {
+    const sync = await import('./copy-sync.js');
+    const original = copy.board_id && window.localforage ? await window.localforage.getItem(copy.board_id) : null;
+    if (!original) { customAlert('Tu tablero original no está en este dispositivo.'); return; }
+    const msg = dir === 'send'
+        ? `La copia de ${user.display_name} va a quedar igual a tu versión. Lo que haya cambiado en su copia se guarda como versión anterior. ¿Seguir?`
+        : `Tu tablero va a quedar igual a la copia de ${user.display_name}. Tu versión actual se guarda como versión anterior. ¿Seguir?`;
+    if (!(await customConfirm(msg))) return;
+    try {
+        const bundle = await loadCopyBundle(copy);
+        const asg = { id: copy.id, copy_bundle: bundle, copy_updated_at: copy.copy_updated_at };
+        if (dir === 'send') {
+            const { pushBundle } = await import('./sync.js');
+            if (original.ownerId && !(await pushBundle(original))) throw new Error('No se pudo subir tu versión a la nube. Revisá la conexión.');
+            await sync.sendOriginalToCopy(asg, original);
+        } else {
+            await sync.pullCopyToOriginal(asg, original);
+            window.dispatchEvent(new CustomEvent('miravoz:bundles-changed', { detail: { ids: [original.id], removed: [] } }));
+        }
+        copyBundles.delete(copy.id);
+        await fetchUsers();
+    } catch (e) {
+        console.error(e);
+        customAlert(e.message?.startsWith('No se pudo') ? e.message : 'No se pudo completar. Revisá la conexión e intentá de nuevo.');
+    }
 }
 
 /** focusKey: data-focus-key del elemento que recupera el foco tras re-render (p. ej. botón de casita). */

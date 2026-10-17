@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "661f2d7b381c",
- "appVersion": "0.8.1c",
+ "version": "effaf07ac9bd",
+ "appVersion": "0.8.1d",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "3d42771bce0418541ddc37ea0b7ff3b1cb3d6020eb1d0d3e03faf9a670777f20",
-   "bytes": 52474
+   "sha256": "955026ae1104b3110250629836dd895b8bf5bf06075d3a74e962d6dd3c2f4aba",
+   "bytes": 53264
   },
   {
    "url": "/js/align.js",
@@ -60,12 +60,12 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "201522eaeb7a37b6ce8d79d6e0984057a1f2531c467fa73e7177fcf4fe8b9eb6",
-   "bytes": 86367
+   "sha256": "6f42d1aa8443b3428b03b5510009bc4d0cb5eafd59839471afa9828d0a50b41d",
+   "bytes": 90980
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "7a16ecf647abdc800a98a50c6b18391f0b25b8afa4bd2f89009a5ed166854a2c",
+   "sha256": "bcb81e30392d8153b74c8ebe71521ee4e010c06772b56c4f6d8589620b4ac6f2",
    "bytes": 105
   },
   {
@@ -89,6 +89,16 @@
    "bytes": 5527
   },
   {
+   "url": "/js/copy-compare.js",
+   "sha256": "062e06725a6e0a17b1ee0b061b7b8239339d0db5b5bc703f34da845232287302",
+   "bytes": 1731
+  },
+  {
+   "url": "/js/copy-sync.js",
+   "sha256": "9e81aa5c518f9a1866cbe33aa0a67f79a1c4ca05ff154ee242f18d898c76dc9a",
+   "bytes": 2556
+  },
+  {
    "url": "/js/device.js",
    "sha256": "babcce94b8cf642447b1565dd9ed56d93427edf75595e7c86c39750859e61015",
    "bytes": 18982
@@ -100,8 +110,8 @@
   },
   {
    "url": "/js/editor.js",
-   "sha256": "2ac2878e93dce60f3eb56e0e4fea7a8091c1261ff4e8d07197d45aac206b4214",
-   "bytes": 44044
+   "sha256": "f82a40f0c02522bd539b9632efdaaa72df0fb9f1c9f569e36b67e920c3020e4d",
+   "bytes": 44914
   },
   {
    "url": "/js/favorites-ui.js",
@@ -250,8 +260,8 @@
   },
   {
    "url": "/js/users.js",
-   "sha256": "2e26f761f98a9bf772679680447e249d19d28d18bdf8797912354fe7762df145",
-   "bytes": 22810
+   "sha256": "c519456a7c86ff7b3cc8a7b234a700130533c746d72a40cbcd8975b525fea140",
+   "bytes": 26876
   },
   {
    "url": "/js/validation.js",
@@ -355,8 +365,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "f286c37ccd6271a9e0785626e3e8126442ac48d0cc2a56d70211935328f44c6d",
-   "bytes": 86486
+   "sha256": "9dc42ff058625cd46052f94129ff0509fbccbdb9d3f80034ea875861b611a022",
+   "bytes": 91602
   },
   {
    "url": "/terminos.html",
@@ -455,5 +465,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 28982680
+ "totalBytes": 29002422
 }

@@ -499,6 +499,18 @@ function buildToolbar() {
 
 
 
+    // 0.8.1d: dos filas ordenadas — 1) tablero, página y dificultad; 2) filas, columnas, espacio, fondo y, a la
+    // derecha, "Copiar para Claude"
+    const lab = (t) => [...tb.querySelectorAll('.et-label')].find(l => l.textContent.startsWith(t));
+    const row1 = document.createElement('div'); row1.className = 'et-row et-row-1';
+    const row2 = document.createElement('div'); row2.className = 'et-row et-row-2';
+    const dif = document.createElement('div'); dif.className = 'et-group'; dif.append(lab('Dificultad'), lvl);
+    row1.append(lab('Tablero'), nameInput, dif);
+    const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espacio'), gapSel);
+    const push = document.createElement('div'); push.style.flex = '1 1 auto';
+    row2.append(divRows, divCols, esp, bgWrap, push, refBtn);
+    tb.replaceChildren(row1, row2);
+
     document.getElementById('board-view').prepend(tb);
 }
 

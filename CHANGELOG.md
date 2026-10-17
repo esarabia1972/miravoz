@@ -2,6 +2,16 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1d] - 2026-10-17
+
+Devolución de Leti en producción.
+
+- **Fixed**: en el editor no se llegaba a las filas de abajo de tableros grandes: la grilla se ajusta a la pantalla y, si no entra, se desplaza.
+- **Changed**: barra de edición en dos filas (Tablero, páginas y Dificultad arriba; Filas, Columnas, Espacio, Fondo y "Copiar para Claude" abajo a la derecha) y color de edición amarillo más fuerte, igual al lápiz.
+- **Added**: **sincronizar copias**: cada copia muestra si está igual al original o cuál cambió, con "Enviar mi versión" y "Traer sus cambios" (antes de pisar se guarda la versión anterior). Están en "Tableros de <usuario>" y en el diálogo de asignar, que además es más ancho y tiene "Editar su copia".
+- **Changed**: "Tableros de <usuario>" con tarjetas y miniaturas como el inicio.
+- **Changed**: inicio con la barra en una sola línea (etiquetas con flechitas si no entran), más ancho y tarjetas más compactas.
+
 ## [0.8.1c] - 2026-10-12
 
 Mejoras de la demo con Leti.

@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=74">
+    <link rel="stylesheet" href="style.css?v=75">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -94,7 +94,11 @@
                     </button>
                     <span class="home-create-sep" aria-hidden="true"></span>
                 </div>
-                <div id="tag-filter-chips" class="home-tabs" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
+                <div class="home-tabs-wrap">
+                    <button type="button" class="home-tabs-arrow" data-dir="-1" aria-label="Ver etiquetas anteriores" title="Etiquetas anteriores" tabindex="-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                    <div id="tag-filter-chips" class="home-tabs" role="group" aria-label="Filtrar por etiqueta (se muestran los tableros que tienen todas las elegidas)" hidden></div>
+                    <button type="button" class="home-tabs-arrow" data-dir="1" aria-label="Ver más etiquetas" title="Más etiquetas" tabindex="-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                </div>
                 <div class="home-tools">
                     <div class="home-search">
                         <button type="button" id="btn-home-search" class="home-tool-btn" aria-label="Buscar tablero" title="Buscar tablero" aria-expanded="false" aria-controls="home-search-field">
@@ -699,6 +703,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=116"></script>
+    <script type="module" src="js/main.js?v=117"></script>
 </body>
 </html>
