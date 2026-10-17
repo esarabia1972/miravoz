@@ -469,13 +469,10 @@ function buildToolbar() {
     bgInput.title = 'Color de fondo de esta página';
     bgInput.setAttribute('aria-label', 'Color de fondo de esta página');
     bgInput.value = /^#[0-9a-f]{6}$/i.test(grid()?.backgroundColor || '') ? grid().backgroundColor : '#ffffff';
+    bgInput.id = 'et-bg-input';
     const setBg = async (value) => {
-        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
-        const g = grid();
-        if (value) g.backgroundColor = value; else delete g.backgroundColor;
-        await persistBundle();
-        boards.renderGrid(S.currentGridId);
-        showUndoToast(async () => { Object.assign(S.currentBundle, backupBundle); await persistBundle(); renderSafe(S.currentGridId); });
+        // 0.8.1s: con deshacer/rehacer; sin fondo, el cuadrito muestra "transparente" (blanco con raya roja)
+        await withUndo(() => { const g = grid(); if (value) g.backgroundColor = value; else delete g.backgroundColor; });
     };
     bgInput.onchange = () => setBg(bgInput.value);
     // iPad: el selector de color avisa con 'input' (a veces sin 'change' al cerrarse)
@@ -946,6 +943,13 @@ export async function redoLast() {
 function updateUndoButtons() {
     const id = S.currentBundle?.id;
     const g = S.currentBundle?.boards?.[S.currentGridId];
+    const bgIn = document.getElementById('et-bg-input');
+    if (g && bgIn) {
+        const has = /^#[0-9a-f]{6}$/i.test(g.backgroundColor || '');
+        bgIn.classList.toggle('is-none', !has);
+        if (has && bgIn.value.toLowerCase() !== g.backgroundColor.toLowerCase()) bgIn.value = g.backgroundColor;
+        bgIn.title = has ? 'Color de fondo de esta página' : 'Sin fondo (tocá para elegir un color)';
+    }
     const rc = document.getElementById('et-rows-count'), cc = document.getElementById('et-cols-count');
     if (g && rc) rc.textContent = String(g.rowCount || 3);
     if (g && cc) cc.textContent = String(g.minColumnCount || 4);

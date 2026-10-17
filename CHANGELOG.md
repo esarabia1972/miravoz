@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1s] - 2026-10-17
+
+- **Changed**: sin color de fondo, el cuadrito de "Fondo" muestra el ícono de transparente (blanco con raya roja), como en el selector de colores. Cambiar o quitar el fondo también se puede deshacer y rehacer.
+
 ## [0.8.1r] - 2026-10-17
 
 - **Removed** (por ahora): "Dificultad" de la barra de edición y "Nivel de vocabulario" del editor de celda. Mientras tanto los tableros se ven completos (no se filtra por nivel); lo guardado no se borra.

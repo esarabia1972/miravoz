@@ -1954,3 +1954,7 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 #setting-voice .voice-engine button { min-height: 34px; padding: 4px 12px; font-size: 0.85rem; }
 #setting-voice select:disabled { opacity: 0.5; }
 .ce-level-row[hidden] { display: none !important; }
+
+/* 0.8.1s — "Sin fondo": el cuadrito de color muestra transparente (blanco con raya roja) */
+#editor-toolbar input[type="color"].is-none::-webkit-color-swatch { background: linear-gradient(to top right, #fff calc(50% - 1.5px), #e53935 calc(50% - 1px), #e53935 calc(50% + 1px), #fff calc(50% + 1.5px)) !important; }
+#editor-toolbar input[type="color"].is-none::-moz-color-swatch { background: linear-gradient(to top right, #fff calc(50% - 1.5px), #e53935 calc(50% - 1px), #e53935 calc(50% + 1px), #fff calc(50% + 1.5px)) !important; }
