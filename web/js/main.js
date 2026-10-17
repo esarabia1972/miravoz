@@ -12,6 +12,7 @@ import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, 
 import { fetchUsers, setProfessionalId, initUsers, reopenUserBoards } from './users.js';
 import { syncAll, startCloudWatch } from './sync.js';
 import * as deviceMod from './device.js';
+import { setCloudAuth } from './cloud-voice.js';
 import * as boards from './boards.js';
 import * as tracking from './tracking.js';
 import * as calibration from './calibration.js';
@@ -921,6 +922,11 @@ document.getElementById('btn-close-import').addEventListener('click', () => {
 
 // --- Practicar (1.3.0): actividades de acceso; reemplaza al botón "Tablero de Prueba" ---
 metrics.initMetrics({ supabase: supabaseClient, device: () => deviceMod.device });
+// 0.8.1n: las voces de MiraVoz se piden con la sesión de la cuenta o con el token de la tablet vinculada
+setCloudAuth(async () => {
+    if (deviceMod.isDeviceMode() && deviceMod.device?.token) return { device: deviceMod.device.token };
+    try { const { data } = await supabaseClient.auth.getSession(); return { token: data?.session?.access_token || '' }; } catch { return {}; }
+});
 dwell.onAbandon = (target, progress) => metrics.selectionAbandoned(target?.data ? (labelText(target.data.label) || target.data.autoLabel?.es || '') : (target?.element?.dataset?.word || ''), metricsCtx(), progress);
 practice.initPractice({
     onLog: (entry) => metrics.practiced(entry),

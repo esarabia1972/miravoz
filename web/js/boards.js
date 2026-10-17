@@ -3,7 +3,7 @@
 import { S } from './state.js';
 import { customAlert, customConfirm, addToSentence, showUndoToast, showInfoToast, addLetter, completeWord, removeChar,
     popSentence, clearSentence, playSentence, toggleInSentence, sentenceText, currentPrefix, getSentence, onSentenceChange } from './ui.js';
-import { speak } from './speech.js';
+import { speak, prefetchSpeech } from './speech.js';
 import { getCellColor } from './colors.js';
 import { saveBundle, removeBundle, isVisibleTo, pushBundle } from './sync.js';
 import { bundleTime } from './sync-plan.js';
@@ -1489,6 +1489,8 @@ export function renderGrid(gridId) {
         }
     }
     if (hooks.isEditMode()) gridEdit.endRender(); // encabezados de filas y columnas
+    // 0.8.1n: con voz de MiraVoz, se bajan de antemano los textos de las celdas de esta página
+    else setTimeout(() => prefetchSpeech((gridData.gridElements || []).filter(e => !e.hidden).map(e => cellText(e)).filter(Boolean)), 400);
 
     // Botones del acumulador también son targets de dwell
     document.querySelectorAll('.btn-acc').forEach(btn => {

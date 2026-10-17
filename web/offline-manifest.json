@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "d3dca93872fb",
- "appVersion": "0.8.1m",
+ "version": "729b7ca5319e",
+ "appVersion": "0.8.1n",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,8 +20,8 @@
   },
   {
    "url": "/index.html",
-   "sha256": "0f19890125a177813ef3ba80aa8d45c781086fa13158576ca7c22305de29489b",
-   "bytes": 53460
+   "sha256": "28febae70eaf7589f0099ac90d219ed99f66b5fceff1ee6194dbea01496b7fa2",
+   "bytes": 53937
   },
   {
    "url": "/js/align.js",
@@ -60,18 +60,23 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "7a57eda80706cf64579dd822aa88817428793c71def1c08a7e6b602c8b21db95",
-   "bytes": 90525
+   "sha256": "f161bf5ee81acc158a5098a49887f0f038ca240a136a0e156f694a939fbcdd87",
+   "bytes": 90778
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "fcf093aad325e826b0eb6f54fbe2f97aa3c4195b8225eab53ce6c968c069aca7",
+   "sha256": "66dee001ca23341192f46a436af8286942a67ca44ba780178f85bdd0360f74e7",
    "bytes": 105
   },
   {
    "url": "/js/calibration.js",
    "sha256": "48a8e5cb8b308cb0c53e475d47091c7eeaf9a44c371cae6060ca9be9022d50fc",
    "bytes": 16766
+  },
+  {
+   "url": "/js/cloud-voice.js",
+   "sha256": "66687a6f6fbcc2323d047d208951b60086fd862372a53b1440239ca6263a6c68",
+   "bytes": 7012
   },
   {
    "url": "/js/colors.js",
@@ -145,8 +150,8 @@
   },
   {
    "url": "/js/main.js",
-   "sha256": "f2e50d99ca82fc65a456800bd38d9a13f5e35c6911f4ae00ea85ed4fe6b89f46",
-   "bytes": 89807
+   "sha256": "dc43c739d81895ee4435777c0f4fb81344f98acbe90692e3157a59e8697594ad",
+   "bytes": 90241
   },
   {
    "url": "/js/media.js",
@@ -230,8 +235,8 @@
   },
   {
    "url": "/js/speech.js",
-   "sha256": "3fd7d599db044395d66178fd7c095eae04bb735609c7cd8444ed4cfc873d297f",
-   "bytes": 11938
+   "sha256": "bdcab5907c276af7ec1c15555ff448dd480bf69ee9d02a3aff3af50e685ec877",
+   "bytes": 14599
   },
   {
    "url": "/js/state.js",
@@ -285,8 +290,8 @@
   },
   {
    "url": "/js/voice-settings.js",
-   "sha256": "b0a58723887d5e9ff060311d256791e4116908abd22b4388494eb14f02c1bf17",
-   "bytes": 5477
+   "sha256": "e6cf0c08140910280a470d41b691ea1b28f9a90be8dfe8dde9e3da9e0b44ca28",
+   "bytes": 9728
   },
   {
    "url": "/legal.css",
@@ -370,8 +375,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "99f3913910df51009053459926890c707c6b66c2298ff7d2b89a004a8c5031af",
-   "bytes": 103035
+   "sha256": "d017fadb5a4405f9a432606610e45df0e36fa789c509e0a3f22981bb2f7e6749",
+   "bytes": 103457
   },
   {
    "url": "/terminos.html",
@@ -470,5 +475,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 29048184
+ "totalBytes": 29063694
 }

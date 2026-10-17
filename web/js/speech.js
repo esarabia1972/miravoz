@@ -9,13 +9,18 @@
 //  - La lista de voces llega tarde (evento voiceschanged).
 //  - Con el iPad en modo silencio, Safari puede no emitir la voz (eso no se puede cambiar desde la web).
 
+import * as cloud from './cloud-voice.js';
+
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 
 // 0.7.7: voz de cada persona. systemVoice: voiceURI elegida de la lista del dispositivo ('' = automática);
 // rate y pitch: velocidad y tono (1 = normal). (La voz neural Piper de 0.7.6 se sacó: era lenta.)
 export const RATE_LIMITS = [0.6, 1.4], PITCH_LIMITS = [0.7, 1.3];
 export const SYSTEM_DEFAULT = 'sistema';
-let prefs = { systemVoice: '', systemLang: 'es-ES', rate: 1, pitch: 1 };
+// 0.8.1n: engine 'system' (voces del dispositivo) o 'miravoz' (voces naturales de MiraVoz, cloudVoice = id).
+let prefs = { systemVoice: '', systemLang: 'es-ES', rate: 1, pitch: 1, engine: 'system', cloudVoice: '' };
+/** ¿Se usan las voces de MiraVoz para esta persona? */
+export const cloudVoiceActive = () => prefs.engine === 'miravoz' && !!prefs.cloudVoice;
 const clamp = (v, [a, b], d) => (Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
 export function setVoicePrefs(p = {}) {
     prefs = { ...prefs, ...p };
@@ -79,6 +84,7 @@ let pendingSpeech = null; // { text, opts, at }
 
 /** Desbloquea la voz en iOS: debe llamarse dentro de un gesto (toque o tecla). */
 export function unlockSpeech() {
+    cloud.unlockCloudAudio(); // 0.8.1n: deja habilitado el audio de las voces de MiraVoz (iPad)
     if (!synth) return;
     if (!unlocked || !startEvents) {
         unlocked = true;
@@ -133,7 +139,7 @@ function setSentenceUtterance(u) {
     sentenceUtterance = u;
     clearInterval(speakingPoll); speakingPoll = null;
     // Algunos navegadores no avisan el final (iPad interrumpido, Chrome con frases largas): si ya no habla, se suelta
-    if (u && synth) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
+    if (u && synth && !u.cloud) speakingPoll = setInterval(() => { if (!synth.speaking && !synth.pending) setSentenceUtterance(null); }, 700);
     speakingListeners.forEach(fn => { try { fn(!!u); } catch {} });
 }
 export function isSpeakingSentence() { return !!sentenceUtterance; }
@@ -146,12 +152,50 @@ export function stopSpeech() {
     if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     alive.clear();
+    cloudSeq++; cloud.stopCloud();
     try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
     setSentenceUtterance(null);
 }
 
-export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null } = {}) {
-    if (!text || !synth) return;
+// --- 0.8.1n: voces de MiraVoz (ElevenLabs, ver cloud-voice.js). Si falla o tarda, la voz del sistema. ---
+let cloudSeq = 0;
+export let lastCloudError = '';
+function speakCloud(text, opts) {
+    const gen = generation, seq = ++cloudSeq;
+    if (opts.cancelPrevious) {
+        if (deferredGo) { clearTimeout(deferredGo); deferredGo = null; }
+        cloud.stopCloud();
+        try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch {}
+    }
+    const token = { cloud: true };
+    if (opts.sentence) setSentenceUtterance(token);
+    else if (sentenceUtterance && opts.cancelPrevious) setSentenceUtterance(null);
+    const stale = () => gen !== generation || seq !== cloudSeq;
+    cloud.getAudio(text, prefs.cloudVoice, prefs.rate)
+        .then(buf => { if (!stale()) return cloud.playAudio(buf, { volume: opts.volume }); })
+        .then(() => { lastCloudError = ''; if (sentenceUtterance === token) setSentenceUtterance(null); })
+        .catch(err => {
+            if (sentenceUtterance === token) setSentenceUtterance(null);
+            if (stale()) return;
+            lastCloudError = (err && err.message) || 'error';
+            console.warn('Voz de MiraVoz:', lastCloudError);
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('miravoz:cloud-voice-fallback', { detail: { error: lastCloudError } }));
+            speak(text, { ...opts, cancelPrevious: false, _noCloud: true });
+        });
+}
+/** Baja de antemano los textos (celdas de la página abierta) con la voz de MiraVoz de la persona. */
+export function prefetchSpeech(texts) { if (cloudVoiceActive()) cloud.prefetch(texts, prefs.cloudVoice, prefs.rate); }
+
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null, _noCloud = false } = {}) {
+    if (!text) return;
+    // 0.8.1n: voces de MiraVoz para lo que dice la persona (los avisos del barrido, más bajitos, siguen con la del
+    // sistema: en CAA la voz de los avisos se distingue de la voz propia)
+    if (!_noCloud && !_retry && !voiceURI && cloudVoiceActive() && volume >= 0.99 && (!lang || /^es/i.test(lang)) && String(text).length <= 400) {
+        speakCloud(text, { cancelPrevious, volume, lang, sentence });
+        return;
+    }
+    if (!synth) return;
+    if (cancelPrevious) cloud.stopCloud();
     const gen = generation;
     let cancelled = false;
     if (cancelPrevious) {

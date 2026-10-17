@@ -1947,3 +1947,9 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 .assign-option.is-assigned .assign-copy { justify-content: space-between; }
 .assign-option.is-assigned .assign-edit-btn { margin-left: 4px; }
 .assign-option.is-assigned .assign-copy-actions { align-items: center; margin-left: auto; }
+
+/* 0.8.1n — Voz: "Del sistema" o "De MiraVoz" en la misma línea del título (sin agregar altura) */
+#setting-voice .voice-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+#setting-voice .voice-head h3 { margin: 0; }
+#setting-voice .voice-engine button { min-height: 34px; padding: 4px 12px; font-size: 0.85rem; }
+#setting-voice select:disabled { opacity: 0.5; }
