@@ -370,7 +370,7 @@ function renderCopies(user, container) {
         card.appendChild(metaRow);
 
         const permRow = el('label', 'copy-field');
-        permRow.appendChild(el('span', 'copy-field-label', 'Permisos'));
+        permRow.appendChild(el('span', 'copy-field-label', 'Permisos:'));
         const sel = el('select', 'glass-select copy-permission');
         sel.setAttribute('aria-label', `Permisos de «${name}» para ${user.display_name}`);
         PERMISSIONS.forEach(p => {
@@ -384,7 +384,7 @@ function renderCopies(user, container) {
         card.appendChild(permRow);
 
         const syncRow = el('div', 'copy-field');
-        syncRow.appendChild(el('span', 'copy-field-label', 'Sincronización'));
+        syncRow.appendChild(el('span', 'copy-field-label', 'Sincronización:'));
         const status = el('span', 'assign-status', 'Revisando...');
         syncRow.appendChild(status);
         card.appendChild(syncRow);
@@ -450,7 +450,7 @@ async function fillCopyCard(copy, { thumb, status, sendBtn, pullBtn }) {
         const st = sync.compareCopy(original, bundle, copy.copy_updated_at);
         const differs = st === 'copia' || st === 'original';
         status.className = 'assign-status is-' + st;
-        status.textContent = st === 'igual' ? 'Actualizado' : differs ? 'Versiones con cambios' : sync.STATUS_TEXT[st];
+        status.textContent = st === 'igual' ? 'Actualizado' : differs ? 'Con cambios' : sync.STATUS_TEXT[st];
         status.title = sync.STATUS_TEXT[st];
         sendBtn.disabled = !differs;
         pullBtn.disabled = !differs;

@@ -8,7 +8,8 @@ import * as boards from './boards.js';
 import { customAlert, customConfirm, showUndoToast, showInfoToast } from './ui.js';
 import { saveBundle } from './sync.js';
 import { pageOrder, pageCount, gridName, nextPageName, removePage, linksTo, migrateToActionSpeech } from './pages.js';
-import { covered, insideGrid, maxSpan, firstFree, elementAt } from './grid-layout.js';
+import { covered, insideGrid, maxSpan, firstFree, elementAt, canMoveGroup, insertRow, insertCol, deleteRow, deleteCol, rowIsEmpty, colIsEmpty } from './grid-layout.js';
+import * as gridEdit from './grid-edit.js';
 
 let editMode = false;
 let editingCell = null; // { gridId, elData | null, x, y }
@@ -407,21 +408,14 @@ function buildToolbar() {
         const outOfRange = (g.gridElements || []).some(el => el.y >= rows || el.x >= cols);
         if (outOfRange && !(await customConfirm('Hay celdas fuera del nuevo tamaño: quedarán ocultas. ¿Continuar?'))) return;
         
-        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
-        g.rowCount = rows;
-        g.minColumnCount = cols;
-        // 0.8.1: una celda grande que queda cortada por el borde se achica para entrar
-        for (const el of g.gridElements || []) {
-            if (el.x < cols && el.x + (el.width || 1) > cols) el.width = cols - el.x;
-            if (el.y < rows && el.y + (el.height || 1) > rows) el.height = rows - el.y;
-        }
-        await persistBundle();
-        boards.renderGrid(S.currentGridId);
-
-        showUndoToast(async () => {
-            Object.assign(S.currentBundle, backupBundle);
-            await persistBundle();
-            renderSafe(S.currentGridId);
+        await withUndo(() => {
+            g.rowCount = rows;
+            g.minColumnCount = cols;
+            // 0.8.1: una celda grande que queda cortada por el borde se achica para entrar
+            for (const el of g.gridElements || []) {
+                if (el.x < cols && el.x + (el.width || 1) > cols) el.width = cols - el.x;
+                if (el.y < rows && el.y + (el.height || 1) > rows) el.height = rows - el.y;
+            }
         });
     };
     
@@ -499,7 +493,19 @@ function buildToolbar() {
     row1.append(lab('Tablero'), nameInput, dif);
     const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espacio'), gapSel);
     const push = document.createElement('div'); push.style.flex = '1 1 auto';
-    row2.append(divRows, divCols, esp, bgWrap, push);
+    // 0.8.1g: "Seleccionar" (para el dedo; con mouse también sirve Shift/Cmd + clic o un recuadro desde un lugar vacío)
+    const selBtn = mkBtn('Seleccionar', () => {
+        gridEdit.setSelectMode(!gridEdit.isSelectMode());
+        selBtn.classList.toggle('is-on', gridEdit.isSelectMode());
+        selBtn.setAttribute('aria-pressed', String(gridEdit.isSelectMode()));
+        if (gridEdit.isSelectMode()) showInfoToast('Tocá las celdas para elegirlas; después arrastrá una para mover todas.', 3500);
+        else gridEdit.clearSelection();
+    }, 'Elegir varias celdas para moverlas, duplicarlas, ocultarlas o eliminarlas juntas');
+    selBtn.id = 'et-select';
+    selBtn.setAttribute('aria-pressed', String(gridEdit.isSelectMode()));
+    selBtn.classList.toggle('is-on', gridEdit.isSelectMode());
+    const undoBtn = mkBtn('Deshacer', () => undoLast(), 'Deshacer el último cambio (Cmd/Ctrl + Z)');
+    row2.append(divRows, divCols, esp, bgWrap, push, undoBtn, selBtn);
     tb.replaceChildren(row1, row2);
 
     document.getElementById('board-view').prepend(tb);
@@ -797,44 +803,54 @@ export function initEditor() {
         if (!editMode) return;
         openCellEditor(S.currentGridId, null, x, y);
     };
-    boards.hooks.onCellDropped = async (fromX, fromY, toX, toY) => {
-        if (!editMode) return;
-        const grid = S.currentBundle.boards[S.currentGridId];
-        if (!grid || !grid.gridElements) return;
-        
-        // Backup for undo
-        const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
-        
-        // 0.8.1: con celdas de varias filas/columnas: si las dos son de 1×1 se intercambian; si no, se mueve
-        // la de origen solo si entra (sin tapar otras); si no entra, no se hace nada.
-        const sourceEl = grid.gridElements.find(e => e.x === fromX && e.y === fromY);
-        const targetEl = elementAt(grid, toX, toY);
-        if (!sourceEl || targetEl === sourceEl) return;
-        const single = (e) => (e.width || 1) === 1 && (e.height || 1) === 1;
-        if (targetEl && single(sourceEl) && single(targetEl)) {
-            [sourceEl.x, sourceEl.y, targetEl.x, targetEl.y] = [targetEl.x, targetEl.y, fromX, fromY];
-        } else {
-            const rect = { x: toX, y: toY, width: sourceEl.width || 1, height: sourceEl.height || 1 };
-            if (!insideGrid(grid, rect) || covered(grid, rect, sourceEl).length) {
-                showInfoToast('No entra ahí: hay otras celdas o se sale de la grilla.', 3500);
-                return;
-            }
-            sourceEl.x = toX; sourceEl.y = toY;
-        }
-
-        await persistBundle();
-        boards.renderGrid(S.currentGridId);
-        
-        showUndoToast(async () => {
-            Object.assign(S.currentBundle, backupBundle);
-            await persistBundle();
-            renderSafe(S.currentGridId);
-        });
-    };
     boards.hooks.isEditMode = () => editMode;
     boards.hooks.onPageRendered = () => { if (editMode) renderPagesStrip(); };
 
-    // 0.8.1c: agrandar/achicar una celda arrastrando su esquina
+    // 0.8.1g: manipulación de la grilla (grid-edit.js)
+    const curGrid = () => S.currentBundle.boards[S.currentGridId];
+    gridEdit.editHooks.openEditor = (el) => { if (editMode) openCellEditor(S.currentGridId, el, el.x, el.y); };
+    gridEdit.editHooks.openEmpty = (x, y) => { if (editMode) openCellEditor(S.currentGridId, null, x, y); };
+    gridEdit.editHooks.openMenu = (px, py, el, x, y) => openCellMenu(px, py, el, x, y);
+    gridEdit.editHooks.rowColMenu = (kind, i, px, py) => openRowColMenu(kind, i, px, py);
+    gridEdit.editHooks.selectionChanged = (n) => updateSelectionBar(n);
+    gridEdit.editHooks.moveGroup = async (group, dx, dy, target) => {
+        if (!editMode) return;
+        const g = curGrid();
+        const single = (e) => (e.width || 1) === 1 && (e.height || 1) === 1;
+        const el = group[0];
+        if (group.length === 1 && target && single(el) && single(target)) {
+            // Dos celdas de 1×1: se intercambian
+            await withUndo(() => { const fx = el.x, fy = el.y; el.x = target.x; el.y = target.y; target.x = fx; target.y = fy; });
+            return;
+        }
+        if (!canMoveGroup(g, group, dx, dy)) { showInfoToast('No entra ahí: hay otras celdas o se sale de la grilla.', 3000); boards.renderGrid(S.currentGridId); return; }
+        await withUndo(() => { group.forEach(e => { e.x += dx; e.y += dy; }); });
+    };
+    gridEdit.editHooks.resize = (el, w, h) => boards.hooks.onCellResize(el, w, h);
+
+    // Teclado en edición: Supr borra la selección, flechas la mueven, Esc la quita, Cmd/Ctrl+A selecciona todo,
+    // Cmd/Ctrl+Z deshace. No actúa mientras se escribe en un campo o con un diálogo abierto.
+    document.addEventListener('keydown', async (e) => {
+        if (!editMode || S.state !== 'BOARD') return;
+        const t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+        if (modal().style.display === 'flex' || document.getElementById('cell-menu')) return;
+        const mod = e.metaKey || e.ctrlKey;
+        if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); await undoLast(); return; }
+        if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); gridEdit.selectAll(); return; }
+        if (!gridEdit.selection.size) return;
+        const sel = [...gridEdit.selection];
+        if (e.key === 'Escape') { gridEdit.clearSelection(); return; }
+        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); selectionAction('delete'); return; }
+        const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        if (arrows[e.key]) {
+            e.preventDefault();
+            const [dx, dy] = arrows[e.key];
+            if (canMoveGroup(curGrid(), sel, dx, dy)) await withUndo(() => { sel.forEach(c => { c.x += dx; c.y += dy; }); }, { toast: false });
+        }
+    });
+
+    // 0.8.1c: agrandar/achicar una celda arrastrando su borde o esquina
     boards.hooks.onCellResize = async (elData, w, h) => {
         if (!editMode) return;
         const grid = S.currentBundle.boards[S.currentGridId];
@@ -886,14 +902,32 @@ export function initEditor() {
 // --- 0.8.1: menú contextual de celda ---
 function closeCellMenu() { document.getElementById('cell-menu')?.remove(); }
 
-async function withUndo(fn) {
-    const backupBundle = JSON.parse(JSON.stringify(S.currentBundle));
-    const gridId = S.currentGridId;
-    const changed = await fn();
-    if (changed === false) return;
+// 0.8.1g: pila de deshacer (Cmd/Ctrl+Z en edición) además del aviso con "Deshacer"
+const undoStack = [];
+async function restoreBackup(entry) {
+    const i = undoStack.indexOf(entry);
+    if (i >= 0) undoStack.splice(i, 1);
+    if (!S.currentBundle || S.currentBundle.id !== entry.bundleId) return;
+    Object.assign(S.currentBundle, entry.backup);
     await persistBundle();
-    boards.renderGrid(gridId);
-    showUndoToast(async () => { Object.assign(S.currentBundle, backupBundle); await persistBundle(); renderSafe(gridId); });
+    renderSafe(entry.gridId);
+}
+export async function undoLast() {
+    const entry = undoStack[undoStack.length - 1];
+    if (!entry) { showInfoToast('No hay nada para deshacer.', 1800); return; }
+    await restoreBackup(entry);
+    showInfoToast('Deshecho.', 1500);
+}
+async function withUndo(fn, { toast = true } = {}) {
+    const entry = { backup: JSON.parse(JSON.stringify(S.currentBundle)), gridId: S.currentGridId, bundleId: S.currentBundle.id };
+    const changed = await fn();
+    if (changed === false) return false;
+    undoStack.push(entry);
+    if (undoStack.length > 20) undoStack.shift();
+    await persistBundle();
+    boards.renderGrid(entry.gridId);
+    if (toast) showUndoToast(() => restoreBackup(entry));
+    return true;
 }
 
 function cloneCell(el) {
@@ -901,6 +935,115 @@ function cloneCell(el) {
     c.id = 'grid-element-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     (c.actions || []).forEach((a, i) => { a.id = `ga-${Date.now()}-${i}`; });
     return c;
+}
+
+// --- 0.8.1g: filas y columnas intermedias ---
+async function rowColOp(op, i) {
+    const g = S.currentBundle.boards[S.currentGridId];
+    if (op === 'row-del' && !rowIsEmpty(g, i)) { showInfoToast('Solo se puede eliminar una fila vacía (así no se pierde contenido).', 3500); return; }
+    if (op === 'col-del' && !colIsEmpty(g, i)) { showInfoToast('Solo se puede eliminar una columna vacía (así no se pierde contenido).', 3500); return; }
+    await withUndo(() => {
+        if (op === 'row-before') insertRow(g, i);
+        else if (op === 'row-after') insertRow(g, i + 1);
+        else if (op === 'col-before') insertCol(g, i);
+        else if (op === 'col-after') insertCol(g, i + 1);
+        else if (op === 'row-del') return deleteRow(g, i);
+        else if (op === 'col-del') return deleteCol(g, i);
+    });
+}
+function buildMenu(px, py, items) {
+    closeCellMenu();
+    const menu = document.createElement('div');
+    menu.id = 'cell-menu';
+    menu.className = 'cell-menu';
+    menu.setAttribute('role', 'menu');
+    for (const it of items) {
+        if (it === '-') { menu.appendChild(document.createElement('hr')); continue; }
+        const b = document.createElement('button');
+        b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = it.text; b.disabled = !!it.disabled;
+        if (it.title) b.title = it.title;
+        if (it.danger) b.classList.add('danger');
+        b.onclick = async () => { closeCellMenu(); await it.fn(); };
+        menu.appendChild(b);
+    }
+    document.body.appendChild(menu);
+    const r = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(px, window.innerWidth - r.width - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(py, window.innerHeight - r.height - 8))}px`;
+    menu.querySelector('button:not(:disabled)')?.focus();
+}
+function rowColItems(kind, i) {
+    const g = S.currentBundle.boards[S.currentGridId];
+    if (kind === 'row') {
+        const empty = rowIsEmpty(g, i);
+        return [
+            { text: 'Insertar fila arriba', fn: () => rowColOp('row-before', i) },
+            { text: 'Insertar fila abajo', fn: () => rowColOp('row-after', i) },
+            { text: 'Eliminar esta fila', fn: () => rowColOp('row-del', i), danger: true, disabled: !empty || (g.rowCount || 3) <= 1, title: empty ? '' : 'Tiene celdas: vaciala primero' }
+        ];
+    }
+    const empty = colIsEmpty(g, i);
+    return [
+        { text: 'Insertar columna a la izquierda', fn: () => rowColOp('col-before', i) },
+        { text: 'Insertar columna a la derecha', fn: () => rowColOp('col-after', i) },
+        { text: 'Eliminar esta columna', fn: () => rowColOp('col-del', i), danger: true, disabled: !empty || (g.minColumnCount || 4) <= 1, title: empty ? '' : 'Tiene celdas: vaciala primero' }
+    ];
+}
+function openRowColMenu(kind, i, px, py) {
+    if (!editMode) return;
+    buildMenu(px, py, rowColItems(kind, i));
+}
+
+// --- 0.8.1g: selección múltiple ---
+async function selectionAction(kind) {
+    const sel = [...gridEdit.selection];
+    if (!sel.length) return;
+    const g = S.currentBundle.boards[S.currentGridId];
+    if (kind === 'delete') {
+        await withUndo(() => { g.gridElements = g.gridElements.filter(e => !gridEdit.selection.has(e)); });
+        gridEdit.clearSelection();
+    } else if (kind === 'hide') {
+        const hide = sel.some(e => !e.hidden);
+        await withUndo(() => { sel.forEach(e => { if (hide) e.hidden = true; else delete e.hidden; }); });
+    } else if (kind === 'duplicate') {
+        let lost = 0;
+        await withUndo(() => {
+            for (const e of sel) {
+                const c = cloneCell(e);
+                let spot = firstFree(g, c.width || 1, c.height || 1);
+                if (!spot) { spot = firstFree(g, 1, 1); c.width = 1; c.height = 1; }
+                if (!spot) { lost++; continue; }
+                c.x = spot.x; c.y = spot.y; g.gridElements.push(c);
+            }
+            if (lost === sel.length) return false;
+        });
+        if (lost) showInfoToast(lost === sel.length ? 'No hay lugar libre en la grilla para duplicarlas.' : `No hubo lugar para ${lost} de las celdas.`, 3500);
+    }
+}
+function updateSelectionBar(n) {
+    let bar = document.getElementById('selection-bar');
+    if (!n || !editMode) {
+        bar?.remove();
+        document.getElementById('et-select')?.classList.toggle('is-on', gridEdit.isSelectMode());
+        return;
+    }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'selection-bar';
+        bar.className = 'selection-bar';
+        bar.setAttribute('role', 'toolbar');
+        bar.setAttribute('aria-label', 'Celdas seleccionadas');
+        const count = document.createElement('span');
+        count.className = 'sb-count';
+        bar.appendChild(count);
+        const mk = (text, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sb-btn ' + cls; b.textContent = text; b.onclick = fn; bar.appendChild(b); return b; };
+        mk('Duplicar', () => selectionAction('duplicate'));
+        mk('Ocultar / Mostrar', () => selectionAction('hide'));
+        mk('Eliminar', () => selectionAction('delete'), 'is-danger');
+        mk('Listo', () => { gridEdit.clearSelection(); gridEdit.setSelectMode(false); updateSelectionBar(0); }, 'is-primary');
+        document.body.appendChild(bar);
+    }
+    bar.querySelector('.sb-count').textContent = `${n} ${n === 1 ? 'celda seleccionada' : 'celdas seleccionadas'} · arrastrá una para mover todas`;
 }
 
 function openCellMenu(px, py, elData, x, y) {
@@ -953,6 +1096,9 @@ function openCellMenu(px, py, elData, x, y) {
     } else {
         item('Nueva celda', () => openCellEditor(S.currentGridId, null, x, y));
     }
+    // 0.8.1g: filas y columnas desde la celda
+    sep();
+    for (const it of [...rowColItems('row', oy), ...rowColItems('col', ox)]) item(it.text, it.fn, { disabled: it.disabled, danger: it.danger });
     document.body.appendChild(menu);
     const r = menu.getBoundingClientRect();
     menu.style.left = `${Math.max(8, Math.min(px, window.innerWidth - r.width - 8))}px`;

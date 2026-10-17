@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "e973f2cd6e52",
- "appVersion": "0.8.1f",
+ "version": "589d154409cf",
+ "appVersion": "0.8.1g",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,7 +20,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "0fe711b45e6944b0f6bfd55fbceb633e84c6c2d7c881576934cd8fee55079281",
+   "sha256": "265fa4841329b9aa0a7afe599cd50be9ffba532fbd74173d6d6b881d73b8dd4c",
    "bytes": 53503
   },
   {
@@ -60,12 +60,12 @@
   },
   {
    "url": "/js/boards.js",
-   "sha256": "66fd3a373192af142bfea63f7693c53f2097d1f8854da1a9a4fa952703f794c2",
-   "bytes": 93506
+   "sha256": "17a71142cedd084be8d686497c106c53c1b7f9391aa181e24067fcf5b559ebec",
+   "bytes": 90187
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "53f7e351c4f8b47b603f50c379b27c8cf83c734168bacb16e1b05b575043ab83",
+   "sha256": "a60d46d8542c760aa4a64fb5e457cc671686ae1ed15b83f2f06eb620ab5d338d",
    "bytes": 105
   },
   {
@@ -110,8 +110,8 @@
   },
   {
    "url": "/js/editor.js",
-   "sha256": "b96cdd05748f7047260e10e91440975ab2899c850a07c2c03808af84a43fb081",
-   "bytes": 44285
+   "sha256": "9ae0b0dae529c4170c8fb47bbf4774dd502cb0f5e8e2eadd4850a973be749b9a",
+   "bytes": 52814
   },
   {
    "url": "/js/favorites-ui.js",
@@ -129,9 +129,14 @@
    "bytes": 1593
   },
   {
+   "url": "/js/grid-edit.js",
+   "sha256": "c0f2a3209c4c2a5bea4b23d941c66cd4668648fed7f224faa36cb4115327adf7",
+   "bytes": 18126
+  },
+  {
    "url": "/js/grid-layout.js",
-   "sha256": "2c870d069c8df62cc3b180a9762e8efff80cba056d087edbd471fe931f727245",
-   "bytes": 1877
+   "sha256": "49f74152df3ddfd5c84bea93de5c5fc3a20dbeeecbf3ff4a3da35d51e0e8bef9",
+   "bytes": 4304
   },
   {
    "url": "/js/headpose.js",
@@ -260,8 +265,8 @@
   },
   {
    "url": "/js/users.js",
-   "sha256": "fb7917a853b62bfdbffb739e1c7c337588ec4c31b9902ea88f319ca394926407",
-   "bytes": 28525
+   "sha256": "4587617ed2138e66c486a0f03c06a5a5fb9c570729e31edccf2ad299e20eaa81",
+   "bytes": 28517
   },
   {
    "url": "/js/validation.js",
@@ -365,8 +370,8 @@
   },
   {
    "url": "/style.css",
-   "sha256": "eb226b6ce5e83ea0950da79e5346d051a524ca7dd0b18bff568894206a6c4080",
-   "bytes": 95813
+   "sha256": "7ea268a5a9478ad671bce7ac32dcd2fb3d20f46b0efffe80ac1e8b81b6953887",
+   "bytes": 99939
   },
   {
    "url": "/terminos.html",
@@ -465,5 +470,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 29011010
+ "totalBytes": 29040891
 }

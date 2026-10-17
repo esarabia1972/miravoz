@@ -1,5 +1,5 @@
 // Tests de grid-layout.js (celdas de varias filas/columnas, 0.8.1). Correr: node tools/test-grid-layout.mjs
-import { overlaps, covered, insideGrid, maxSpan, firstFree, elementAt } from '../web/js/grid-layout.js';
+import { overlaps, covered, insideGrid, maxSpan, firstFree, elementAt, canMoveGroup, rowIsEmpty, colIsEmpty, insertRow, insertCol, deleteRow, deleteCol, elementsInRect } from '../web/js/grid-layout.js';
 let pass = 0, fail = 0;
 const t = (n, f) => { try { f(); pass++; console.log('  ✓', n); } catch (e) { fail++; console.log('  ✗', n, '\n     ', e.message); } };
 const assert = (c, m) => { if (!c) throw new Error(m); };
@@ -25,6 +25,32 @@ t('firstFree encuentra lugar para 1×1 y para 2×1', () => {
 });
 t('elementAt devuelve la celda grande desde cualquiera de sus posiciones', () => {
     assert(elementAt(grid, 3, 0) === carne && elementAt(grid, 4, 2) === ensalada && elementAt(grid, 2, 1) === null, 'elementAt');
+});
+t('canMoveGroup: mover juntas sin salirse ni tapar', () => {
+    const a = { x: 0, y: 0 }, b = { x: 1, y: 0 }, c = { x: 3, y: 0 };
+    const g = { rowCount: 2, minColumnCount: 4, gridElements: [a, b, c] };
+    assert(canMoveGroup(g, [a, b], 0, 1), 'abajo libre');
+    assert(!canMoveGroup(g, [a, b], 2, 0), 'tapa c');
+    assert(canMoveGroup(g, [a, b], 1, 0), 'se corren sobre sí mismas');
+    assert(!canMoveGroup(g, [a, b], -1, 0), 'se sale');
+});
+t('insertar fila/columna intermedia corre y estira', () => {
+    const big = { x: 0, y: 0, width: 1, height: 2 }, low = { x: 1, y: 1 }, right = { x: 2, y: 0 };
+    const g = { rowCount: 2, minColumnCount: 3, gridElements: [big, low, right] };
+    insertRow(g, 1);
+    assert(g.rowCount === 3 && big.height === 3 && low.y === 2 && right.y === 0, JSON.stringify(g));
+    insertCol(g, 1);
+    assert(g.minColumnCount === 4 && low.x === 2 && right.x === 3 && big.width === 1, JSON.stringify(g));
+});
+t('eliminar fila/columna solo si está vacía', () => {
+    const a = { x: 0, y: 0 }, b = { x: 2, y: 2 }, big = { x: 3, y: 0, width: 1, height: 3 };
+    const g = { rowCount: 3, minColumnCount: 4, gridElements: [a, b, big] };
+    assert(!rowIsEmpty(g, 1) && colIsEmpty(g, 1), 'la grande ocupa la fila 1');
+    assert(!deleteRow(g, 1) && g.rowCount === 3, 'no borra contenido');
+    assert(deleteCol(g, 1) && g.minColumnCount === 3 && b.x === 1 && big.x === 2 && a.x === 0, JSON.stringify(g));
+});
+t('elementsInRect toma las que tocan el recuadro', () => {
+    assert(elementsInRect(grid, 4, 0, 2, 1).length === 1 && elementsInRect(grid, 0, 0, 4, 2).length === 3, 'recuadro');
 });
 console.log(`\n${pass} ok, ${fail} fallidos`);
 process.exit(fail ? 1 : 0);

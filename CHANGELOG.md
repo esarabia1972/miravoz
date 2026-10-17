@@ -2,6 +2,17 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1g] - 2026-10-17
+
+Más facilidad para editar tableros.
+
+- **Changed**: el arrastre de celdas usa eventos de puntero (mouse, lápiz y dedo, también en el iPad) y muestra la **celda entera** siguiendo al puntero y dónde va a caer (verde si entra, rojo si no). Con el dedo: mantener apretado un instante para levantarla; mantener y soltar sin mover abre el menú de la celda.
+- **Added**: **selección múltiple** ("Seleccionar" en la barra, Shift/Cmd + clic o recuadro desde un lugar vacío): arrastrar una mueve todas; barra con Duplicar, Ocultar/Mostrar y Eliminar; flechas, Supr, Esc y Cmd/Ctrl+A.
+- **Added**: **estirar desde el borde** derecho (ancho), el de abajo (alto) o la esquina.
+- **Added**: **insertar o eliminar filas y columnas intermedias** (botón "···" de cada fila y columna, o botón derecho sobre una celda). Solo se elimina si está vacía.
+- **Added**: botón **Deshacer** y Cmd/Ctrl+Z en edición (hasta 20 pasos).
+- **Changed**: tarjetas de "Tableros de <usuario>": "Permisos:", "Sincronización:" y "Con cambios".
+
 ## [0.8.1f] - 2026-10-17
 
 - **Fixed**: "Copiar mi versión" y "Traer sus cambios" fallaban al guardar la versión de respaldo de una copia (permiso de la base): ahora usan la misma función del servidor que Claude.

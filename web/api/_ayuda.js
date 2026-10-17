@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1f';
+export const AYUDA_VERSION = '0.8.1g';
 
 export const TEMAS = {
     general: {
@@ -112,9 +112,12 @@ En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas
         texto: `Con el lápiz del tablero (o con el botón derecho sobre una celda) se entra en edición.
 - Editar una celda: tocarla (o botón derecho → Editar). Texto, qué dice, color, nivel de vocabulario, a qué página lleva, TAMAÑO (cuántas columnas y filas ocupa: una celda puede ser grande, como "carne" ocupando tres columnas) e IMAGEN: un pictograma de ARASAAC o una imagen propia ("Subir imagen propia": foto o dibujo; se achica sola para que pese poco y anda sin conexión). "Quitar imagen" la saca.
 - Botón derecho sobre una celda: Editar, Duplicar, Copiar, Cortar, Pegar, Ocultar/Mostrar (oculta en uso, visible al editar) y Eliminar. Sobre un lugar vacío: Nueva celda o Pegar.
-- Mover: arrastrar una celda a otro lugar (dos celdas de 1×1 se intercambian; una grande se mueve solo si entra).
+- Mover: arrastrar una celda (se ve la celda entera y dónde cae: verde si entra, rojo si no). Dos celdas de 1×1 se intercambian; una grande se mueve solo si entra. Con el dedo: mantener apretada un instante y arrastrar (mantener y soltar sin mover abre el menú de la celda).
+- Varias celdas juntas: "Seleccionar" en la barra y tocarlas, o Shift/Cmd + clic, o arrastrar un recuadro desde un lugar vacío. Arrastrar una seleccionada mueve todas; la barra de abajo permite Duplicar, Ocultar/Mostrar o Eliminar. Con teclado: flechas para mover, Supr para eliminar, Esc para soltar, Cmd/Ctrl+A para elegir todas.
+- Filas y columnas intermedias: el botón "···" de cada fila (a la izquierda) o columna (arriba), o el botón derecho sobre una celda: insertar arriba/abajo o izquierda/derecha, o eliminar (solo si está vacía, para no perder contenido).
+- Deshacer: botón "Deshacer" de la barra o Cmd/Ctrl+Z.
 - Barra de edición: nombre, Dificultad (nivel de vocabulario), filas y columnas, "Espacio" entre celdas de la página (chico a muy grande, para separar estímulos) y "Fondo" (color de fondo de la página; "Sin fondo" lo quita). Con fondo, las celdas vacías quedan transparentes: sirven de separadores.
-- Tamaño también arrastrando la esquina inferior derecha de la celda. "Mostrar el texto en la celda" se puede apagar para dejar solo la imagen (la voz sigue diciendo el texto). Páginas en la franja de miniaturas.
+- Tamaño también arrastrando el borde derecho (ancho), el de abajo (alto) o la esquina de la celda. "Mostrar el texto en la celda" se puede apagar para dejar solo la imagen (la voz sigue diciendo el texto). Páginas en la franja de miniaturas.
 - Si una celda más grande tapa otras, se avisa antes de quitarlas; todo se puede deshacer y cada guardado deja una versión restaurable.
 Desde Claude: celdas grandes (ancho/alto en poner_celdas), ocultar/mostrar (oculta), imagen propia desde una dirección https pública (imagen_url, hasta 1 MB; las fotos adjuntas en el chat no llegan al conector: esas se suben desde MiraVoz) y color de fondo de la página (fondo en editar_pagina).`
     },
@@ -161,8 +164,8 @@ Se usan con el mismo modo de acceso; "Actividades" vuelve al menú y se puede sa
         alias: ['usuario', 'nuevo usuario', 'tarjeta', 'copias', 'asignar'],
         texto: `"Mis usuarios" (abajo a la derecha, solo cuenta registrada): buscador y tarjetas en dos columnas.
 Cada tarjeta: nombre, "Última conexión" de su tablet, código vigente y si tiene el registro de uso activo.
-- Tableros: arriba a la derecha "Tablero de inicio" (una de sus copias o ninguno: la tablet abre directo ahí o muestra la lista). Cada copia es una tarjeta con miniatura: tocarla abre la copia para editarla (al ir al inicio se vuelve a esta pantalla); tacho para quitarla; "Permisos" ("Solo visualización" o "Modificable"); "Sincronización" ("Actualizado" o "Versiones con cambios"). Al asignar un tablero el usuario recibe una COPIA; el original no cambia.
-- Con versiones con cambios: "Copiar mi versión" (la copia queda igual al original) o "Traer sus cambios" (el original queda igual a la copia). Antes de pisar se guarda la versión anterior (se puede restaurar desde Claude con historial_tablero).
+- Tableros: arriba a la derecha "Tablero de inicio" (una de sus copias o ninguno: la tablet abre directo ahí o muestra la lista). Cada copia es una tarjeta con miniatura: tocarla abre la copia para editarla (al ir al inicio se vuelve a esta pantalla); tacho para quitarla; "Permisos" ("Solo visualización" o "Modificable"); "Sincronización" ("Actualizado" o "Con cambios"). Al asignar un tablero el usuario recibe una COPIA; el original no cambia.
+- Si está "Con cambios": "Copiar mi versión" (la copia queda igual al original) o "Traer sus cambios" (el original queda igual a la copia). Antes de pisar se guarda la versión anterior (se puede restaurar desde Claude con historial_tablero).
 - En el ícono de asignar de un tablero, quien ya tiene su copia muestra el mismo estado y los botones "Copiar mi versión", "Editar su copia" y "Traer sus cambios".
 - Estadística: ver tema "estadistica". Al crear un usuario, el registro de uso viene activado (se declara el consentimiento); se puede destildar.
 - Nuevo código: para vincular una tablet (ver "vinculacion"). Desvincular tablet.

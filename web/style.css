@@ -1867,3 +1867,46 @@ body.edit-mode .btn-edit-toggle { background: #ffd23f !important; border-color: 
 .copy-field .copy-permission { font-size: 0.85rem; min-height: 36px; padding: 4px 28px 4px 10px; min-width: 0; }
 .copy-field .assign-status { font-size: 0.75rem; padding: 3px 8px; white-space: normal; line-height: 1.25; min-width: 0; }
 .copy-card .copy-actions .user-btn { font-size: 0.8rem; }
+
+/* 0.8.1g — Edición de la grilla: arrastre con vista previa, selección, bordes y encabezados de filas/columnas */
+.grid-container.edit-grid { position: relative; padding-top: 30px !important; padding-left: 34px !important; }
+.edit-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: grab; }
+.edit-cell img { -webkit-user-drag: none; pointer-events: none; }
+body.grid-dragging, body.grid-dragging * { cursor: grabbing !important; }
+.edit-cell.is-lifted { transform: scale(1.04); box-shadow: 0 10px 24px var(--shadow); z-index: 5; transition: transform 0.12s ease; }
+.edit-cell.is-drag-source { opacity: 0.3; }
+.drag-ghost { z-index: 30000; pointer-events: none; opacity: 0.92; box-shadow: 0 18px 40px rgba(0,0,0,0.3); border-radius: 12px; transition: none !important; will-change: transform; }
+.drop-preview { pointer-events: none; border: 3px dashed #1aa36b; background: rgba(26, 163, 107, 0.14); border-radius: 12px; z-index: 6; }
+.drop-preview.is-invalid { border-color: #d64545; background: rgba(214, 69, 69, 0.14); }
+.drop-preview[hidden] { display: none; }
+.edit-cell.is-selected { outline: 4px solid #2f7cf6; outline-offset: 2px; box-shadow: 0 0 0 7px rgba(47, 124, 246, 0.2); }
+body.grid-select-mode .edit-cell { cursor: pointer; }
+.grid-marquee { pointer-events: none; border: 2px solid #2f7cf6; background: rgba(47, 124, 246, 0.12); border-radius: 10px; z-index: 6; }
+
+/* Bordes para estirar: derecho (ancho), abajo (alto) y esquina (los dos) */
+.resize-handle { touch-action: none; z-index: 4; }
+.resize-handle.resize-se { right: 0; bottom: 0; width: 24px; height: 24px; }
+.resize-handle.resize-e { position: absolute; top: 18%; bottom: 18%; right: -4px; width: 14px; height: auto; cursor: ew-resize; background: none; border-radius: 0; opacity: 1; }
+.resize-handle.resize-s { position: absolute; left: 18%; right: 18%; bottom: -4px; height: 14px; width: auto; cursor: ns-resize; background: none; border-radius: 0; opacity: 1; }
+.resize-handle.resize-e::after, .resize-handle.resize-s::after { content: ''; position: absolute; background: var(--accent-text); border-radius: 3px; opacity: 0; transition: opacity 0.15s; }
+.resize-handle.resize-e::after { top: 30%; bottom: 30%; left: 5px; width: 4px; }
+.resize-handle.resize-s::after { left: 30%; right: 30%; top: 5px; height: 4px; }
+.edit-cell:hover .resize-handle::after, .edit-cell.is-selected .resize-handle::after { opacity: 0.85; }
+@media (hover: none) { .resize-handle.resize-e::after, .resize-handle.resize-s::after { opacity: 0.6; } }
+
+/* Encabezados de filas y columnas */
+.rc-handle { position: absolute; width: 28px; height: 24px; padding: 0; border-radius: 8px; border: 1px solid var(--warn-border, #d4a300); background: var(--surface-1, #fff);
+    color: var(--warn-text, #8a6400); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; z-index: 7; opacity: 0.75; }
+.rc-handle.rc-row { width: 24px; height: 28px; }
+.rc-handle.rc-row svg { transform: rotate(90deg); }
+.rc-handle:hover, .rc-handle:focus-visible { opacity: 1; background: #ffe27a; }
+
+/* Barra de selección */
+.selection-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 20000; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+    padding: 10px 14px; border-radius: 16px; background: #1d2433; color: #fff; box-shadow: 0 12px 34px rgba(0,0,0,0.35); max-width: calc(100vw - 24px); }
+.selection-bar .sb-count { font-size: 0.9rem; margin-right: 6px; opacity: 0.9; }
+.selection-bar .sb-btn { min-height: 40px; padding: 6px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; font-weight: 600; cursor: pointer; }
+.selection-bar .sb-btn:hover { background: rgba(255,255,255,0.18); }
+.selection-bar .sb-btn.is-danger { color: #ffb3b3; border-color: rgba(255,120,120,0.5); }
+.selection-bar .sb-btn.is-primary { background: #ffe27a; color: #3d2d00; border-color: #d4a300; }
+#et-select.is-on { background: #2f7cf6 !important; color: #fff !important; border-color: #1f5fd0 !important; }

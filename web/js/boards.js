@@ -10,6 +10,7 @@ import { bundleTime } from './sync-plan.js';
 import { labelText, ELEMENT, COLLECT, navInfo, navigates, isUsable, unsupportedFeatures, isSpecialCell, isLetterCell,
     customSpeech, speakLanguage, audioAction, normalizeGrd, analyzeBundle, compatibilityMessage, isKeyboardPage, keyboardLowercase, collectActions } from './asterics.js';
 import { suggest } from './prediction.js';
+import * as gridEdit from './grid-edit.js';
 import { radioAction, openWebpage, playRecordedAudio, stopRecordedAudio, stopRadio, closeWebpage } from './media.js';
 import { importedName, splitBundle, fetchArasaacWords, applyAutoLabels, missingLabelIds, visibleLabel, cellText, speechOnNavigate, pageCount } from './pages.js';
 
@@ -1270,74 +1271,11 @@ export function handleCellClick(cellElement, elementData) {
  * 0.8.1c: esquina para agrandar/achicar una celda arrastrando (editor). Muestra el tamaño en vivo y al soltar
  * avisa al editor (hooks.onCellResize), que valida que no tape otras celdas y guarda con deshacer.
  */
-function trackPositions(str) {
-    // "120px 120px 120px" → [{start, end}]; gap aparte
-    return String(str || '').split(/\s+/).map(parseFloat).filter(Number.isFinite);
-}
-function attachResizeHandle(cell, elData, grid, cols, rows) {
-    const h = document.createElement('div');
-    h.className = 'resize-handle';
-    h.title = 'Arrastrar para cambiar el tamaño';
-    h.setAttribute('aria-hidden', 'true');
-    h.draggable = false;
-    cell.appendChild(h);
-    h.addEventListener('pointerdown', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        cell.draggable = false;
-        const cs = getComputedStyle(grid);
-        const colW = trackPositions(cs.gridTemplateColumns), rowH = trackPositions(cs.gridTemplateRows);
-        const gapX = parseFloat(cs.columnGap) || 0, gapY = parseFloat(cs.rowGap) || 0;
-        const gr = grid.getBoundingClientRect();
-        const padL = parseFloat(cs.paddingLeft) || 0, padT = parseFloat(cs.paddingTop) || 0;
-        const indexAt = (pos, sizes, gap) => { let acc = 0; for (let i = 0; i < sizes.length; i++) { acc += sizes[i]; if (pos < acc + gap / 2) return i; acc += gap; } return sizes.length - 1; };
-        let w = elData.width || 1, hh = elData.height || 1;
-        const move = (ev) => {
-            const cx = indexAt(ev.clientX - gr.left - padL + grid.scrollLeft, colW, gapX);
-            const cy = indexAt(ev.clientY - gr.top - padT + grid.scrollTop, rowH, gapY);
-            w = Math.max(1, Math.min(cols - elData.x, cx - elData.x + 1));
-            hh = Math.max(1, Math.min(rows - elData.y, cy - elData.y + 1));
-            cell.style.gridColumn = `${elData.x + 1} / span ${w}`;
-            cell.style.gridRow = `${elData.y + 1} / span ${hh}`;
-            cell.classList.add('is-resizing');
-            cell.dataset.size = `${w}×${hh}`;
-        };
-        const up = () => {
-            window.removeEventListener('pointermove', move);
-            window.removeEventListener('pointerup', up);
-            cell.classList.remove('is-resizing');
-            cell.draggable = true;
-            if (w !== (elData.width || 1) || hh !== (elData.height || 1)) hooks.onCellResize(elData, w, hh);
-        };
-        window.addEventListener('pointermove', move);
-        window.addEventListener('pointerup', up);
-    });
-    h.addEventListener('click', (e) => e.stopPropagation());
-}
-
 export function renderGrid(gridId) {
     if (!S.currentBundle || !S.currentBundle.boards[gridId]) {
         console.error('No se encontró el grid:', gridId);
         return;
     }
-
-    // Drag and drop helper
-    const handleDragDrop = (cell, targetX, targetY) => {
-        if (!hooks.isEditMode()) return;
-        cell.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-        cell.addEventListener('dragenter', (e) => e.preventDefault());
-        cell.addEventListener('drop', (e) => {
-            e.preventDefault();
-            try {
-                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                if (data.gridId === gridId && hooks.onCellDropped) {
-                    hooks.onCellDropped(data.x, data.y, targetX, targetY);
-                }
-            } catch (err) {}
-        });
-    };
 
     S.currentGridId = gridId;
     const gridData = S.currentBundle.boards[gridId];
@@ -1388,6 +1326,9 @@ export function renderGrid(gridId) {
     gridContainer.style.backgroundColor = gridData.backgroundColor || '';
     // 0.8.1c: con color de fondo, las celdas vacías son transparentes (sirven de separador)
     gridContainer.classList.toggle('has-page-bg', !!gridData.backgroundColor);
+
+    if (hooks.isEditMode()) gridEdit.beginRender(gridContainer, gridData, cols, rows);
+    else gridEdit.teardown(gridContainer);
 
     const renderedCells = new Set();
     for (let y = 0; y < rows; y++) {
@@ -1527,22 +1468,12 @@ export function renderGrid(gridId) {
                 cell.onclick = () => handleCellClick(cell, elData);
                 activeGridElements.push({ element: cell, data: elData, isAccBtn: false });
                 
-                if (hooks.isEditMode()) {
-                    attachResizeHandle(cell, elData, gridContainer, cols, rows);
-                    cell.draggable = true;
-                    cell.addEventListener('dragstart', (e) => {
-                        e.dataTransfer.setData('text/plain', JSON.stringify({ x: elData.x, y: elData.y, gridId }));
-                        e.dataTransfer.effectAllowed = 'move';
-                    });
-                    handleDragDrop(cell, elData.x, elData.y);
-                }
+                if (hooks.isEditMode()) gridEdit.attachCell(cell, elData); // 0.8.1g: arrastre, selección y bordes
             } else {
                 cell.classList.add('empty-cell');
                 if (hooks.isEditMode()) {
                     cell.classList.add('editable-slot');
-                    const ex = x, ey = y;
-                    cell.onclick = () => hooks.emptyCellClick(ex, ey);
-                    handleDragDrop(cell, ex, ey);
+                    gridEdit.attachSlot(cell, x, y);
                 }
             }
 
@@ -1554,6 +1485,7 @@ export function renderGrid(gridId) {
             gridContainer.appendChild(cell);
         }
     }
+    if (hooks.isEditMode()) gridEdit.endRender(); // encabezados de filas y columnas
 
     // Botones del acumulador también son targets de dwell
     document.querySelectorAll('.btn-acc').forEach(btn => {
