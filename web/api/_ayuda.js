@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1d';
+export const AYUDA_VERSION = '0.8.1e';
 
 export const TEMAS = {
     general: {
@@ -11,7 +11,7 @@ export const TEMAS = {
         texto: `MiraVoz es una plataforma web de comunicación aumentativa y alternativa (CAA). Funciona en el navegador (Safari en iPad, Chrome en Android o en la compu) y sin conexión una vez preparada.
 Hay dos usos:
 - Cuenta registrada (profesional o familia, entra con Google): crea y edita tableros, gestiona usuarios en "Mis usuarios", les asigna copias de tableros, vincula tablets y mira la Estadística.
-- Tablet vinculada a un usuario: muestra sus tableros para comunicarse; no se edita (salvo copias marcadas "Puede editarse").
+- Tablet vinculada a un usuario: muestra sus tableros para comunicarse; no se edita (salvo copias con permiso "Modificable").
 Formas de elegir (modos de acceso): Manual, Barrido, Rostro y Mirada (ver tema "modos").
 Temas de esta ayuda: modos, manual, barrido, rostro, mirada, parpadeo, protegido, tablero, frase, favoritas, inicio, editor, configuracion, voz, sin-conexion, respaldo, practicar, usuarios, vinculacion, estadistica, claude, versiones.`
     },
@@ -102,7 +102,7 @@ Se eligen con el mismo modo de acceso del tablero. No reordenan el tablero. Se g
         titulo: 'Pantalla de inicio (lista de tableros)',
         alias: ['home', 'lista', 'etiquetas', 'buscar', 'ordenar', 'importar', 'nuevo tablero'],
         texto: `Arriba: + (nuevo tablero), importar (.grd de Asterics Grid u .obz), pestañas de etiquetas con contadores, buscar, ordenar (última modificación, creación, alfabético, agrupar por etiqueta) y filtro por usuario.
-Barra en una línea: +, importar, etiquetas (con flechitas si no entran), y a la derecha buscar, ordenar y usuario. Cada tarjeta: abrir tocándola; íconos para asignar a un usuario, etiquetas, descargar, duplicar y borrar.
+Barra en una línea: +, importar, etiquetas (con flechitas si no entran), y a la derecha buscar, ordenar y usuario. Cada tarjeta: abrir tocándola; íconos para asignar a un usuario y etiquetas, y el menú "…" con Exportar .grd, Duplicar y Eliminar.
 A la derecha, flechas grandes de página anterior/siguiente para pasar la lista con la mirada o el barrido (grisadas si no hay más).
 En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas de edición.`
     },
@@ -161,9 +161,9 @@ Se usan con el mismo modo de acceso; "Actividades" vuelve al menú y se puede sa
         alias: ['usuario', 'nuevo usuario', 'tarjeta', 'copias', 'asignar'],
         texto: `"Mis usuarios" (abajo a la derecha, solo cuenta registrada): buscador y tarjetas en dos columnas.
 Cada tarjeta: nombre, "Última conexión" de su tablet, código vigente y si tiene el registro de uso activo.
-- Tableros: tarjetas con miniatura de cada copia: permiso ("Solo mirar" o "Puede editarse"), "Usar como inicio" (la tablet abre directo ahí), "Editar copia", "Quitar". Al asignar un tablero el usuario recibe una COPIA; el original no cambia.
-- Cada copia indica si está igual al original, si su copia tiene cambios o si el original tiene cambios. Si difieren: "Enviar mi versión" (la copia queda igual al original) o "Traer sus cambios" (el original queda igual a la copia). Antes de pisar se guarda la versión anterior (se puede restaurar desde Claude con historial_tablero).
-- En el ícono de asignar de un tablero, quien ya tiene su copia muestra el mismo estado y los botones "Enviar mi versión", "Editar su copia" y "Traer sus cambios".
+- Tableros: arriba a la derecha "Tablero de inicio" (una de sus copias o ninguno: la tablet abre directo ahí o muestra la lista). Cada copia es una tarjeta con miniatura: tocarla abre la copia para editarla (al ir al inicio se vuelve a esta pantalla); tacho para quitarla; "Permisos" ("Solo visualización" o "Modificable"); "Sincronización" ("Actualizado" o "Versiones con cambios"). Al asignar un tablero el usuario recibe una COPIA; el original no cambia.
+- Con versiones con cambios: "Copiar mi versión" (la copia queda igual al original) o "Traer sus cambios" (el original queda igual a la copia). Antes de pisar se guarda la versión anterior (se puede restaurar desde Claude con historial_tablero).
+- En el ícono de asignar de un tablero, quien ya tiene su copia muestra el mismo estado y los botones "Copiar mi versión", "Editar su copia" y "Traer sus cambios".
 - Estadística: ver tema "estadistica". Al crear un usuario, el registro de uso viene activado (se declara el consentimiento); se puede destildar.
 - Nuevo código: para vincular una tablet (ver "vinculacion"). Desvincular tablet.
 - Tacho junto al nombre: eliminar el usuario (borra sus copias).`

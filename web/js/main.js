@@ -9,7 +9,7 @@ import { speak, unlockSpeech, isSpeechSupported, stopSpeech, isSpeakingSentence,
 import { customAlert, customConfirm, customChoice, showInfoToast, showErrorToast, playSentence, popSentence, clearSentence, renderSentence, cancelUndo, getSentence, undoSentence, onUndoChange } from './ui.js';
 import * as offline from './offline.js';
 import { initAuth, signOut, consumeOAuthReturn, accountEnabled, oauthErrorText, NOT_ENABLED_MESSAGE, supabaseClient } from './auth.js';
-import { fetchUsers, setProfessionalId, initUsers } from './users.js';
+import { fetchUsers, setProfessionalId, initUsers, reopenUserBoards } from './users.js';
 import { syncAll, startCloudWatch } from './sync.js';
 import * as deviceMod from './device.js';
 import * as boards from './boards.js';
@@ -816,6 +816,7 @@ function applyMode(mode) {
 }
 
 // --- Navegación Home/Board ---
+let copyReturnTo = null; // 0.8.1e: editar una copia desde "Tableros de <usuario>" vuelve ahí
 function goHome() {
     closeFavorites();
     if (practice.isOpen()) practice.closePractice({ silent: true });
@@ -823,6 +824,7 @@ function goHome() {
     document.getElementById('copy-banner')?.remove();
     boards.stopMedia(); // radio o página web de un tablero de Asterics
     if (deviceMod.isDeviceMode()) { openDeviceHome(); return; } // tablet: vista de inicio del adulto
+    const back = copyReturnTo; copyReturnTo = null;
     S.state = 'HOME';
     S.currentBundle = null;
     boards.loadSavedBoards(); // refresca las cards (nombres/contadores editados)
@@ -833,6 +835,7 @@ function goHome() {
     instructionBox.style.display = 'none';
     ctxUI.clearRect(0, 0, canvasUI.width, canvasUI.height);
     selectionContexts.setBase(homeTargets());
+    if (back && back.userBoards) reopenUserBoards(back.userBoards);
 }
 
 document.getElementById('btn-acc-home').addEventListener('click', () => { goHome(); });
@@ -1376,7 +1379,7 @@ function updateCopyBanner() {
         banner = document.createElement('div');
         banner.id = 'copy-banner';
         banner.setAttribute('role', 'status');
-        boardView.prepend(banner);
+        boardView.appendChild(banner); // 0.8.1e: abajo de la grilla
     }
     banner.textContent = `Estás editando la copia de ${b.ownerLabel}. Tu original no cambia.`;
 }
@@ -1386,6 +1389,7 @@ window.addEventListener('miravoz:edit-copy', async (e) => {
     if (!assignmentId || !S.currentUser) return;
     const copy = await deviceMod.loadCopyForProfessional(assignmentId);
     if (!copy) { customAlert('No se pudo abrir la copia. Revisá la conexión e intentá de nuevo.'); return; }
+    copyReturnTo = e.detail?.returnTo || null; // 0.8.1e: al salir, volver a "Tableros de <usuario>"
     document.getElementById('users-view').style.display = 'none';
     document.getElementById('user-boards-view').style.display = 'none';
     boards.openBundle(copy);

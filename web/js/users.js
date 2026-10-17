@@ -140,8 +140,8 @@ export async function deleteUser(userId) {
 // ---------------------------------------------------------------- copias (assignments)
 
 const PERMISSIONS = [
-    { value: 'read_only', label: 'Solo mirar' },
-    { value: 'editable', label: 'Puede editarse' }
+    { value: 'read_only', label: 'Solo visualización' },
+    { value: 'editable', label: 'Modificable' }
 ];
 
 async function setPermission(user, copy, permission, selectEl) {
@@ -185,6 +185,7 @@ async function setHome(user, assignmentId, focusCopyId) {
     if (error) {
         console.error('Error cambiando la casita:', error);
         customAlert('No se pudo cambiar el tablero de inicio. Revisá la conexión e intentá de nuevo.');
+        renderUsersList();
         return;
     }
     user.home_board_id = assignmentId;
@@ -320,6 +321,8 @@ function renderBoards(focusKey = null) {
     if (!user) { closeBoards(); return; }
     document.getElementById('user-boards-title').textContent = `Tableros de ${user.display_name}`;
     body.replaceChildren();
+    const homeWrap = document.querySelector('#user-boards-view .ub-home');
+    if (homeWrap) homeWrap.hidden = true;
     renderCopies(user, body);
     if (focusKey) [...body.querySelectorAll('[data-focus-key]')].find(n => n.dataset.focusKey === focusKey)?.focus();
 }
@@ -335,36 +338,41 @@ function renderCopies(user, container) {
         return;
     }
 
-    const home = user.copies.find(c => c.id === user.home_board_id);
-    container.appendChild(el('p', 'user-note', home
-        ? `Tablero de inicio: «${copyName(home)}» (la tablet abre directo acá)`
-        : 'Sin tablero de inicio: la tablet muestra la lista de sus tableros'));
+    renderHomeSelect(user);
 
-    // 0.8.1d: tarjetas como las del inicio (miniatura, estado respecto de tu versión y acciones)
+    // 0.8.1e: tarjeta = miniatura (tocar abre la copia para editar), "Editada…" con tacho, permisos,
+    // sincronización y "Copiar mi versión" / "Traer sus cambios" (grisados si están iguales)
     const list = el('div', 'copy-grid');
     user.copies.forEach(copy => {
         const name = copyName(copy);
         const isHome = copy.id === user.home_board_id;
         const card = el('div', 'board-card glass-box copy-card' + (isHome ? ' is-home' : ''));
         card.dataset.assignmentId = copy.id;
+        const open = () => editCopy(user, copy);
 
-        const info = el('div', 'board-card-info');
-        const title = el('h3', 'board-card-title', name);
-        info.appendChild(title);
+        const head = el('button', 'copy-open');
+        head.type = 'button';
+        head.setAttribute('aria-label', `Editar la copia de «${name}» de ${user.display_name}`);
+        head.appendChild(el('h3', 'board-card-title', name));
+        if (isHome) head.appendChild(el('span', 'copy-home-tag', 'Tablero de inicio'));
         const thumb = el('div', 'copy-thumb-slot');
-        info.appendChild(thumb);
-        const meta = el('p', 'board-card-meta');
-        const when = relativeTime(copy.copy_updated_at);
-        meta.textContent = (isHome ? 'Tablero de inicio · ' : '') + (when ? `Editada ${when}` : 'Sin cambios desde que se la diste');
-        info.appendChild(meta);
-        const status = el('span', 'assign-status');
-        status.hidden = true;
-        info.appendChild(status);
-        card.appendChild(info);
+        head.appendChild(thumb);
+        head.addEventListener('click', open);
+        card.appendChild(head);
 
-        const actions = el('div', 'copy-actions');
+        const metaRow = el('div', 'copy-meta-row');
+        const when = relativeTime(copy.copy_updated_at);
+        metaRow.appendChild(el('span', 'board-card-meta', when ? `Editada ${when}` : 'Sin cambios desde que se la diste'));
+        const del = button('', `Quitarle «${name}» a ${user.display_name}`, () => removeCopy(user, copy), 'copy-delete');
+        del.title = 'Quitar';
+        del.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+        metaRow.appendChild(del);
+        card.appendChild(metaRow);
+
+        const permRow = el('label', 'copy-field');
+        permRow.appendChild(el('span', 'copy-field-label', 'Permisos'));
         const sel = el('select', 'glass-select copy-permission');
-        sel.setAttribute('aria-label', `Permiso de «${name}» para ${user.display_name}`);
+        sel.setAttribute('aria-label', `Permisos de «${name}» para ${user.display_name}`);
         PERMISSIONS.forEach(p => {
             const o = el('option', null, p.label);
             o.value = p.value;
@@ -372,32 +380,53 @@ function renderCopies(user, container) {
         });
         sel.value = copy.permission === 'editable' ? 'editable' : 'read_only';
         sel.addEventListener('change', () => setPermission(user, copy, sel.value, sel));
-        actions.appendChild(sel);
+        permRow.appendChild(sel);
+        card.appendChild(permRow);
 
-        const homeBtn = button(isHome ? 'Es su inicio' : 'Usar como inicio',
-            isHome ? `«${name}» es el tablero de inicio de ${user.display_name}. Tocá para sacarlo` : `Hacer de «${name}» el tablero de inicio de ${user.display_name}`,
-            () => setHome(user, isHome ? null : copy.id, copy.id),
-            'btn btn-secondary user-btn' + (isHome ? ' is-home' : ''));
-        homeBtn.setAttribute('aria-pressed', String(isHome));
-        homeBtn.dataset.focusKey = `home:${copy.id}:${user.id}`;
-        actions.appendChild(homeBtn);
+        const syncRow = el('div', 'copy-field');
+        syncRow.appendChild(el('span', 'copy-field-label', 'Sincronización'));
+        const status = el('span', 'assign-status', 'Revisando...');
+        syncRow.appendChild(status);
+        card.appendChild(syncRow);
 
-        actions.appendChild(button('Editar copia', `Editar la copia de «${name}» de ${user.display_name}`, () => {
-            window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: copy.id } }));
-        }));
-        const sendBtn = button('Enviar mi versión', `Reemplazar la copia de ${user.display_name} por tu versión de «${name}»`, () => syncCopy(user, copy, 'send'));
+        const actions = el('div', 'copy-actions');
+        const sendBtn = button('Copiar mi versión', `Reemplazar la copia de ${user.display_name} por tu versión de «${name}»`, () => syncCopy(user, copy, 'send'));
         const pullBtn = button('Traer sus cambios', `Reemplazar tu versión de «${name}» por la copia de ${user.display_name}`, () => syncCopy(user, copy, 'pull'));
-        sendBtn.hidden = pullBtn.hidden = true;
+        sendBtn.disabled = pullBtn.disabled = true;
         actions.append(sendBtn, pullBtn);
-
-        actions.appendChild(button('Quitar', `Quitarle «${name}» a ${user.display_name}`, () => removeCopy(user, copy),
-            'btn btn-secondary user-btn user-btn-danger'));
         card.appendChild(actions);
         list.appendChild(card);
 
         fillCopyCard(copy, { thumb, status, sendBtn, pullBtn });
     });
     container.appendChild(list);
+}
+
+// Arriba a la derecha: elegir UN tablero de inicio (o ninguno) entre sus copias
+function renderHomeSelect(user) {
+    const wrap = document.querySelector('#user-boards-view .ub-home');
+    const sel = document.getElementById('user-boards-home');
+    if (!wrap || !sel) return;
+    wrap.hidden = !user.copies.length;
+    const none = el('option', null, 'Ninguno (muestra la lista)');
+    none.value = '';
+    const opts = user.copies.map(c => { const o = el('option', null, copyName(c)); o.value = c.id; return o; });
+    sel.replaceChildren(none, ...opts);
+    sel.value = user.copies.some(c => c.id === user.home_board_id) ? user.home_board_id : '';
+    sel.onchange = () => setHome(user, sel.value || null, sel.value || '');
+}
+
+function editCopy(user, copy) {
+    // Al salir de la edición se vuelve a "Tableros de <usuario>" (lo resuelve main.js con returnTo)
+    window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: copy.id, returnTo: { userBoards: user.id } } }));
+}
+
+/** Vuelve a "Tableros de <usuario>" después de editar una copia (lo llama main.js al ir al inicio). */
+export async function reopenUserBoards(userId) {
+    document.getElementById('users-view').style.display = 'flex';
+    boardsUserId = userId;
+    document.getElementById('user-boards-view').style.display = 'flex';
+    await fetchUsers();
 }
 
 // Contenido completo de las copias (miniatura y comparación): se trae solo al abrir "Tableros de <usuario>"
@@ -419,12 +448,12 @@ async function fillCopyCard(copy, { thumb, status, sendBtn, pullBtn }) {
         if (t) thumb.replaceChildren(t);
         const original = copy.board_id && window.localforage ? await window.localforage.getItem(copy.board_id) : null;
         const st = sync.compareCopy(original, bundle, copy.copy_updated_at);
-        status.className = 'assign-status is-' + st;
-        status.textContent = sync.STATUS_TEXT[st];
-        status.hidden = false;
         const differs = st === 'copia' || st === 'original';
-        sendBtn.hidden = !differs;
-        pullBtn.hidden = !differs;
+        status.className = 'assign-status is-' + st;
+        status.textContent = st === 'igual' ? 'Actualizado' : differs ? 'Versiones con cambios' : sync.STATUS_TEXT[st];
+        status.title = sync.STATUS_TEXT[st];
+        sendBtn.disabled = !differs;
+        pullBtn.disabled = !differs;
     } catch (e) { console.warn('No se pudo completar la tarjeta de la copia:', e); }
 }
 

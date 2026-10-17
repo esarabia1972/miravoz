@@ -380,8 +380,51 @@ const ICONS = {
     tags: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>',
     export: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
     duplicate: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+    more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
     remove: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
 };
+
+// Menú "…" de la tarjeta (se cierra al tocar afuera, con Escape o al elegir)
+let openMenuEl = null;
+function closeCardMenu() {
+    if (!openMenuEl) return;
+    openMenuEl.remove(); openMenuEl = null;
+    document.removeEventListener('pointerdown', onMenuOutside, true);
+    document.removeEventListener('keydown', onMenuKey, true);
+}
+function onMenuOutside(e) { if (openMenuEl && !openMenuEl.contains(e.target)) closeCardMenu(); }
+function onMenuKey(e) { if (e.key === 'Escape') closeCardMenu(); }
+function openCardMenu(anchor, items) {
+    const wasOpen = openMenuEl && openMenuEl.dataset.for === anchor.dataset.menuId;
+    closeCardMenu();
+    if (wasOpen) return;
+    anchor.dataset.menuId ||= 'm' + Math.random().toString(36).slice(2, 8);
+    const menu = document.createElement('div');
+    menu.className = 'card-menu';
+    menu.setAttribute('role', 'menu');
+    menu.dataset.for = anchor.dataset.menuId;
+    for (const [text, fn, danger] of items) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('role', 'menuitem');
+        b.textContent = text;
+        if (danger) b.className = 'is-danger';
+        b.onclick = (e) => { e.stopPropagation(); closeCardMenu(); fn(); };
+        menu.appendChild(b);
+    }
+    menu.addEventListener('click', (e) => e.stopPropagation());
+    document.body.appendChild(menu);
+    const r = anchor.getBoundingClientRect();
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+    menu.style.top = (r.bottom + 6 + h > window.innerHeight ? r.top - h - 6 : r.bottom + 6) + 'px';
+    openMenuEl = menu;
+    setTimeout(() => {
+        document.addEventListener('pointerdown', onMenuOutside, true);
+        document.addEventListener('keydown', onMenuKey, true);
+    });
+    menu.querySelector('button')?.focus();
+}
 
 function makeActionButton(kind, label, onClick) {
     const btn = document.createElement('button');
@@ -588,7 +631,14 @@ function buildCardActions(bundle) {
     });
     deleteBtn.classList.add('card-action-danger');
 
-    actionsDiv.append(assignWrap, tagsBtn, exportBtn, duplicateBtn, deleteBtn);
+    // 0.8.1e: tarjeta más liviana: Exportar, Duplicar y Eliminar van en el menú "…"
+    const moreBtn = makeActionButton('more', 'Más opciones', () => openCardMenu(moreBtn, [
+        ['Exportar .grd', () => exportBtn.onclick(new Event('click'))],
+        ['Duplicar', () => duplicateBtn.onclick(new Event('click'))],
+        ['Eliminar', () => deleteBtn.onclick(new Event('click')), true]
+    ]));
+    moreBtn.setAttribute('aria-haspopup', 'menu');
+    actionsDiv.append(assignWrap, tagsBtn, moreBtn);
     return { actionsDiv, assignBtn, badge };
 }
 
@@ -1706,7 +1756,7 @@ function assignedCopyControls(user, asg, original) {
         b.textContent = prev;
         paint();
     };
-    const send = btn('Enviar mi versión', `Reemplazar la copia de ${name} por tu versión`, async (b) => {
+    const send = btn('Copiar mi versión', `Reemplazar la copia de ${name} por tu versión`, async (b) => {
         if (!(await customConfirm(`La copia de ${name} va a quedar igual a tu versión. Lo que haya cambiado en su copia se guarda como versión anterior. ¿Seguir?`))) return;
         run(b, async () => {
             if (original.ownerId && !(await pushBundle(original))) throw new Error('No se pudo subir tu versión a la nube. Revisá la conexión.');

@@ -375,15 +375,6 @@ function buildToolbar() {
     };
     tb.appendChild(nameInput);
 
-    // 1.7.0: referencia para pegar en Claude (conector MiraVoz): tablero y página actuales
-    const refBtn = mkBtn('Copiar para Claude', async () => {
-        const g = grid();
-        const text = `Tablero "${b.name}" (id: ${b.id})${g ? `, página "${gridName(g) || 'inicio'}"` : ''}`;
-        try { await navigator.clipboard.writeText(text); showInfoToast('Copiado: pegalo en Claude para pedirle cambios en este tablero.', 4000); }
-        catch { customAlert(text); }
-    }, 'Copia el nombre y el id del tablero y de la página para pedirle cambios a Claude');
-    refBtn.classList.add('et-claude');
-    tb.appendChild(refBtn);
     
     // Aire
     const spacer1 = document.createElement('div');
@@ -500,7 +491,7 @@ function buildToolbar() {
 
 
     // 0.8.1d: dos filas ordenadas — 1) tablero, página y dificultad; 2) filas, columnas, espacio, fondo y, a la
-    // derecha, "Copiar para Claude"
+    // derecha (0.8.1e: sin "Copiar para Claude")
     const lab = (t) => [...tb.querySelectorAll('.et-label')].find(l => l.textContent.startsWith(t));
     const row1 = document.createElement('div'); row1.className = 'et-row et-row-1';
     const row2 = document.createElement('div'); row2.className = 'et-row et-row-2';
@@ -508,7 +499,7 @@ function buildToolbar() {
     row1.append(lab('Tablero'), nameInput, dif);
     const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espacio'), gapSel);
     const push = document.createElement('div'); push.style.flex = '1 1 auto';
-    row2.append(divRows, divCols, esp, bgWrap, push, refBtn);
+    row2.append(divRows, divCols, esp, bgWrap, push);
     tb.replaceChildren(row1, row2);
 
     document.getElementById('board-view').prepend(tb);

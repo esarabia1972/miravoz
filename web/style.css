@@ -1815,3 +1815,44 @@ body.edit-mode .btn-edit-toggle { background: #ffe27a !important; border: 2px so
 #home-view .device-card .board-thumb { height: 110px; }
 #home-view .board-card-actions { padding-top: 6px; gap: 4px; }
 #home-view .board-card-actions .card-action { min-width: 38px; min-height: 38px; padding: 4px; }
+
+/* 0.8.1e — "Tableros de <usuario>": inicio arriba a la derecha; tocar la tarjeta edita la copia */
+.ub-home { margin-left: auto; display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text-muted); }
+.ub-home[hidden] { display: none !important; }
+.ub-home select { min-height: 44px; max-width: 320px; }
+.copy-card { gap: 10px; }
+.copy-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; cursor: pointer; border-radius: 10px; }
+.copy-open:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 3px; }
+.copy-open:hover .board-thumb { border-color: var(--surface-hover-border); }
+.copy-home-tag { align-self: flex-start; font-size: 0.78rem; font-weight: 600; color: var(--accent-text); }
+.copy-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+.copy-meta-row .board-card-meta { margin: 0; }
+.copy-delete { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--danger-text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.copy-delete:hover { background: rgba(255, 50, 80, 0.1); border-color: rgba(255, 50, 80, 0.25); }
+.copy-field { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; width: 100%; }
+.copy-field-label { font-size: 0.85rem; color: var(--text-muted); }
+.copy-field .copy-permission { min-height: 40px; width: 100%; flex: none; }
+.copy-field .assign-status { justify-self: start; }
+.assign-status.is-igual { background: rgba(0, 194, 113, 0.15); color: #0a7a4b; }
+:root:not([data-theme="light"]) .assign-status.is-igual { color: #5be0a4; }
+.copy-card .copy-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+.copy-card .copy-actions .user-btn { min-height: 40px; font-size: 0.86rem; padding: 6px 8px; }
+.copy-card .copy-actions .user-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* 0.8.1e — Lápiz de editar amarillo siempre (más fuerte al editar) */
+.btn-edit-toggle { background: #fff1b3 !important; border: 2px solid #e0b000 !important; color: #8a6400 !important; }
+.btn-edit-toggle:hover { background: #ffe27a !important; }
+:root:not([data-theme="light"]) .btn-edit-toggle:not(:hover) { background: rgba(255, 200, 0, 0.22) !important; color: #ffd24a !important; }
+body.edit-mode .btn-edit-toggle { background: #ffd23f !important; border-color: #b88a00 !important; color: #4a3500 !important; }
+
+/* 0.8.1e — Cartel "Estás editando la copia de…" abajo de la grilla */
+#copy-banner { flex: 0 0 auto; margin: 10px 0 0; align-self: center; }
+
+/* 0.8.1e — Tarjeta del inicio: Asignar, Etiquetas y "…" a la derecha */
+#home-view .board-card-actions { justify-content: flex-end; }
+.card-menu { position: fixed; z-index: 20000; min-width: 170px; padding: 6px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--surface-1-border);
+    box-shadow: 0 10px 30px var(--shadow); display: flex; flex-direction: column; }
+:root:not([data-theme="light"]) .card-menu { background: #22222c; }
+.card-menu button { all: unset; box-sizing: border-box; min-height: 42px; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--text-main); font-size: 0.95rem; }
+.card-menu button:hover, .card-menu button:focus-visible { background: var(--cell-hover); }
+.card-menu button.is-danger { color: var(--danger-text); }

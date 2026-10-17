@@ -2,6 +2,13 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1e] - 2026-10-17
+
+- **Changed**: "Tableros de <usuario>": arriba a la derecha se elige el **tablero de inicio** (uno o ninguno). Cada tarjeta: tocarla abre la copia para editar (al volver al inicio se vuelve a esta pantalla), tacho para quitar, **Permisos** ("Solo visualización" / "Modificable"), **Sincronización** ("Actualizado" / "Versiones con cambios") y "Copiar mi versión" / "Traer sus cambios" (grisados si están iguales).
+- **Changed**: tarjeta del inicio más liviana: Asignar, Etiquetas y un menú "…" con Exportar, Duplicar y Eliminar.
+- **Changed**: el lápiz de editar es amarillo siempre (más fuerte al editar); el cartel "Estás editando la copia de…" va abajo de la grilla.
+- **Removed**: botón "Copiar para Claude" de la barra de edición.
+
 ## [0.8.1d] - 2026-10-17
 
 Devolución de Leti en producción.
