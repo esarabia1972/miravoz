@@ -504,8 +504,13 @@ function buildToolbar() {
     selBtn.id = 'et-select';
     selBtn.setAttribute('aria-pressed', String(gridEdit.isSelectMode()));
     selBtn.classList.toggle('is-on', gridEdit.isSelectMode());
-    const undoBtn = mkBtn('Deshacer', () => undoLast(), 'Deshacer el último cambio (Cmd/Ctrl + Z)');
-    row2.append(divRows, divCols, esp, bgWrap, push, undoBtn, selBtn);
+    // 0.8.1j: Deshacer / Rehacer con íconos (flechas curvas, como en los menús del sistema)
+    const iconBtn = (id, label, svg, fn) => { const b2 = mkBtn('', fn, label); b2.id = id; b2.classList.add('et-icon'); b2.setAttribute('aria-label', label); b2.innerHTML = svg; return b2; };
+    const undoBtn = iconBtn('et-undo', 'Deshacer (Cmd/Ctrl + Z)', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>', () => undoLast());
+    const redoBtn = iconBtn('et-redo', 'Rehacer (Cmd/Ctrl + Shift + Z)', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>', () => redoLast());
+    const undoGroup = document.createElement('div'); undoGroup.className = 'et-group et-undo-group'; undoGroup.append(undoBtn, redoBtn);
+    row2.append(divRows, divCols, esp, bgWrap, push, undoGroup, selBtn);
+    setTimeout(updateUndoButtons);
     tb.replaceChildren(row1, row2);
 
     document.getElementById('board-view').prepend(tb);
@@ -837,6 +842,7 @@ export function initEditor() {
         if (modal().style.display === 'flex' || document.getElementById('cell-menu')) return;
         const mod = e.metaKey || e.ctrlKey;
         if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); await undoLast(); return; }
+        if ((mod && e.key.toLowerCase() === 'z' && e.shiftKey) || (e.ctrlKey && e.key.toLowerCase() === 'y')) { e.preventDefault(); await redoLast(); return; }
         if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); gridEdit.selectAll(); return; }
         if (!gridEdit.selection.size) return;
         const sel = [...gridEdit.selection];
@@ -902,21 +908,40 @@ export function initEditor() {
 // --- 0.8.1: menú contextual de celda ---
 function closeCellMenu() { document.getElementById('cell-menu')?.remove(); }
 
-// 0.8.1g: pila de deshacer (Cmd/Ctrl+Z en edición) además del aviso con "Deshacer"
+// 0.8.1g: pila de deshacer (Cmd/Ctrl+Z en edición) además del aviso con "Deshacer"; 0.8.1j: y de rehacer
 const undoStack = [];
+const redoStack = [];
+const snapshot = () => ({ backup: JSON.parse(JSON.stringify(S.currentBundle)), gridId: S.currentGridId, bundleId: S.currentBundle.id });
+async function applySnapshot(entry) {
+    Object.assign(S.currentBundle, entry.backup);
+    await persistBundle();
+    renderSafe(entry.gridId);
+    updateUndoButtons();
+}
 async function restoreBackup(entry) {
     const i = undoStack.indexOf(entry);
     if (i >= 0) undoStack.splice(i, 1);
     if (!S.currentBundle || S.currentBundle.id !== entry.bundleId) return;
-    Object.assign(S.currentBundle, entry.backup);
-    await persistBundle();
-    renderSafe(entry.gridId);
+    redoStack.push(snapshot());
+    await applySnapshot(entry);
 }
 export async function undoLast() {
     const entry = undoStack[undoStack.length - 1];
-    if (!entry) { showInfoToast('No hay nada para deshacer.', 1800); return; }
+    if (!entry || !S.currentBundle || entry.bundleId !== S.currentBundle.id) { showInfoToast('No hay nada para deshacer.', 1800); return; }
     await restoreBackup(entry);
-    showInfoToast('Deshecho.', 1500);
+}
+export async function redoLast() {
+    const entry = redoStack[redoStack.length - 1];
+    if (!entry || !S.currentBundle || entry.bundleId !== S.currentBundle.id) { showInfoToast('No hay nada para rehacer.', 1800); return; }
+    redoStack.pop();
+    undoStack.push(snapshot());
+    await applySnapshot(entry);
+}
+function updateUndoButtons() {
+    const id = S.currentBundle?.id;
+    const u = document.getElementById('et-undo'), r = document.getElementById('et-redo');
+    if (u) u.disabled = !undoStack.some(e => e.bundleId === id);
+    if (r) r.disabled = !redoStack.some(e => e.bundleId === id);
 }
 async function withUndo(fn, { toast = true } = {}) {
     const entry = { backup: JSON.parse(JSON.stringify(S.currentBundle)), gridId: S.currentGridId, bundleId: S.currentBundle.id };
@@ -924,8 +949,10 @@ async function withUndo(fn, { toast = true } = {}) {
     if (changed === false) return false;
     undoStack.push(entry);
     if (undoStack.length > 20) undoStack.shift();
+    redoStack.length = 0; // un cambio nuevo descarta lo que se podía rehacer
     await persistBundle();
     boards.renderGrid(entry.gridId);
+    updateUndoButtons();
     if (toast) showUndoToast(() => restoreBackup(entry));
     return true;
 }
@@ -1043,7 +1070,9 @@ function updateSelectionBar(n) {
         mk('Listo', () => { gridEdit.clearSelection(); gridEdit.setSelectMode(false); updateSelectionBar(0); }, 'is-primary');
         document.body.appendChild(bar);
     }
-    bar.querySelector('.sb-count').textContent = `${n} ${n === 1 ? 'celda seleccionada' : 'celdas seleccionadas'} · arrastrá una para mover todas`;
+    const cnt = bar.querySelector('.sb-count');
+    cnt.textContent = `${n} ${n === 1 ? 'celda seleccionada' : 'celdas seleccionadas'}`;
+    cnt.title = 'Arrastrá una para mover todas';
 }
 
 function openCellMenu(px, py, elData, x, y) {

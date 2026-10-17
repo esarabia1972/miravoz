@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1i';
+export const AYUDA_VERSION = '0.8.1j';
 
 export const TEMAS = {
     general: {
@@ -115,7 +115,7 @@ En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas
 - Mover: arrastrar una celda (se ve la celda entera y dónde cae: verde si entra, rojo si no). Dos celdas de 1×1 se intercambian; una grande se mueve solo si entra. Con el dedo: mantener apretada un instante y arrastrar (mantener y soltar sin mover abre el menú de la celda).
 - Varias celdas juntas: "Seleccionar" en la barra y tocarlas, o Shift/Cmd + clic, o arrastrar un recuadro desde un lugar vacío. Arrastrar una seleccionada mueve todas; la barra de abajo permite Duplicar, Ocultar/Mostrar o Eliminar. Con teclado: flechas para mover, Supr para eliminar, Esc para soltar, Cmd/Ctrl+A para elegir todas.
 - Filas y columnas intermedias: el botón "···" de cada fila (a la izquierda) o columna (arriba), o el botón derecho sobre una celda: insertar arriba/abajo o izquierda/derecha, o eliminar (solo si está vacía, para no perder contenido).
-- Deshacer: botón "Deshacer" de la barra o Cmd/Ctrl+Z.
+- Deshacer y Rehacer: flechas curvas de la barra, o Cmd/Ctrl+Z y Cmd/Ctrl+Shift+Z.
 - Barra de edición: nombre, Dificultad (nivel de vocabulario), filas y columnas, "Espacio" entre celdas de la página (chico a muy grande, para separar estímulos) y "Fondo" (color de fondo de la página; "Sin fondo" lo quita). Con fondo, las celdas vacías quedan transparentes: sirven de separadores.
 - Tamaño también arrastrando el borde derecho (ancho), el de abajo (alto) o la esquina de la celda. "Mostrar el texto en la celda" se puede apagar para dejar solo la imagen (la voz sigue diciendo el texto). Páginas en la franja de miniaturas.
 - Si una celda más grande tapa otras, se avisa antes de quitarlas; todo se puede deshacer y cada guardado deja una versión restaurable.

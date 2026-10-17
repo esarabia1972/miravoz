@@ -305,7 +305,7 @@ if (caseArg === 'editor-sesion') {
     check('cada celda tiene la esquina para cambiar el tamaño', !!$('cell-0-0')?.querySelector('.resize-handle'), '');
     check('0.8.1g: bordes para estirar (ancho, alto y esquina)', ['.resize-e', '.resize-s', '.resize-se'].every(q => !!$('cell-0-0')?.querySelector(q)), '');
     check('0.8.1g: la grilla queda en modo edición (sin arrastre nativo)', document.querySelector('.grid-container')?.classList.contains('edit-grid') && !$('cell-0-0')?.draggable, '');
-    check('0.8.1g: botones Seleccionar y Deshacer en la barra', !!document.getElementById('et-select') && [...document.querySelectorAll('#editor-toolbar button')].some(b => b.textContent === 'Deshacer'), '');
+    check('0.8.1j: botones Seleccionar, Deshacer y Rehacer en la barra', !!document.getElementById('et-select') && !!document.getElementById('et-undo') && !!document.getElementById('et-redo'), '');
     editor.openCellEditor(S.currentGridId, g.gridElements[0], 0, 0);
     $('ce-show-label').checked = false; $('ce-save').click(); await sleep(150);
     check('"Mostrar el texto" apagado: solo imagen (el texto queda para la voz)', g.gridElements[0].labelHidden === true && !$('cell-0-0').querySelector('.picto-label') && $('cell-0-0').getAttribute('aria-label') === 'carne', $('cell-0-0').innerHTML.slice(0, 120));

@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1j] - 2026-10-17
+
+- **Added**: **Rehacer** en la edición (Cmd/Ctrl+Shift+Z). Deshacer y Rehacer pasan a ser íconos de flecha curva, grisados cuando no hay nada para deshacer o rehacer.
+- **Changed**: la barra de celdas seleccionadas es azul (como "Seleccionar"), va en una sola línea y "Listo" queda a la derecha, más separado.
+
 ## [0.8.1i] - 2026-10-17
 
 - **Fixed**: al estirar una celda desde el borde, el soltar se tomaba como un toque y abría el editor de la celda.
