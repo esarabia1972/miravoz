@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1l';
+export const AYUDA_VERSION = '0.8.1m';
 
 export const TEMAS = {
     general: {
@@ -102,7 +102,7 @@ Se eligen con el mismo modo de acceso del tablero. No reordenan el tablero. Se g
         titulo: 'Pantalla de inicio (lista de tableros)',
         alias: ['home', 'lista', 'etiquetas', 'buscar', 'ordenar', 'importar', 'nuevo tablero'],
         texto: `Arriba: + (nuevo tablero), importar (.grd de Asterics Grid u .obz), pestañas de etiquetas con contadores, buscar, ordenar (última modificación, creación, alfabético, agrupar por etiqueta) y filtro por usuario.
-Barra en una línea: +, importar, etiquetas (con flechitas si no entran), y a la derecha buscar, ordenar y usuario. Cada tarjeta: abrir tocándola; íconos para asignar a un usuario y etiquetas, y el menú "…" con Exportar .grd, Duplicar y Eliminar.
+Barra en una línea: +, importar, etiquetas (una por vez; tocar la elegida vuelve a Todos; con flechitas si no entran), y a la derecha buscar, ordenar y usuario. Cada tarjeta: abrir tocándola; íconos para asignar a un usuario y etiquetas, y el menú "…" con Exportar .grd, Duplicar y Eliminar.
 A la derecha, flechas grandes de página anterior/siguiente para pasar la lista con la mirada o el barrido (grisadas si no hay más).
 En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas de edición.`
     },

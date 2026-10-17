@@ -850,7 +850,10 @@ function renderHomeFilterBar() {
         tagFilterChips.appendChild(all);
         used.forEach(({ tag, key, count }) => {
             const tab = makeFilterTab(tag, count, homeFilters.tags.has(key), () => {
-                if (homeFilters.tags.has(key)) homeFilters.tags.delete(key); else homeFilters.tags.add(key);
+                // 0.8.1m: una sola etiqueta por vez (tocar la elegida vuelve a "Todos")
+                const was = homeFilters.tags.has(key);
+                homeFilters.tags.clear();
+                if (!was) homeFilters.tags.add(key);
                 renderHomeFilterBar(); applyHomeFilters();
                 [...tagFilterChips.querySelectorAll('.home-tab')].find(c => c.dataset.key === key)?.focus();
             });

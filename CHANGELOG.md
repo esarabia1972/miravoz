@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1m] - 2026-10-17
+
+- **Changed**: en el inicio se filtra por **una sola etiqueta por vez** (antes se combinaban y quedaba confuso). Tocar la etiqueta elegida vuelve a "Todos".
+
 ## [0.8.1l] - 2026-10-17
 
 - **Changed**: "Dar copia": para quien ya tiene su copia, el orden es nombre, "Editar copia", estado ("Actualizado" / "Con cambios"), "Copiar mi versión" y "Traer sus cambios".
