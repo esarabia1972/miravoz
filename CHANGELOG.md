@@ -2,6 +2,19 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.2a] - 2026-10-17
+
+Versión 0.8.2: devolución de Leti en producción, edición mucho más ágil y voces naturales.
+
+Resumen de 0.8.1d → 0.8.1t:
+- **Edición**: arrastre con vista previa de la celda (mouse, lápiz y dedo), selección múltiple ("Seleccionar celdas", Shift/Cmd + clic o recuadro), estirar desde los bordes, insertar y eliminar filas y columnas intermedias, Deshacer/Rehacer (también con teclado), barra en dos filas con "Filas" y "Columnas" en recuadros, "Espaciado", "Sin fondo" con ícono transparente. "Copiar para Claude" y "Dificultad" quedaron fuera por ahora.
+- **Copias**: estado "Actualizado" / "Con cambios" con "Copiar mi versión" y "Traer sus cambios" (con versión de respaldo), "Tableros de <usuario>" con tarjetas, tablero de inicio arriba y la tarjeta abre la copia para editar.
+- **Inicio**: barra en una línea, una etiqueta por vez, tarjetas compactas con menú "…".
+- **Voces de MiraVoz** (ElevenLabs): Sofía, Melisa, Carlos y Rolando, con caché en el dispositivo, pre-descarga de las celdas, frase armada con los audios guardados sin internet y respaldo con la voz del sistema; la frase completa cierra con punto.
+
+Además en esta versión:
+- **Changed**: "Sin fondo" queda grisado cuando la página ya no tiene fondo.
+
 ## [0.8.1t] - 2026-10-17
 
 - **Changed**: el botón pasa a llamarse "Seleccionar celdas". Al tocarlo, en vez de un aviso aparece la barra azul con "Sin celdas seleccionadas" (Duplicar, Ocultar y Eliminar grisados hasta elegir alguna) y queda hasta tocar "Listo".

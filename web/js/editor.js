@@ -479,6 +479,7 @@ function buildToolbar() {
     let bgTimer = null;
     bgInput.oninput = () => { clearTimeout(bgTimer); bgTimer = setTimeout(() => { if (grid()?.backgroundColor !== bgInput.value) setBg(bgInput.value); }, 600); };
     const bgClear = mkBtn('Sin fondo', () => { bgInput.value = '#ffffff'; setBg(null); }, 'Quitar el color de fondo de esta página');
+    bgClear.id = 'et-bg-clear';
     bgClear.style.padding = '4px 10px';
     bgWrap.append(mkLabel('Fondo'), bgInput, bgClear);
     tb.appendChild(bgWrap);
@@ -950,6 +951,7 @@ function updateUndoButtons() {
         bgIn.classList.toggle('is-none', !has);
         if (has && bgIn.value.toLowerCase() !== g.backgroundColor.toLowerCase()) bgIn.value = g.backgroundColor;
         bgIn.title = has ? 'Color de fondo de esta página' : 'Sin fondo (tocá para elegir un color)';
+        const clr = document.getElementById('et-bg-clear'); if (clr) clr.disabled = !has; // grisado si ya no hay fondo
     }
     const rc = document.getElementById('et-rows-count'), cc = document.getElementById('et-cols-count');
     if (g && rc) rc.textContent = String(g.rowCount || 3);
