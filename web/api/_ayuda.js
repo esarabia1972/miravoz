@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1s';
+export const AYUDA_VERSION = '0.8.1t';
 
 export const TEMAS = {
     general: {
@@ -113,7 +113,7 @@ En la tablet vinculada se ven solo los tableros de ese usuario, sin herramientas
 - Editar una celda: tocarla (o botón derecho → Editar). Texto, qué dice, color, a qué página lleva, TAMAÑO (cuántas columnas y filas ocupa: una celda puede ser grande, como "carne" ocupando tres columnas) e IMAGEN: un pictograma de ARASAAC o una imagen propia ("Subir imagen propia": foto o dibujo; se achica sola para que pese poco y anda sin conexión). "Quitar imagen" la saca.
 - Botón derecho sobre una celda: Editar, Duplicar, Copiar, Cortar, Pegar, Ocultar/Mostrar (oculta en uso, visible al editar) y Eliminar. Sobre un lugar vacío: Nueva celda o Pegar.
 - Mover: arrastrar una celda (se ve la celda entera y dónde cae: verde si entra, rojo si no). Dos celdas de 1×1 se intercambian; una grande se mueve solo si entra. Con el dedo: mantener apretada un instante y arrastrar (mantener y soltar sin mover abre el menú de la celda).
-- Varias celdas juntas: "Seleccionar" en la barra y tocarlas, o Shift/Cmd + clic, o arrastrar un recuadro desde un lugar vacío. Arrastrar una seleccionada mueve todas; la barra de abajo permite Duplicar, Ocultar/Mostrar o Eliminar. Con teclado: flechas para mover, Supr para eliminar, Esc para soltar, Cmd/Ctrl+A para elegir todas.
+- Varias celdas juntas: "Seleccionar celdas" en la barra (aparece la barra azul) y tocarlas, o Shift/Cmd + clic, o arrastrar un recuadro desde un lugar vacío. Arrastrar una seleccionada mueve todas; la barra de abajo permite Duplicar, Ocultar/Mostrar o Eliminar. Con teclado: flechas para mover, Supr para eliminar, Esc para soltar, Cmd/Ctrl+A para elegir todas.
 - Filas y columnas intermedias: el botón "···" de cada fila (a la izquierda) o columna (arriba), o el botón derecho sobre una celda: insertar arriba/abajo o izquierda/derecha, o eliminar (solo si está vacía, para no perder contenido).
 - Deshacer y Rehacer: flechas curvas de la barra, o Cmd/Ctrl+Z y Cmd/Ctrl+Shift+Z.
 - Barra de edición: nombre, "Filas" y "Columnas" (− y + con la cantidad en el medio; agregan o quitan al final), "Espaciado" entre celdas de la página (chico a muy grande, para separar estímulos) y "Fondo" (color de fondo de la página; "Sin fondo" lo quita). Con fondo, las celdas vacías quedan transparentes: sirven de separadores.

@@ -1958,3 +1958,4 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 /* 0.8.1s — "Sin fondo": el cuadrito de color muestra transparente (blanco con raya roja) */
 #editor-toolbar input[type="color"].is-none::-webkit-color-swatch { background: linear-gradient(to top right, #fff calc(50% - 1.5px), #e53935 calc(50% - 1px), #e53935 calc(50% + 1px), #fff calc(50% + 1.5px)) !important; }
 #editor-toolbar input[type="color"].is-none::-moz-color-swatch { background: linear-gradient(to top right, #fff calc(50% - 1.5px), #e53935 calc(50% - 1px), #e53935 calc(50% + 1px), #fff calc(50% + 1.5px)) !important; }
+.selection-bar .sb-btn:disabled { opacity: 0.45; cursor: default; }

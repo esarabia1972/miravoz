@@ -497,12 +497,13 @@ function buildToolbar() {
     const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espaciado'), gapSel);
     const push = document.createElement('div'); push.style.flex = '1 1 auto';
     // 0.8.1g: "Seleccionar" (para el dedo; con mouse también sirve Shift/Cmd + clic o un recuadro desde un lugar vacío)
-    const selBtn = mkBtn('Seleccionar', () => {
+    const selBtn = mkBtn('Seleccionar celdas', () => {
         gridEdit.setSelectMode(!gridEdit.isSelectMode());
         selBtn.classList.toggle('is-on', gridEdit.isSelectMode());
         selBtn.setAttribute('aria-pressed', String(gridEdit.isSelectMode()));
-        if (gridEdit.isSelectMode()) showInfoToast('Tocá las celdas para elegirlas; después arrastrá una para mover todas.', 3500);
-        else gridEdit.clearSelection();
+        // 0.8.1t: en vez de un aviso, la barra azul ("Sin celdas seleccionadas") queda a la vista mientras se elige
+        if (!gridEdit.isSelectMode()) gridEdit.clearSelection();
+        updateSelectionBar(gridEdit.selection.size);
     }, 'Elegir varias celdas para moverlas, duplicarlas, ocultarlas o eliminarlas juntas');
     selBtn.id = 'et-select';
     selBtn.setAttribute('aria-pressed', String(gridEdit.isSelectMode()));
@@ -1063,7 +1064,7 @@ async function selectionAction(kind) {
 }
 function updateSelectionBar(n) {
     let bar = document.getElementById('selection-bar');
-    if (!n || !editMode) {
+    if ((!n && !gridEdit.isSelectMode()) || !editMode) {
         bar?.remove();
         document.getElementById('et-select')?.classList.toggle('is-on', gridEdit.isSelectMode());
         return;
@@ -1078,15 +1079,20 @@ function updateSelectionBar(n) {
         count.className = 'sb-count';
         bar.appendChild(count);
         const mk = (text, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sb-btn ' + cls; b.textContent = text; b.onclick = fn; bar.appendChild(b); return b; };
-        mk('Duplicar', () => selectionAction('duplicate'));
-        mk('Ocultar / Mostrar', () => selectionAction('hide'));
-        mk('Eliminar', () => selectionAction('delete'), 'is-danger');
-        mk('Listo', () => { gridEdit.clearSelection(); gridEdit.setSelectMode(false); updateSelectionBar(0); }, 'is-primary');
+        mk('Duplicar', () => selectionAction('duplicate')).dataset.needs = '1';
+        mk('Ocultar / Mostrar', () => selectionAction('hide')).dataset.needs = '1';
+        mk('Eliminar', () => selectionAction('delete'), 'is-danger').dataset.needs = '1';
+        mk('Listo', () => {
+            gridEdit.clearSelection(); gridEdit.setSelectMode(false);
+            const sb = document.getElementById('et-select'); if (sb) { sb.classList.remove('is-on'); sb.setAttribute('aria-pressed', 'false'); }
+            updateSelectionBar(0);
+        }, 'is-primary');
         document.body.appendChild(bar);
     }
     const cnt = bar.querySelector('.sb-count');
-    cnt.textContent = `${n} ${n === 1 ? 'celda seleccionada' : 'celdas seleccionadas'}`;
-    cnt.title = 'Arrastrá una para mover todas';
+    cnt.textContent = !n ? 'Sin celdas seleccionadas' : `${n} ${n === 1 ? 'celda seleccionada' : 'celdas seleccionadas'}`;
+    cnt.title = n ? 'Arrastrá una para mover todas' : 'Tocá las celdas para elegirlas';
+    bar.querySelectorAll('[data-needs]').forEach(b => { b.disabled = !n; });
 }
 
 function openCellMenu(px, py, elData, x, y) {

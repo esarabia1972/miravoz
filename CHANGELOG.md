@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1t] - 2026-10-17
+
+- **Changed**: el botón pasa a llamarse "Seleccionar celdas". Al tocarlo, en vez de un aviso aparece la barra azul con "Sin celdas seleccionadas" (Duplicar, Ocultar y Eliminar grisados hasta elegir alguna) y queda hasta tocar "Listo".
+
 ## [0.8.1s] - 2026-10-17
 
 - **Changed**: sin color de fondo, el cuadrito de "Fondo" muestra el ícono de transparente (blanco con raya roja), como en el selector de colores. Cambiar o quitar el fondo también se puede deshacer y rehacer.
