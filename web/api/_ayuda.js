@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1k';
+export const AYUDA_VERSION = '0.8.1l';
 
 export const TEMAS = {
     general: {
@@ -166,7 +166,7 @@ Se usan con el mismo modo de acceso; "Actividades" vuelve al menú y se puede sa
 Cada tarjeta: nombre, "Última conexión" de su tablet, código vigente y si tiene el registro de uso activo.
 - Tableros: arriba a la derecha "Tablero de inicio" (una de sus copias o ninguno: la tablet abre directo ahí o muestra la lista). Cada copia es una tarjeta con miniatura: tocarla abre la copia para editarla (al ir al inicio se vuelve a esta pantalla); tacho para quitarla; "Permisos" ("Solo visualización" o "Modificable"); "Sincronización" ("Actualizado" o "Con cambios"). Al asignar un tablero el usuario recibe una COPIA; el original no cambia.
 - Si está "Con cambios": "Copiar mi versión" (la copia queda igual al original) o "Traer sus cambios" (el original queda igual a la copia). Antes de pisar se guarda la versión anterior (se puede restaurar desde Claude con historial_tablero).
-- En el ícono de asignar de un tablero, quien ya tiene su copia muestra el mismo cartel ("Actualizado" o "Con cambios") y los botones "Copiar mi versión", "Traer sus cambios" y "Editar su copia".
+- En el ícono de asignar de un tablero, quien ya tiene su copia muestra "Editar copia", el mismo cartel ("Actualizado" o "Con cambios") y los botones "Copiar mi versión" y "Traer sus cambios".
 - Estadística: ver tema "estadistica". Al crear un usuario, el registro de uso viene activado (se declara el consentimiento); se puede destildar.
 - Nuevo código: para vincular una tablet (ver "vinculacion"). Desvincular tablet.
 - Tacho junto al nombre: eliminar el usuario (borra sus copias).`

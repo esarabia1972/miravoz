@@ -1707,12 +1707,14 @@ function assignedCopyControls(user, asg, original) {
             window.dispatchEvent(new CustomEvent('miravoz:bundles-changed', { detail: { ids: [original.id], removed: [] } }));
         }, `Listo: tu tablero quedó igual a la copia de ${name}.`);
     });
-    const edit = btn('Editar su copia', `Editar la copia de ${name}`, () => {
+    const edit = btn('Editar copia', `Editar la copia de ${name}`, () => {
         closeAssignModal();
         window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: asg.id } }));
     });
-    actions.append(send, pull, edit); // 0.8.1h: Editar a la derecha
-    box.append(status, actions);
+    // 0.8.1l: Nombre · [Editar copia] · estado · [Copiar mi versión] [Traer sus cambios]
+    edit.classList.add('assign-edit-btn');
+    actions.append(status, send, pull);
+    box.append(edit, actions);
     paint();
     return box;
 }

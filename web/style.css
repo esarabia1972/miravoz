@@ -1942,3 +1942,8 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
     color: #4a3500; font-size: 1.2rem; font-weight: 700; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 #editor-toolbar .et-step-btn:hover { background: #ffe27a; }
 #editor-toolbar .et-stepper-count { min-width: 26px; text-align: center; font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+/* 0.8.1l — Dar copia: [Editar copia] junto al nombre; estado y sincronización a la derecha */
+.assign-option.is-assigned .assign-copy { justify-content: space-between; }
+.assign-option.is-assigned .assign-edit-btn { margin-left: 4px; }
+.assign-option.is-assigned .assign-copy-actions { align-items: center; margin-left: auto; }
