@@ -172,7 +172,21 @@ function speakCloud(text, opts) {
     else if (sentenceUtterance && opts.cancelPrevious) setSentenceUtterance(null);
     const stale = () => gen !== generation || seq !== cloudSeq;
     cloud.getAudio(text, prefs.cloudVoice, prefs.rate)
-        .then(buf => { if (!stale()) return cloud.playAudio(buf, { volume: opts.volume }); })
+        .then(buf => { if (!stale()) return cloud.playAudio(buf, { volume: opts.volume }); },
+            // 0.8.1q: sin la frase entera (sin internet o falla), se arma con los audios ya guardados de cada celda,
+            // uno detrás del otro con la misma voz. Si falta alguno, la voz del sistema dice toda la frase.
+            async (err) => {
+                if (stale()) return;
+                const parts = Array.isArray(opts.parts) ? opts.parts.filter(Boolean) : [];
+                if (parts.length < 2) throw err;
+                const bufs = [];
+                for (const p of parts) { const b = await cloud.getCachedAudio(p, prefs.cloudVoice, prefs.rate); if (!b) throw err; bufs.push(b); }
+                for (let i = 0; i < bufs.length; i++) {
+                    if (stale()) return;
+                    await cloud.playAudio(bufs[i], { volume: opts.volume });
+                    if (i < bufs.length - 1) await new Promise(r => setTimeout(r, 120)); // la pausa breve entre pictogramas
+                }
+            })
         .then(() => { lastCloudError = ''; if (sentenceUtterance === token) setSentenceUtterance(null); })
         .catch(err => {
             if (sentenceUtterance === token) setSentenceUtterance(null);
@@ -193,13 +207,13 @@ export function closeSentence(text) {
     return !t || /[.!?…;:]["»”')\]]*$/.test(t) ? t : t + '.';
 }
 
-export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null, _noCloud = false } = {}) {
+export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null, _noCloud = false, parts = null } = {}) {
     if (!text) return;
     if (sentence) text = closeSentence(text); // 0.8.1p: la frase cierra la entonación
     // 0.8.1n: voces de MiraVoz para lo que dice la persona (los avisos del barrido, más bajitos, siguen con la del
     // sistema: en CAA la voz de los avisos se distingue de la voz propia)
     if (!_noCloud && !_retry && !voiceURI && cloudVoiceActive() && volume >= 0.99 && (!lang || /^es/i.test(lang)) && String(text).length <= 400) {
-        speakCloud(text, { cancelPrevious, volume, lang, sentence });
+        speakCloud(text, { cancelPrevious, volume, lang, sentence, parts });
         return;
     }
     if (!synth) return;

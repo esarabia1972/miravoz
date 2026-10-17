@@ -267,11 +267,12 @@ export function sentenceText() {
 export function playSentence() {
     if (sentenceAccumulator.length === 0) return;
     closeWord();
-    const fullText = sentenceAccumulator
+    const parts = sentenceAccumulator
         .map(i => (i.speakText !== undefined ? i.speakText : i.text))
-        .filter(Boolean)
-        .join(', '); // como siempre: una pausa breve entre pictogramas
-    if (fullText) speak(fullText, { sentence: true });
+        .filter(Boolean);
+    const fullText = parts.join(', '); // como siempre: una pausa breve entre pictogramas
+    // parts: sin internet, la voz de MiraVoz puede decir la frase uniendo los audios ya guardados de cada celda
+    if (fullText) speak(fullText, { sentence: true, parts });
 }
 
 export function renderSentence() {

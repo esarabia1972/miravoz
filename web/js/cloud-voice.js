@@ -42,6 +42,16 @@ async function openCache() {
     try { return typeof caches !== 'undefined' ? await caches.open(CACHE) : null; } catch { return null; }
 }
 
+/** Solo lo guardado en el dispositivo (sin pedir nada): el MP3 o null. */
+export async function getCachedAudio(rawText, voice, rate = 1) {
+    const text = normalizeText(rawText);
+    if (!text || !voice) return null;
+    const cache = await openCache();
+    if (!cache) return null;
+    const hit = await cache.match(await cacheKey(text, voice, rate)).catch(() => null);
+    return hit ? hit.arrayBuffer() : null;
+}
+
 /** MP3 (ArrayBuffer) del texto con esa voz: primero el guardado en el dispositivo, si no lo pide. */
 export async function getAudio(rawText, voice, rate = 1, { timeout = FETCH_TIMEOUT_MS } = {}) {
     const text = normalizeText(rawText);
