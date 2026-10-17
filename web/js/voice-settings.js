@@ -79,8 +79,8 @@ function fillCloud(sel) {
         list.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = cloudVoiceLabel(v); g.appendChild(o); });
         sel.appendChild(g);
     };
-    group('Mis voces', mine);
-    group('Otras voces (multilingües)', others);
+    // 0.8.1o: lista fija de MiraVoz (sin grupos)
+    cloudVoices.slice().sort((a, b) => (a.genero || '').localeCompare(b.genero || '') || a.nombre.localeCompare(b.nombre)).forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = cloudVoiceLabel(v); sel.appendChild(o); });
     if (!cloudVoices.some(v => v.id === current.cloudVoice)) {
         current.cloudVoice = (mine[0] || others[0] || {}).id || '';
         if (current.cloudVoice) save();

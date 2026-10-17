@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1n';
+export const AYUDA_VERSION = '0.8.1o';
 
 export const TEMAS = {
     general: {
@@ -134,7 +134,7 @@ Desde Claude: celdas grandes (ancho/alto en poner_celdas), ocultar/mostrar (ocul
         alias: ['voces', 'velocidad', 'tono', 'mejorada', 'premium', 'isabela', 'monica', 'voces de miravoz', 'elevenlabs', 'voz natural', 'masculina'],
         texto: `Configuración → Voz. Se elige por usuario y se guarda en cada dispositivo (cada uno tiene su lista de voces).
 - Arriba, "Del sistema" o "De MiraVoz".
-- De MiraVoz: voces naturales (hombre, mujer, distintos acentos) servidas por MiraVoz. Necesitan internet la primera vez que se dice cada texto; el audio queda guardado en el dispositivo y después suena al instante y sin conexión. Al abrir una página se bajan de antemano los textos de sus celdas. Si no hay conexión o falla, se usa la voz del sistema (nunca queda muda). Velocidad sí; tono no. Los avisos del barrido siguen con la voz del sistema.
+- De MiraVoz: voces naturales elegidas para MiraVoz (Sofía y Melisa, mujeres; Carlos y Rolando, hombres). Suenan aunque el iPad esté en modo silencio. Necesitan internet la primera vez que se dice cada texto; el audio queda guardado en el dispositivo y después suena al instante y sin conexión. Al abrir una página se bajan de antemano los textos de sus celdas. Si no hay conexión o falla, se usa la voz del sistema (nunca queda muda). Velocidad sí; tono no. Los avisos del barrido siguen con la voz del sistema.
 - Voz: "Automática" (prefiere las mejoradas), una voz de la lista, o "La de Ajustes del dispositivo (España/México/Argentina)": MiraVoz no elige voz y el sistema usa la configurada en Accesibilidad → Contenido leído.
 - Velocidad (lenta a rápida) y Tono (grave a agudo). "Probar" dice una frase.
 - Voces "mejoradas/premium": suenan más naturales y funcionan sin conexión. iPad/Mac: Ajustes → Accesibilidad → Contenido leído → Voces → Español. Android: Ajustes → Accesibilidad → Texto a voz → Google → instalar la voz en español.

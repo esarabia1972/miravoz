@@ -2,6 +2,11 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1o] - 2026-10-17
+
+- **Fixed**: en iPad las voces de MiraVoz no sonaban (aparecía el parlante en la barra pero sin sonido): se reproducían con Web Audio, que respeta el modo silencio. Ahora usan un elemento de audio habilitado con el primer toque y la sesión de audio de "reproducción".
+- **Changed**: las voces de MiraVoz son una lista fija elegida para MiraVoz (Sofía, Melisa, Carlos y Rolando), no todas las de la cuenta de ElevenLabs. El servidor rechaza cualquier otra.
+
 ## [0.8.1n] - 2026-10-17
 
 - **Added**: **Voces de MiraVoz** (Configuración → Voz → "De MiraVoz"): voces naturales de ElevenLabs, con voces de hombre y de mujer, elegibles por persona. El servidor (`/api/voz`) guarda la clave y solo responde a cuentas registradas y tablets vinculadas. Cada texto se pide una sola vez por voz y queda guardado en el dispositivo; al abrir una página se bajan de antemano los textos de sus celdas (después suenan sin conexión). Si no hay conexión o falla, se usa la voz del sistema. Los avisos del barrido siguen con la voz del sistema.

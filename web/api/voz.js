@@ -1,6 +1,6 @@
 // /api/voz — "Voces de MiraVoz" (0.8.1n): voces naturales con ElevenLabs.
 //
-//   GET  /api/voz?lista=1                         → voces disponibles en la cuenta de ElevenLabs de MiraVoz
+//   GET  /api/voz?lista=1                         → las voces de MiraVoz (lista fija en _voces.js)
 //   POST /api/voz  { texto, voz, velocidad }      → audio MP3 de ese texto con esa voz
 //
 // La clave de ElevenLabs vive solo acá (variable de entorno ELEVENLABS_API_KEY, nunca en el navegador).
@@ -8,6 +8,7 @@
 // El navegador guarda cada audio: cada texto se pide una sola vez por voz (ver web/js/cloud-voice.js).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './_config.js';
+import { VOCES, VOZ_IDS } from './_voces.js';
 
 const EL = 'https://api.elevenlabs.io';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_flash_v2_5'; // rápido (~75 ms) y con español
@@ -57,19 +58,8 @@ export async function GET(request) {
     if (!(await authorized(request))) return json({ error: 'Iniciá sesión o vinculá la tablet.' }, 401);
     const { key, error } = keyOrError();
     if (error) return error;
-    const r = await fetch(`${EL}/v1/voices`, { headers: { 'xi-api-key': key } });
-    if (!r.ok) return json({ error: r.status === 401 ? 'La clave de ElevenLabs no es válida o no tiene permiso para leer voces.' : `ElevenLabs respondió ${r.status}.` }, 502);
-    const data = await r.json();
-    const voces = (data.voices || []).map(v => ({
-        id: v.voice_id,
-        nombre: v.name,
-        propia: v.category !== 'premade', // las que agregaste a "My Voices" (clonadas, diseñadas o de la biblioteca)
-        genero: v.labels?.gender || '',
-        acento: v.labels?.accent || '',
-        edad: v.labels?.age || '',
-        idioma: v.labels?.language || v.verified_languages?.[0]?.language || '',
-        muestra: v.preview_url || ''
-    }));
+    // 0.8.1o: solo las voces elegidas para MiraVoz (no todas las de la cuenta de ElevenLabs)
+    const voces = VOCES.map(v => ({ id: v.id, nombre: v.nombre, propia: true, genero: v.genero, acento: '', edad: '', idioma: 'es', muestra: '' }));
     return json({ voces, modelo: MODEL });
 }
 
@@ -84,7 +74,7 @@ export async function POST(request) {
     const velocidad = Math.min(1.2, Math.max(0.7, Number(body?.velocidad) || 1));
     if (!texto) return json({ error: 'Falta el texto.' }, 400);
     if (texto.length > MAX_CHARS) return json({ error: `Texto demasiado largo (máximo ${MAX_CHARS} caracteres).` }, 413);
-    if (!/^[A-Za-z0-9]{8,40}$/.test(voz)) return json({ error: 'Voz inválida.' }, 400);
+    if (!VOZ_IDS.has(voz)) return json({ error: 'Esa voz no está habilitada en MiraVoz.' }, 400);
 
     const r = await fetch(`${EL}/v1/text-to-speech/${voz}?output_format=mp3_44100_64`, {
         method: 'POST',

@@ -2,8 +2,8 @@
 //
 // Pide el audio a /api/voz y lo guarda en este dispositivo (Cache Storage): cada texto se pide una sola vez por
 // voz y velocidad, y después suena al instante y sin conexión. Al abrir una página del tablero se bajan de
-// antemano los textos de sus celdas. Se reproduce con Web Audio: en iPad, una vez habilitado con un toque,
-// puede sonar después sin otro toque (Barrido, Rostro, Mirada).
+// antemano los textos de sus celdas. Se reproduce con un elemento <audio>: en iPad, una vez habilitado con un
+// toque, puede sonar después sin otro toque (Barrido, Rostro, Mirada), y no lo corta el modo silencio.
 // Si algo falla o tarda, speech.js usa la voz del sistema: MiraVoz nunca se queda muda.
 
 const CACHE = 'miravoz-voces-v1';
@@ -77,51 +77,86 @@ export async function listVoices() {
     return data.voces || [];
 }
 
-// --- Reproducción con Web Audio ---
-let ctx = null, current = null;
-function audioCtx() {
-    if (!ctx) {
-        const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
-        if (!AC) return null;
-        ctx = new AC();
-    }
-    return ctx;
+// --- Reproducción ---
+// 0.8.1o: en iPad, Web Audio respeta el modo silencio (se veía el parlante en la barra pero no sonaba), mientras
+// que la voz del sistema y un elemento <audio> suenan igual. Por eso se reproduce con UN elemento <audio> que se
+// habilita con el primer toque (después puede sonar sin otro toque: Barrido, Rostro, Mirada). Además, donde
+// existe (Safari 17+), se pide la sesión de audio de "reproducción" para que tampoco la corte el modo silencio.
+try { if (typeof navigator !== 'undefined' && navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* */ }
+
+/** WAV de silencio (0,05 s) para habilitar el <audio> dentro de un toque. */
+function silentWavUrl() {
+    const rate = 8000, n = 400, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+    v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    let bin = ''; new Uint8Array(buf).forEach(b => { bin += String.fromCharCode(b); });
+    return 'data:audio/wav;base64,' + btoa(bin);
 }
-// Si el sistema suspendió el audio (iPad que volvió de segundo plano), el próximo toque lo reanuda
+let el = null, unlockedEl = false, current = null; // current = { resolve, url }
+function audioEl() {
+    if (!el && typeof Audio !== 'undefined') {
+        el = new Audio();
+        el.preload = 'auto';
+        el.setAttribute('playsinline', '');
+    }
+    return el;
+}
+// Cada toque, hasta que el <audio> quede habilitado
 if (typeof window !== 'undefined') {
-    window.addEventListener('pointerdown', () => { if (ctx && ctx.state !== 'running') { try { ctx.resume(); } catch { /* */ } } }, true);
+    const onTap = () => { unlockCloudAudio(); if (unlockedEl) { window.removeEventListener('pointerdown', onTap, true); window.removeEventListener('keydown', onTap, true); } };
+    window.addEventListener('pointerdown', onTap, true);
+    window.addEventListener('keydown', onTap, true);
 }
 /** Llamar dentro de un toque o tecla (iPad): deja el audio habilitado para después. */
 export function unlockCloudAudio() {
-    const c = audioCtx();
-    if (!c) return;
+    const a = audioEl();
+    if (!a || unlockedEl || current) return;
     try {
-        if (c.state === 'suspended') c.resume();
-        const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource();
-        s.buffer = b; s.connect(c.destination); s.start(0);
+        a.src = silentWavUrl();
+        a.volume = 0.01;
+        const p = a.play();
+        if (p && p.then) p.then(() => { unlockedEl = true; }).catch(() => {});
+        else unlockedEl = true;
     } catch { /* */ }
 }
+function finish(c) {
+    if (!c) return;
+    if (current === c) current = null;
+    try { URL.revokeObjectURL(c.url); } catch { /* */ }
+    c.resolve();
+}
 export function stopCloud() {
-    if (current) { try { current.onended = null; current.stop(); } catch { /* */ } current = null; }
+    const c = current;
+    if (!c) return;
+    current = null;
+    try { el.pause(); } catch { /* */ }
+    finish(c);
 }
 export function isCloudPlaying() { return !!current; }
 
 /** Reproduce el MP3. Devuelve una promesa que termina cuando deja de sonar (o se corta). */
 export async function playAudio(buf, { volume = 1 } = {}) {
-    const c = audioCtx();
-    if (!c) throw new Error('sin Web Audio');
-    if (c.state === 'suspended') { try { await c.resume(); } catch { /* */ } }
-    if (c.state !== 'running') throw new Error('audio bloqueado');
-    const audio = await new Promise((res, rej) => c.decodeAudioData(buf.slice(0), res, rej));
+    const a = audioEl();
+    if (!a) throw new Error('sin audio');
     stopCloud();
-    const src = c.createBufferSource();
-    src.buffer = audio;
-    const gain = c.createGain(); gain.gain.value = volume;
-    src.connect(gain); gain.connect(c.destination);
-    current = src;
-    return new Promise((resolve) => {
-        src.onended = () => { if (current === src) current = null; resolve(); };
-        src.start(0);
+    const url = URL.createObjectURL(new Blob([buf], { type: 'audio/mpeg' }));
+    return new Promise((resolve, reject) => {
+        const c = { resolve, url };
+        current = c;
+        a.onended = () => finish(c);
+        a.onerror = () => { if (current === c) { current = null; try { URL.revokeObjectURL(url); } catch { /* */ } reject(new Error('no se pudo reproducir')); } };
+        a.src = url;
+        a.volume = Math.max(0, Math.min(1, volume));
+        const p = a.play();
+        if (p && p.catch) p.catch((err) => {
+            if (current !== c) return;
+            current = null;
+            try { URL.revokeObjectURL(url); } catch { /* */ }
+            reject(new Error(err && err.name === 'NotAllowedError' ? 'audio bloqueado (falta un toque)' : 'no se pudo reproducir'));
+        });
     });
 }
 
