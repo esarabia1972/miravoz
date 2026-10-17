@@ -186,8 +186,16 @@ function speakCloud(text, opts) {
 /** Baja de antemano los textos (celdas de la página abierta) con la voz de MiraVoz de la persona. */
 export function prefetchSpeech(texts) { if (cloudVoiceActive()) cloud.prefetch(texts, prefs.cloudVoice, prefs.rate); }
 
+/** Pura (para tests): la frase completa termina con punto para que la entonación cierre (si no trae su propio
+ *  signo final). Solo para "Decir la frase", no para cada celda. */
+export function closeSentence(text) {
+    const t = String(text || '').replace(/\s+$/, '');
+    return !t || /[.!?…;:]["»”')\]]*$/.test(t) ? t : t + '.';
+}
+
 export function speak(text, { cancelPrevious = true, volume = 1.0, lang = null, _retry = false, sentence = false, voiceURI = null, rate = null, pitch = null, _noCloud = false } = {}) {
     if (!text) return;
+    if (sentence) text = closeSentence(text); // 0.8.1p: la frase cierra la entonación
     // 0.8.1n: voces de MiraVoz para lo que dice la persona (los avisos del barrido, más bajitos, siguen con la del
     // sistema: en CAA la voz de los avisos se distingue de la voz propia)
     if (!_noCloud && !_retry && !voiceURI && cloudVoiceActive() && volume >= 0.99 && (!lang || /^es/i.test(lang)) && String(text).length <= 400) {
