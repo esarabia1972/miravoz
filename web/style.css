@@ -1910,3 +1910,8 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 .selection-bar .sb-btn.is-danger { color: #ffb3b3; border-color: rgba(255,120,120,0.5); }
 .selection-bar .sb-btn.is-primary { background: #ffe27a; color: #3d2d00; border-color: #d4a300; }
 #et-select.is-on { background: #2f7cf6 !important; color: #fff !important; border-color: #1f5fd0 !important; }
+
+/* 0.8.1h — Mismo cartel de sincronización en "Tableros de <usuario>" y "Dar copia" */
+.assign-status.is-cambios { background: rgba(255,170,0,0.2); color: #b36b00; }
+:root:not([data-theme="light"]) .assign-status.is-cambios { color: #ffc35a; }
+.assign-copy .assign-status { font-size: 0.8rem; }

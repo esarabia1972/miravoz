@@ -38,3 +38,10 @@ export const STATUS_TEXT = {
     'sin-original': 'Tu original ya no está'
 };
 
+
+/** 0.8.1h: el mismo cartel en "Tableros de <usuario>" y en "Dar copia": texto, clase de color y detalle. */
+export function statusBadge(st) {
+    if (st === 'igual') return { text: 'Actualizado', cls: 'is-igual', title: STATUS_TEXT.igual };
+    if (st === 'copia' || st === 'original') return { text: 'Con cambios', cls: 'is-cambios', title: STATUS_TEXT[st] };
+    return { text: STATUS_TEXT[st] || '', cls: 'is-' + st, title: '' };
+}

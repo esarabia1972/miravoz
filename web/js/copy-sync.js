@@ -10,8 +10,8 @@
 import { supabaseClient } from './auth.js';
 import { saveBundle } from './sync.js';
 
-import { compareCopy, contentKey, STATUS_TEXT } from './copy-compare.js';
-export { compareCopy, contentKey, STATUS_TEXT };
+import { compareCopy, contentKey, STATUS_TEXT, statusBadge } from './copy-compare.js';
+export { compareCopy, contentKey, STATUS_TEXT, statusBadge };
 
 async function backup(boardId, bundle, note) {
     // Misma vía que Claude (09_guardar_version_rpc.sql): la función verifica en el servidor que el tablero o la

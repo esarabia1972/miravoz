@@ -1531,7 +1531,7 @@ export function buildTestBundle() {
 // F4-3: asignar = copiar. Se elige una tanda de usuarios (checkboxes) y un permiso para todos.
 import { users, fetchUsers } from './users.js';
 import { supabaseClient } from './auth.js';
-import { compareCopy, STATUS_TEXT, sendOriginalToCopy, pullCopyToOriginal } from './copy-sync.js';
+import { compareCopy, statusBadge, sendOriginalToCopy, pullCopyToOriginal } from './copy-sync.js';
 
 let bundleToAssign = null;
 
@@ -1675,8 +1675,10 @@ function assignedCopyControls(user, asg, original) {
     const name = user.display_name;
     const paint = () => {
         const st = compareCopy(original, asg.copy_bundle, asg.copy_updated_at);
-        status.className = 'assign-status is-' + st;
-        status.textContent = STATUS_TEXT[st];
+        const badge = statusBadge(st);
+        status.className = 'assign-status ' + badge.cls;
+        status.textContent = badge.text;
+        status.title = badge.title;
         send.disabled = st === 'igual';
         pull.disabled = st === 'igual' || st === 'sin-original';
     };
@@ -1709,7 +1711,7 @@ function assignedCopyControls(user, asg, original) {
         closeAssignModal();
         window.dispatchEvent(new CustomEvent('miravoz:edit-copy', { detail: { assignmentId: asg.id } }));
     });
-    actions.append(send, edit, pull);
+    actions.append(send, pull, edit); // 0.8.1h: Editar a la derecha
     box.append(status, actions);
     paint();
     return box;

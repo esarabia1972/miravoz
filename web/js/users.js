@@ -449,9 +449,10 @@ async function fillCopyCard(copy, { thumb, status, sendBtn, pullBtn }) {
         const original = copy.board_id && window.localforage ? await window.localforage.getItem(copy.board_id) : null;
         const st = sync.compareCopy(original, bundle, copy.copy_updated_at);
         const differs = st === 'copia' || st === 'original';
-        status.className = 'assign-status is-' + st;
-        status.textContent = st === 'igual' ? 'Actualizado' : differs ? 'Con cambios' : sync.STATUS_TEXT[st];
-        status.title = sync.STATUS_TEXT[st];
+        const badge = sync.statusBadge(st);
+        status.className = 'assign-status ' + badge.cls;
+        status.textContent = badge.text;
+        status.title = badge.title;
         sendBtn.disabled = !differs;
         pullBtn.disabled = !differs;
     } catch (e) { console.warn('No se pudo completar la tarjeta de la copia:', e); }
