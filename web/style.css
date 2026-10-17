@@ -1931,3 +1931,14 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 .selection-bar .sb-btn:hover { background: rgba(255,255,255,0.26); }
 .selection-bar .sb-btn.is-danger { color: #fff; background: #c53b3b; border-color: #a52d2d; }
 .selection-bar .sb-btn.is-danger:hover { background: #b03030; }
+
+/* 0.8.1k — Filas y Columnas en su propio recuadro, con el número en el medio; más aire entre grupos */
+#editor-toolbar .et-row-2 { gap: 14px 18px; }
+#editor-toolbar .et-stepper { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 12px;
+    border: 1.5px solid rgba(138, 100, 0, 0.45); background: rgba(255, 255, 255, 0.45); }
+:root:not([data-theme="light"]) #editor-toolbar .et-stepper { background: rgba(0, 0, 0, 0.18); border-color: rgba(255, 210, 74, 0.5); }
+#editor-toolbar .et-stepper-label { font-weight: 700; font-size: 0.85rem; color: var(--warn-text, #8a6400); margin-right: 4px; }
+#editor-toolbar .et-step-btn { width: 34px; height: 34px; padding: 0; border-radius: 9px; border: 1px solid rgba(138, 100, 0, 0.4); background: #fff8d6;
+    color: #4a3500; font-size: 1.2rem; font-weight: 700; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+#editor-toolbar .et-step-btn:hover { background: #ffe27a; }
+#editor-toolbar .et-stepper-count { min-width: 26px; text-align: center; font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }

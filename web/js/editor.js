@@ -419,12 +419,20 @@ function buildToolbar() {
         });
     };
     
-    // Grupo Filas
-    const divRows = document.createElement('div');
-    divRows.style.cssText = 'display:flex; align-items:center; gap:4px;';
-    const btnRowMinus = mkBtn('−', dims(-1, 0)); btnRowMinus.style.padding = '4px 8px';
-    const btnRowPlus = mkBtn('+', dims(1, 0)); btnRowPlus.style.padding = '4px 8px';
-    divRows.append(btnRowMinus, mkLabel('Filas'), btnRowPlus);
+    // 0.8.1k: cada uno en su recuadro: «Filas  −  4  +» (el número muestra cuántas hay)
+    const mkStepper = (label, minusFn, plusFn, countId, what) => {
+        const box = document.createElement('div');
+        box.className = 'et-stepper';
+        box.setAttribute('role', 'group');
+        box.setAttribute('aria-label', label);
+        const l = document.createElement('span'); l.className = 'et-stepper-label'; l.textContent = label;
+        const minus = mkBtn('−', minusFn, `Quitar una ${what} (la última)`); minus.className = 'et-step-btn'; minus.setAttribute('aria-label', `Quitar una ${what}`);
+        const n = document.createElement('span'); n.className = 'et-stepper-count'; n.id = countId; n.setAttribute('aria-live', 'polite');
+        const plus = mkBtn('+', plusFn, `Agregar una ${what} (al final)`); plus.className = 'et-step-btn'; plus.setAttribute('aria-label', `Agregar una ${what}`);
+        box.append(l, minus, n, plus);
+        return box;
+    };
+    const divRows = mkStepper('Filas', dims(-1, 0), dims(1, 0), 'et-rows-count', 'fila');
     tb.appendChild(divRows);
 
     // Aire pequeño
@@ -433,11 +441,7 @@ function buildToolbar() {
     tb.appendChild(spacer3);
 
     // Grupo Columnas
-    const divCols = document.createElement('div');
-    divCols.style.cssText = 'display:flex; align-items:center; gap:4px;';
-    const btnColMinus = mkBtn('−', dims(0, -1)); btnColMinus.style.padding = '4px 8px';
-    const btnColPlus = mkBtn('+', dims(0, 1)); btnColPlus.style.padding = '4px 8px';
-    divCols.append(btnColMinus, mkLabel('Columnas'), btnColPlus);
+    const divCols = mkStepper('Columnas', dims(0, -1), dims(0, 1), 'et-cols-count', 'columna');
     tb.appendChild(divCols);
 
     // 0.8.1c: espacio entre celdas de esta página (para separar estímulos)
@@ -446,13 +450,13 @@ function buildToolbar() {
     tb.appendChild(spacer5);
     const gapSel = document.createElement('select');
     gapSel.className = 'glass-select et-dark';
-    gapSel.title = 'Espacio entre celdas de esta página';
-    gapSel.setAttribute('aria-label', 'Espacio entre celdas');
+    gapSel.title = 'Espaciado entre celdas de esta página';
+    gapSel.setAttribute('aria-label', 'Espaciado entre celdas');
     [['', 'Automático'], ['4', 'Chico'], ['15', 'Normal'], ['32', 'Grande'], ['56', 'Muy grande']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; gapSel.appendChild(o); });
     gapSel.value = Number.isFinite(grid()?.cellGap) ? String(grid().cellGap) : '';
     if (gapSel.value === '' && Number.isFinite(grid()?.cellGap)) gapSel.value = '';
     gapSel.onchange = () => withUndo(() => { const g = grid(); if (gapSel.value === '') delete g.cellGap; else g.cellGap = parseInt(gapSel.value, 10); });
-    tb.append(mkLabel('Espacio'), gapSel);
+    tb.append(mkLabel('Espaciado'), gapSel);
 
     // 0.8.1: color de fondo de la página (la grilla)
     const spacer4 = document.createElement('div');
@@ -491,7 +495,7 @@ function buildToolbar() {
     const row2 = document.createElement('div'); row2.className = 'et-row et-row-2';
     const dif = document.createElement('div'); dif.className = 'et-group'; dif.append(lab('Dificultad'), lvl);
     row1.append(lab('Tablero'), nameInput, dif);
-    const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espacio'), gapSel);
+    const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espaciado'), gapSel);
     const push = document.createElement('div'); push.style.flex = '1 1 auto';
     // 0.8.1g: "Seleccionar" (para el dedo; con mouse también sirve Shift/Cmd + clic o un recuadro desde un lugar vacío)
     const selBtn = mkBtn('Seleccionar', () => {
@@ -809,7 +813,7 @@ export function initEditor() {
         openCellEditor(S.currentGridId, null, x, y);
     };
     boards.hooks.isEditMode = () => editMode;
-    boards.hooks.onPageRendered = () => { if (editMode) renderPagesStrip(); };
+    boards.hooks.onPageRendered = () => { if (editMode) { renderPagesStrip(); updateUndoButtons(); } };
 
     // 0.8.1g: manipulación de la grilla (grid-edit.js)
     const curGrid = () => S.currentBundle.boards[S.currentGridId];
@@ -939,6 +943,10 @@ export async function redoLast() {
 }
 function updateUndoButtons() {
     const id = S.currentBundle?.id;
+    const g = S.currentBundle?.boards?.[S.currentGridId];
+    const rc = document.getElementById('et-rows-count'), cc = document.getElementById('et-cols-count');
+    if (g && rc) rc.textContent = String(g.rowCount || 3);
+    if (g && cc) cc.textContent = String(g.minColumnCount || 4);
     const u = document.getElementById('et-undo'), r = document.getElementById('et-redo');
     if (u) u.disabled = !undoStack.some(e => e.bundleId === id);
     if (r) r.disabled = !redoStack.some(e => e.bundleId === id);

@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1k] - 2026-10-17
+
+- **Changed**: barra de edición: "Filas" y "Columnas" cada uno en su recuadro, con − y + a los lados de la cantidad actual, y más aire entre grupos. "Espacio" pasa a llamarse "Espaciado".
+
 ## [0.8.1j] - 2026-10-17
 
 - **Added**: **Rehacer** en la edición (Cmd/Ctrl+Shift+Z). Deshacer y Rehacer pasan a ser íconos de flecha curva, grisados cuando no hay nada para deshacer o rehacer.
