@@ -14,9 +14,13 @@ import { compareCopy, contentKey, STATUS_TEXT } from './copy-compare.js';
 export { compareCopy, contentKey, STATUS_TEXT };
 
 async function backup(boardId, bundle, note) {
-    // board_versions (07/08): misma tabla que usa Claude para "historial_tablero"; las copias van como 'copia:<id>'
-    const { error } = await supabaseClient.from('board_versions').insert({ board_id: boardId, bundle, source: 'app', note });
-    if (error) throw new Error('No se pudo guardar la versión de respaldo, no se cambió nada: ' + error.message);
+    // Misma vía que Claude (09_guardar_version_rpc.sql): la función verifica en el servidor que el tablero o la
+    // copia ('copia:<id>') sea de la cuenta. El INSERT directo en board_versions lo rechaza la política con las copias.
+    const { error } = await supabaseClient.rpc('save_board_version', { p_board_id: boardId, p_bundle: bundle, p_note: note });
+    if (error) {
+        console.error('save_board_version:', error);
+        throw new Error('No se pudo guardar la versión de respaldo, así que no se cambió nada. Revisá la conexión e intentá de nuevo.');
+    }
 }
 
 /** La copia del usuario pasa a ser igual al original (con respaldo de la copia anterior). */

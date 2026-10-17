@@ -1856,3 +1856,14 @@ body.edit-mode .btn-edit-toggle { background: #ffd23f !important; border-color: 
 .card-menu button { all: unset; box-sizing: border-box; min-height: 42px; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--text-main); font-size: 0.95rem; }
 .card-menu button:hover, .card-menu button:focus-visible { background: var(--cell-hover); }
 .card-menu button.is-danger { color: var(--danger-text); }
+
+/* 0.8.1f — Tarjeta del inicio: Asignar y Etiquetas a la izquierda, "…" a la derecha */
+#home-view .board-card-actions { justify-content: flex-start; }
+.board-card-actions .card-action-more { margin-left: auto; }
+
+/* 0.8.1f — "Tableros de <usuario>": textos más chicos para que entren el combo y el aviso */
+.copy-field { grid-template-columns: auto 1fr; column-gap: 10px; }
+.copy-field-label { font-size: 0.8rem; }
+.copy-field .copy-permission { font-size: 0.85rem; min-height: 36px; padding: 4px 28px 4px 10px; min-width: 0; }
+.copy-field .assign-status { font-size: 0.75rem; padding: 3px 8px; white-space: normal; line-height: 1.25; min-width: 0; }
+.copy-card .copy-actions .user-btn { font-size: 0.8rem; }

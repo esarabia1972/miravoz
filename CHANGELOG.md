@@ -2,6 +2,12 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1f] - 2026-10-17
+
+- **Fixed**: "Copiar mi versión" y "Traer sus cambios" fallaban al guardar la versión de respaldo de una copia (permiso de la base): ahora usan la misma función del servidor que Claude.
+- **Changed**: tarjeta del inicio con Asignar y Etiquetas a la izquierda y "…" a la derecha.
+- **Changed**: "Tableros de <usuario>": textos más chicos para que el permiso y la sincronización se lean enteros.
+
 ## [0.8.1e] - 2026-10-17
 
 - **Changed**: "Tableros de <usuario>": arriba a la derecha se elige el **tablero de inicio** (uno o ninguno). Cada tarjeta: tocarla abre la copia para editar (al volver al inicio se vuelve a esta pantalla), tacho para quitar, **Permisos** ("Solo visualización" / "Modificable"), **Sincronización** ("Actualizado" / "Versiones con cambios") y "Copiar mi versión" / "Traer sus cambios" (grisados si están iguales).
