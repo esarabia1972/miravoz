@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "0b165865bf7d",
- "appVersion": "0.8.1h",
+ "version": "9a453a7ebde6",
+ "appVersion": "0.8.1i",
  "files": [
   {
    "url": "/apple-touch-icon.png",
@@ -20,7 +20,7 @@
   },
   {
    "url": "/index.html",
-   "sha256": "1d968942d0e43707b23fd9c40bdb78fecf6dd259274044ae26c3b867a576d649",
+   "sha256": "107e64965216e49d823cc5ff3d52f34eb1247edaab0dd7379e724e6b58fc185e",
    "bytes": 53503
   },
   {
@@ -65,7 +65,7 @@
   },
   {
    "url": "/js/build-info.js",
-   "sha256": "6892671d16077c1f9e1fcd928a98948c27f1db1aaa54c3fbb44b3c71d8b9a6f2",
+   "sha256": "6ac5a68f84629dc4d1df02dbde9e9354cfb6ff4f2fdfb91d41b03fd451a59f9b",
    "bytes": 105
   },
   {
@@ -130,8 +130,8 @@
   },
   {
    "url": "/js/grid-edit.js",
-   "sha256": "c0f2a3209c4c2a5bea4b23d941c66cd4668648fed7f224faa36cb4115327adf7",
-   "bytes": 18126
+   "sha256": "1398eaf7c3a484d7a1d3f73342a5c2d7f2d79cee7a598e8e559038c5e099134c",
+   "bytes": 18591
   },
   {
    "url": "/js/grid-layout.js",
@@ -470,5 +470,5 @@
    "sha256": null
   }
  ],
- "totalBytes": 29041728
+ "totalBytes": 29042193
 }

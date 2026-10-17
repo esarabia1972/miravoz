@@ -26,6 +26,11 @@ export const editHooks = {
 export const selection = new Set();
 let selectMode = false;
 let ctx = null; // { container, gridData, cols, rows }
+// 0.8.1i: después de estirar, arrastrar o hacer un recuadro, el navegador manda un "click" al soltar (sobre la celda
+// que contiene el borde): se ignora por un momento para que no abra el editor.
+let quietUntil = 0;
+const quiet = () => { quietUntil = Date.now() + 450; };
+const isQuiet = () => Date.now() < quietUntil;
 
 export function isSelectMode() { return selectMode; }
 export function setSelectMode(on) {
@@ -110,7 +115,7 @@ export function attachCell(cell, el) {
 
     let suppressClick = false;
     cell.onclick = (e) => {
-        if (suppressClick) { suppressClick = false; return; }
+        if (suppressClick || isQuiet()) { suppressClick = false; return; }
         if (selectMode || e.shiftKey || e.metaKey || e.ctrlKey) { toggle(el); return; }
         if (selection.size) { clearSelection(); return; }
         editHooks.openEditor(el);
@@ -131,7 +136,7 @@ export function attachCell(cell, el) {
             if (state === 'drag' && drag) { if (ev.cancelable) ev.preventDefault(); drag.move(ev.clientX, ev.clientY); }
         };
         const up = (ev) => {
-            if (state === 'drag' && drag) { suppressClick = true; drag.end(ev.clientX, ev.clientY); }
+            if (state === 'drag' && drag) { suppressClick = true; quiet(); drag.end(ev.clientX, ev.clientY); }
             else if (state === 'held') { suppressClick = true; editHooks.openMenu(ev.clientX, ev.clientY, el, el.x, el.y); }
             done();
         };
@@ -155,7 +160,7 @@ export function attachCell(cell, el) {
 export function attachSlot(cell, x, y) {
     let suppressClick = false;
     cell.onclick = () => {
-        if (suppressClick) { suppressClick = false; return; }
+        if (suppressClick || isQuiet()) { suppressClick = false; return; }
         if (selection.size) { clearSelection(); return; }
         editHooks.openEmpty(x, y);
     };
@@ -189,7 +194,7 @@ export function attachSlot(cell, x, y) {
         };
         const up = (ev) => {
             if (state === 'box') {
-                suppressClick = true;
+                suppressClick = true; quiet();
                 if (!ev.shiftKey && !ev.metaKey) selection.clear();
                 (box?._picked || []).forEach(e2 => selection.add(e2));
                 paintSelection();
@@ -293,7 +298,7 @@ function addResizeHandles(cell, el) {
         h.title = kind === 'e' ? 'Arrastrar para cambiar el ancho' : kind === 's' ? 'Arrastrar para cambiar el alto' : 'Arrastrar para cambiar el tamaño';
         h.setAttribute('aria-hidden', 'true');
         cell.appendChild(h);
-        h.addEventListener('click', (e) => e.stopPropagation());
+        h.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); });
         h.addEventListener('pointerdown', (e) => {
             e.preventDefault(); e.stopPropagation();
             blockScroll(true);
@@ -310,6 +315,7 @@ function addResizeHandles(cell, el) {
                 cell.dataset.size = `${w}×${hh}`;
             };
             const up = () => {
+                quiet(); // el clic que llega al soltar no abre el editor
                 blockScroll(false);
                 window.removeEventListener('pointermove', move);
                 window.removeEventListener('pointerup', up);

@@ -2,7 +2,7 @@
 // Fuente única de la ayuda: actualizar en cada publicación junto con el CHANGELOG (y, más adelante, la Ayuda
 // dentro de la app). Textos impersonales, "usuario" (nunca "paciente"), "cuenta registrada" para quien gestiona.
 
-export const AYUDA_VERSION = '0.8.1h';
+export const AYUDA_VERSION = '0.8.1i';
 
 export const TEMAS = {
     general: {

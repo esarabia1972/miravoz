@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1i] - 2026-10-17
+
+- **Fixed**: al estirar una celda desde el borde, el soltar se tomaba como un toque y abría el editor de la celda.
+
 ## [0.8.1h] - 2026-10-17
 
 - **Changed**: "Dar copia" muestra el mismo cartel que "Tableros de <usuario>" ("Actualizado" en verde, "Con cambios" en naranja; el detalle de cuál cambió queda al pasar el mouse) y "Editar su copia" pasa a la derecha.
