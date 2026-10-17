@@ -2,6 +2,10 @@
 
 Todas las versiones y cambios notables del proyecto MiraVoz serán documentados en este archivo.
 
+## [0.8.1r] - 2026-10-17
+
+- **Removed** (por ahora): "Dificultad" de la barra de edición y "Nivel de vocabulario" del editor de celda. Mientras tanto los tableros se ven completos (no se filtra por nivel); lo guardado no se borra.
+
 ## [0.8.1q] - 2026-10-17
 
 - **Added**: con voz de MiraVoz y sin internet, la frase completa se dice uniendo los audios ya guardados de cada celda (misma voz, con una pausa breve entre pictogramas). Si falta el audio de alguna, la dice entera la voz del sistema.

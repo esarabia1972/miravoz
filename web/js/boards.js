@@ -17,6 +17,10 @@ import { importedName, splitBundle, fetchArasaacWords, applyAutoLabels, missingL
 export const IMPORTER_VERSION = 1;
 
 // Hooks que instala main.js (evita dependencias circulares)
+// 0.8.1r: niveles de vocabulario ("Dificultad") ocultos por ahora: no se muestran en la edición y no filtran celdas
+// (los datos guardados en los tableros no se tocan; volver a true los reactiva)
+export const LEVELS_ENABLED = false;
+
 export const hooks = {
     onBundleOpened: () => {},     // decide calibración/estado tras abrir
     onGridRendered: () => {},     // main pasa los targets al DwellEngine
@@ -1310,7 +1314,7 @@ export function renderGrid(gridId) {
     if (gridLabel) gridContainer.setAttribute('aria-label', gridLabel);
 
     // F3-6: filtro por nivel de vocabulario activo (fuera del modo edición)
-    const activeLevel = (!hooks.isEditMode() && S.currentBundle.activeLevel) || 0;
+    const activeLevel = (LEVELS_ENABLED && !hooks.isEditMode() && S.currentBundle.activeLevel) || 0;
 
     const cellsMatrix = Array(rows).fill(null).map(() => Array(cols).fill(null));
     (gridData.gridElements || []).forEach(el => {

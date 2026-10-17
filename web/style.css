@@ -1953,3 +1953,4 @@ body.grid-select-mode .edit-cell { cursor: pointer; }
 #setting-voice .voice-head h3 { margin: 0; }
 #setting-voice .voice-engine button { min-height: 34px; padding: 4px 12px; font-size: 0.85rem; }
 #setting-voice select:disabled { opacity: 0.5; }
+.ce-level-row[hidden] { display: none !important; }

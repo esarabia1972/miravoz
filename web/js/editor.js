@@ -493,8 +493,10 @@ function buildToolbar() {
     const lab = (t) => [...tb.querySelectorAll('.et-label')].find(l => l.textContent.startsWith(t));
     const row1 = document.createElement('div'); row1.className = 'et-row et-row-1';
     const row2 = document.createElement('div'); row2.className = 'et-row et-row-2';
+    // 0.8.1r: "Dificultad" (niveles de vocabulario) queda oculta por ahora (boards.LEVELS_ENABLED)
     const dif = document.createElement('div'); dif.className = 'et-group'; dif.append(lab('Dificultad'), lvl);
-    row1.append(lab('Tablero'), nameInput, dif);
+    row1.append(lab('Tablero'), nameInput);
+    if (boards.LEVELS_ENABLED) row1.append(dif);
     const esp = document.createElement('div'); esp.className = 'et-group'; esp.append(lab('Espaciado'), gapSel);
     const push = document.createElement('div'); push.style.flex = '1 1 auto';
     // 0.8.1g: "Seleccionar" (para el dedo; con mouse también sirve Shift/Cmd + clic o un recuadro desde un lugar vacío)

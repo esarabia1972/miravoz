@@ -30,7 +30,7 @@
     <meta property="og:description" content="Plataforma de comunicación aumentativa y alternativa (CAA) con pictogramas, para tablets y computadoras.">
     <meta property="og:type" content="website">
     <link href="vendor/inter-5.3.0/inter.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=88">
+    <link rel="stylesheet" href="style.css?v=89">
     
     <!-- Librerías Externas -->
     <!-- MediaPipe: tracking.js carga FaceLandmarker (tasks-vision) bajo demanda; FaceMesh legado solo como respaldo -->
@@ -474,8 +474,8 @@
                         <option value="CC_OTHERS">Gris — otros</option>
                     </select>
 
-                    <label class="ce-label">Nivel de vocabulario <span class="ce-help" title="Permite tener versiones simplificadas del mismo tablero: en uso, solo se muestran las celdas del nivel elegido en la barra de edición. Nivel 1 = lo esencial.">ⓘ</span></label>
-                    <select id="ce-level" class="glass-select ce-dark" style="width:100%;">
+                    <label class="ce-label ce-level-row" hidden>Nivel de vocabulario <span class="ce-help" title="Permite tener versiones simplificadas del mismo tablero: en uso, solo se muestran las celdas del nivel elegido en la barra de edición. Nivel 1 = lo esencial.">ⓘ</span></label>
+                    <select id="ce-level" class="glass-select ce-dark ce-level-row" style="width:100%;" hidden>
                         <option value="0">Siempre visible</option>
                         <option value="1">Nivel 1 (esencial)</option>
                         <option value="2">Nivel 2</option>
@@ -713,6 +713,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=130"></script>
+    <script type="module" src="js/main.js?v=131"></script>
 </body>
 </html>
